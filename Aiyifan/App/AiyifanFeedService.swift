@@ -13,6 +13,10 @@ struct AiyifanFeedService {
     }
 
     func fetchLatest(category: AiyifanCategory) async throws -> [AiyifanItem] {
+        if ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed") {
+            return Self.fixtureItems(for: category)
+        }
+
         let (data, _) = try await URLSession.shared.data(from: category.url)
         guard
             let html = String(data: data, encoding: .utf8),
@@ -42,5 +46,24 @@ struct AiyifanFeedService {
         }
 
         return String(html[start...end])
+    }
+
+    private static func fixtureItems(for category: AiyifanCategory) -> [AiyifanItem] {
+        let html = """
+        <html><body>
+        <p>Playback page ready</p>
+        <button aria-label="Open popup" onclick="window.open('https://example.com', '_blank')">Open popup</button>
+        </body></html>
+        """
+        let fixtureURL = "data:text/html;base64,\(Data(html.utf8).base64EncodedString())"
+
+        return [
+            AiyifanItem(
+                listPath: "fixture-\(category.id)",
+                title: "Fixture \(category.title)",
+                subTitle: "更新至 01 集",
+                url: fixtureURL
+            )
+        ]
     }
 }

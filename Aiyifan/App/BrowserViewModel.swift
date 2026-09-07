@@ -12,6 +12,7 @@ final class BrowserViewModel: ObservableObject {
     @Published var canGoBack = false
     @Published var canGoForward = false
     @Published var estimatedProgress = 0.0
+    @Published var hasCommittedContent = false
     @Published var errorMessage: String?
 
     private let feedService = AiyifanFeedService()
@@ -62,6 +63,7 @@ final class BrowserViewModel: ObservableObject {
         canGoBack = false
         canGoForward = false
         estimatedProgress = 0.0
+        hasCommittedContent = false
     }
 
     func selectCategory(_ category: AiyifanCategory) {
@@ -78,10 +80,17 @@ final class BrowserViewModel: ObservableObject {
 
     func markLoadingStarted() {
         errorMessage = nil
+        hasCommittedContent = false
+        updateNavigationState()
+    }
+
+    func markContentCommitted() {
+        hasCommittedContent = true
         updateNavigationState()
     }
 
     func markLoadingFailed(_ error: Error) {
+        hasCommittedContent = false
         errorMessage = error.localizedDescription
         updateNavigationState()
     }

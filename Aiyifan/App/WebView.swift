@@ -1,6 +1,23 @@
 import SwiftUI
 import WebKit
 
+enum WebViewPopupPolicy {
+    static let shouldReplaceCurrentPage = false
+}
+
+struct WebViewLoadTracker {
+    private var lastRequestedURL: URL?
+
+    mutating func shouldLoad(_ url: URL) -> Bool {
+        guard lastRequestedURL != url else {
+            return false
+        }
+
+        lastRequestedURL = url
+        return true
+    }
+}
+
 struct WebView: UIViewRepresentable {
     @ObservedObject var viewModel: BrowserViewModel
 
@@ -21,6 +38,7 @@ struct WebView: UIViewRepresentable {
         configuration.defaultWebpagePreferences = preferences
 
         let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.accessibilityIdentifier = "browserWebView"
         webView.isOpaque = false
         webView.backgroundColor = .systemBackground
         webView.navigationDelegate = context.coordinator
@@ -32,17 +50,17 @@ struct WebView: UIViewRepresentable {
         webView.addObserver(context.coordinator, forKeyPath: #keyPath(WKWebView.canGoForward), options: [.new], context: nil)
 
         viewModel.bind(webView: webView)
-        loadCurrentURL(in: webView)
+        loadCurrentURL(in: webView, coordinator: context.coordinator)
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         viewModel.bind(webView: webView)
-        loadCurrentURL(in: webView)
+        loadCurrentURL(in: webView, coordinator: context.coordinator)
     }
 
-    private func loadCurrentURL(in webView: WKWebView) {
-        guard let url = viewModel.currentURL, webView.url != url else {
+    private func loadCurrentURL(in webView: WKWebView, coordinator: Coordinator) {
+        guard let url = viewModel.currentURL, coordinator.loadTracker.shouldLoad(url) else {
             return
         }
 
@@ -57,6 +75,7 @@ struct WebView: UIViewRepresentable {
 
     final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
         private weak var viewModel: BrowserViewModel?
+        var loadTracker = WebViewLoadTracker()
 
         init(viewModel: BrowserViewModel) {
             self.viewModel = viewModel
@@ -81,6 +100,10 @@ struct WebView: UIViewRepresentable {
             viewModel?.markLoadingStarted()
         }
 
+        func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+            viewModel?.markContentCommitted()
+        }
+
         func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
             viewModel?.markLoadingFailed(error)
         }
@@ -95,7 +118,7 @@ struct WebView: UIViewRepresentable {
             for navigationAction: WKNavigationAction,
             windowFeatures: WKWindowFeatures
         ) -> WKWebView? {
-            if navigationAction.targetFrame == nil {
+            if navigationAction.targetFrame == nil && WebViewPopupPolicy.shouldReplaceCurrentPage {
                 webView.load(navigationAction.request)
             }
 
