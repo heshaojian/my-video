@@ -1,19 +1,34 @@
 import SwiftUI
 import WebKit
 
+private enum LibraryTab: Hashable {
+    case latest
+    case saved
+    case played
+}
+
 struct BrowserView: View {
     @StateObject private var viewModel = BrowserViewModel()
     @StateObject private var savedItemsStore = SavedItemsStore()
+    @StateObject private var playedItemsStore = PlayedItemsStore()
+    @State private var selectedLibraryTab = LibraryTab.latest
 
     var body: some View {
         if let selectedItem = viewModel.selectedItem {
             NativePlayerScreen(
                 item: selectedItem,
+                initialEpisodeKey: viewModel.selectedEpisodeKey,
+                playedItemsStore: playedItemsStore,
                 onClose: viewModel.closePlayer,
                 onOpenWebsite: { viewModel.openWebsiteFallback(for: selectedItem) }
             )
         } else if !viewModel.isBrowsing {
-            LibraryView(viewModel: viewModel, savedItemsStore: savedItemsStore)
+            LibraryView(
+                viewModel: viewModel,
+                savedItemsStore: savedItemsStore,
+                playedItemsStore: playedItemsStore,
+                selectedTab: $selectedLibraryTab
+            )
         } else {
             VStack(spacing: 0) {
                 HeaderView(viewModel: viewModel)
@@ -55,18 +70,28 @@ struct BrowserView: View {
 private struct LibraryView: View {
     @ObservedObject var viewModel: BrowserViewModel
     @ObservedObject var savedItemsStore: SavedItemsStore
+    @ObservedObject var playedItemsStore: PlayedItemsStore
+    @Binding var selectedTab: LibraryTab
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             LatestHomeView(viewModel: viewModel, savedItemsStore: savedItemsStore)
                 .tabItem {
                     Label("Latest", systemImage: "sparkles.tv")
                 }
+                .tag(LibraryTab.latest)
 
             SavedItemsView(viewModel: viewModel, savedItemsStore: savedItemsStore)
                 .tabItem {
                     Label("Saved", systemImage: "bookmark.fill")
                 }
+                .tag(LibraryTab.saved)
+
+            PlayedItemsView(viewModel: viewModel, playedItemsStore: playedItemsStore)
+                .tabItem {
+                    Label("Played", systemImage: "clock.arrow.circlepath")
+                }
+                .tag(LibraryTab.played)
         }
         .tint(.cyan)
     }

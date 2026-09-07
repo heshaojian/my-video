@@ -7,6 +7,7 @@ final class BrowserViewModel: ObservableObject {
     @Published var selectedTitle: String?
     @Published var selectedURL: URL?
     @Published var selectedItem: AiyifanItem?
+    @Published var selectedEpisodeKey: String?
     @Published var latestItems: [AiyifanCategory: [AiyifanItem]] = [:]
     @Published var isLoadingLatest = false
     @Published var latestErrorMessage: String?
@@ -64,6 +65,7 @@ final class BrowserViewModel: ObservableObject {
         selectedTitle = nil
         selectedURL = nil
         selectedItem = nil
+        selectedEpisodeKey = nil
         errorMessage = nil
         webView = nil
         canGoBack = false
@@ -76,6 +78,7 @@ final class BrowserViewModel: ObservableObject {
         selectedTitle = category.title
         selectedURL = category.url
         selectedItem = nil
+        selectedEpisodeKey = nil
         errorMessage = nil
     }
 
@@ -83,17 +86,28 @@ final class BrowserViewModel: ObservableObject {
         selectedTitle = item.title
         selectedURL = nil
         selectedItem = item
+        selectedEpisodeKey = nil
+        errorMessage = nil
+    }
+
+    func selectPlayed(_ record: PlayedRecord) {
+        selectedTitle = record.item.title
+        selectedURL = nil
+        selectedItem = record.item
+        selectedEpisodeKey = record.episodeKey
         errorMessage = nil
     }
 
     func closePlayer() {
         selectedTitle = nil
         selectedItem = nil
+        selectedEpisodeKey = nil
     }
 
     func openWebsiteFallback(for item: AiyifanItem) {
         selectedTitle = item.title
         selectedItem = nil
+        selectedEpisodeKey = nil
         selectedURL = item.playURL
         errorMessage = nil
     }

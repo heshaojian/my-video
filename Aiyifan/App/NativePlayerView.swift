@@ -10,16 +10,35 @@ final class NativePlayerViewModel: ObservableObject {
     @Published private(set) var errorMessage: String?
     @Published private(set) var isPlayingAdvertisement = false
     @Published private(set) var episodeTitle: String?
+    @Published private(set) var episodes: [Episode] = []
+    @Published private(set) var selectedEpisode: Episode?
+    @Published private(set) var pendingResumePosition = 0.0
+    @Published private(set) var preparedEntryCount = 0
+    @Published private(set) var hasAppliedResume = false
 
     private let item: AiyifanItem
     private let resolver: any NativePlaybackResolving
+    private let playedItemsStore: PlayedItemsStore?
+    private let castManager: any CastPlaybackManaging
     private var playbackItems: [AVPlayerItem] = []
-    private var advertisementCount = 0
+    private var playbackEntries: [NativePlaybackEntry] = []
     private var loadTask: Task<Void, Never>?
+    private var requestedEpisodeKey: String?
+    private var muteStateBeforeAdvertisement: Bool?
+    private var lastRecordedPosition: Double?
 
-    init(item: AiyifanItem, resolver: any NativePlaybackResolving = NativePlaybackResolver()) {
+    init(
+        item: AiyifanItem,
+        initialEpisodeKey: String? = nil,
+        resolver: any NativePlaybackResolving = NativePlaybackResolver(),
+        playedItemsStore: PlayedItemsStore? = nil,
+        castManager: any CastPlaybackManaging = GoogleCastManager.shared
+    ) {
         self.item = item
+        requestedEpisodeKey = initialEpisodeKey
         self.resolver = resolver
+        self.playedItemsStore = playedItemsStore
+        self.castManager = castManager
     }
 
     func start() {
@@ -30,11 +49,41 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     func stop() {
+        persistProgress()
         loadTask?.cancel()
         loadTask = nil
+        restoreSoundAfterAdvertisement()
         player.pause()
         player.removeAllItems()
         playbackItems = []
+        playbackEntries = []
+        preparedEntryCount = 0
+        castManager.clear()
+    }
+
+    func selectEpisode(_ episode: Episode) {
+        guard episode.mediaKey != selectedEpisode?.mediaKey else {
+            return
+        }
+        persistProgress()
+        requestedEpisodeKey = episode.mediaKey
+        start()
+    }
+
+    func persistProgress() {
+        guard
+            let currentItem = player.currentItem,
+            let index = playbackItems.firstIndex(where: { $0 === currentItem }),
+            playbackEntries.indices.contains(index),
+            !playbackEntries[index].isAdvertisement
+        else {
+            return
+        }
+        recordProgress(
+            position: currentItem.currentTime().seconds,
+            duration: currentItem.duration.seconds,
+            force: true
+        )
     }
 
     func monitorPlayback() async {
@@ -50,24 +99,51 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     private func prepareAndPlay() async {
+        restoreSoundAfterAdvertisement()
         isLoading = true
         errorMessage = nil
         isPlayingAdvertisement = false
         episodeTitle = nil
+        episodes = []
+        selectedEpisode = nil
+        pendingResumePosition = 0
+        lastRecordedPosition = nil
+        hasAppliedResume = false
+        preparedEntryCount = 0
         player.pause()
         player.removeAllItems()
 
         do {
-            let playback = try await resolver.resolve(item: item)
+            let playback = try await resolver.resolve(item: item, preferredEpisodeKey: requestedEpisodeKey)
             try Task.checkCancellation()
+            episodes = playback.episodes
+            selectedEpisode = playback.selectedEpisode
             episodeTitle = playback.episodeTitle
+            pendingResumePosition = playedItemsStore?
+                .record(for: item, episodeKey: playback.selectedEpisode?.mediaKey)?
+                .resumePosition ?? 0
             let items = playback.entries.map { AVPlayerItem(url: $0.url) }
-            advertisementCount = playback.entries.prefix(while: \.isAdvertisement).count
+            playbackEntries = playback.entries
+            preparedEntryCount = playback.entries.count
             playbackItems = items
+            if let castPlan = try? CastPlaybackPlanBuilder.make(
+                item: item,
+                playback: playback,
+                programPosition: pendingResumePosition
+            ) {
+                castManager.prepare(castPlan, loadIfConnected: true)
+            }
             for item in items {
                 player.insert(item, after: nil)
             }
-            player.play()
+            if !playback.entries.isEmpty {
+                handlePlaybackEntry(index: 0, position: 0, duration: playback.entries[0].isAdvertisement ? 1 : 0)
+            }
+            if castManager.isCasting {
+                player.pause()
+            } else {
+                player.play()
+            }
         } catch is CancellationError {
             return
         } catch {
@@ -82,7 +158,11 @@ final class NativePlayerViewModel: ObservableObject {
         }
 
         if let currentIndex = playbackItems.firstIndex(where: { $0 === currentItem }) {
-            isPlayingAdvertisement = currentIndex < advertisementCount
+            handlePlaybackEntry(
+                index: currentIndex,
+                position: currentItem.currentTime().seconds,
+                duration: currentItem.duration.seconds
+            )
         }
 
         switch currentItem.status {
@@ -99,6 +179,69 @@ final class NativePlayerViewModel: ObservableObject {
             errorMessage = "This video uses an unsupported playback format."
         }
     }
+
+    func handlePlaybackEntry(index: Int, position: Double, duration: Double) {
+        guard playbackEntries.indices.contains(index) else {
+            return
+        }
+        let isAdvertisement = playbackEntries[index].isAdvertisement
+        isPlayingAdvertisement = isAdvertisement
+
+        if isAdvertisement {
+            if muteStateBeforeAdvertisement == nil {
+                muteStateBeforeAdvertisement = player.isMuted
+            }
+            player.isMuted = true
+            return
+        }
+
+        restoreSoundAfterAdvertisement()
+        if !hasAppliedResume, pendingResumePosition > 0 {
+            if position + 0.5 >= pendingResumePosition {
+                hasAppliedResume = true
+            } else {
+                guard player.currentItem?.status == .readyToPlay else {
+                    return
+                }
+                hasAppliedResume = true
+                castManager.updateProgramPosition(pendingResumePosition)
+                player.seek(to: CMTime(seconds: pendingResumePosition, preferredTimescale: 600))
+                return
+            }
+        }
+        hasAppliedResume = true
+        castManager.updateProgramPosition(position)
+        recordProgress(position: position, duration: duration, force: false)
+    }
+
+    private func restoreSoundAfterAdvertisement() {
+        guard let muteStateBeforeAdvertisement else {
+            return
+        }
+        player.isMuted = muteStateBeforeAdvertisement
+        self.muteStateBeforeAdvertisement = nil
+    }
+
+    private func recordProgress(position: Double, duration: Double, force: Bool) {
+        guard
+            position.isFinite,
+            duration.isFinite,
+            position >= 0,
+            duration > 0
+        else {
+            return
+        }
+        if !force, let lastRecordedPosition, abs(position - lastRecordedPosition) < 10 {
+            return
+        }
+        playedItemsStore?.record(
+            item: item,
+            episode: selectedEpisode,
+            position: position,
+            duration: duration
+        )
+        lastRecordedPosition = position
+    }
 }
 
 struct NativePlayerScreen: View {
@@ -107,12 +250,32 @@ struct NativePlayerScreen: View {
     let onOpenWebsite: () -> Void
 
     @StateObject private var viewModel: NativePlayerViewModel
+    @StateObject private var castManager = GoogleCastManager.shared
+    @State private var isShowingEpisodes = false
+    @Environment(\.scenePhase) private var scenePhase
+    private let usesFixturePlayback: Bool
 
-    init(item: AiyifanItem, onClose: @escaping () -> Void, onOpenWebsite: @escaping () -> Void) {
+    init(
+        item: AiyifanItem,
+        initialEpisodeKey: String? = nil,
+        playedItemsStore: PlayedItemsStore,
+        onClose: @escaping () -> Void,
+        onOpenWebsite: @escaping () -> Void
+    ) {
         self.item = item
         self.onClose = onClose
         self.onOpenWebsite = onOpenWebsite
-        _viewModel = StateObject(wrappedValue: NativePlayerViewModel(item: item))
+        let usesFixturePlayback = ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed")
+        self.usesFixturePlayback = usesFixturePlayback
+        let resolver: any NativePlaybackResolving = usesFixturePlayback
+            ? FixtureNativePlaybackResolver()
+            : NativePlaybackResolver()
+        _viewModel = StateObject(wrappedValue: NativePlayerViewModel(
+            item: item,
+            initialEpisodeKey: initialEpisodeKey,
+            resolver: resolver,
+            playedItemsStore: playedItemsStore
+        ))
     }
 
     var body: some View {
@@ -139,6 +302,32 @@ struct NativePlayerScreen: View {
                 }
 
                 Spacer()
+
+                AirPlayRouteButton()
+                    .frame(width: 36, height: 36)
+
+                GoogleCastRouteButton()
+                    .frame(width: 36, height: 36)
+
+                if !viewModel.episodes.isEmpty {
+                    Button {
+                        isShowingEpisodes = true
+                    } label: {
+                        Image(systemName: "list.number")
+                            .frame(width: 36, height: 36)
+                    }
+                    .accessibilityLabel("Episodes")
+                    .accessibilityIdentifier("showEpisodes")
+                    .help("Episodes")
+                }
+
+                Button(action: onOpenWebsite) {
+                    Image(systemName: "safari")
+                        .frame(width: 36, height: 36)
+                }
+                .accessibilityLabel("Open Website")
+                .accessibilityIdentifier("openWebsiteFallback")
+                .help("Open Website")
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
@@ -150,7 +339,7 @@ struct NativePlayerScreen: View {
                     .ignoresSafeArea(edges: .bottom)
 
                 if viewModel.isPlayingAdvertisement && viewModel.errorMessage == nil {
-                    Text("Advertisement")
+                    Text("Advertisement · Muted")
                         .font(.caption.weight(.semibold))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
@@ -182,7 +371,7 @@ struct NativePlayerScreen: View {
 
                             Button("Open Website", action: onOpenWebsite)
                                 .buttonStyle(.bordered)
-                                .accessibilityIdentifier("openWebsiteFallback")
+                                .accessibilityIdentifier("openWebsiteFallbackError")
                         }
                     }
                     .padding(24)
@@ -201,10 +390,47 @@ struct NativePlayerScreen: View {
         .background(Color.black)
         .task {
             viewModel.start()
-            await viewModel.monitorPlayback()
+            if !usesFixturePlayback {
+                await viewModel.monitorPlayback()
+            }
         }
         .onDisappear {
             viewModel.stop()
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase != .active {
+                viewModel.persistProgress()
+            }
+        }
+        .onChange(of: castManager.isCasting) { _, isCasting in
+            if isCasting {
+                viewModel.persistProgress()
+                viewModel.player.pause()
+            }
+        }
+        .sheet(isPresented: $isShowingEpisodes) {
+            NavigationStack {
+                List(viewModel.episodes) { episode in
+                    Button {
+                        viewModel.selectEpisode(episode)
+                        isShowingEpisodes = false
+                    } label: {
+                        HStack {
+                            Text("Episode \(episode.title)")
+                            Spacer()
+                            if episode.id == viewModel.selectedEpisode?.id {
+                                Image(systemName: "checkmark")
+                                    .foregroundStyle(.cyan)
+                            }
+                        }
+                    }
+                    .foregroundStyle(.primary)
+                    .accessibilityIdentifier("episodeRow-\(episode.id)")
+                }
+                .navigationTitle("Episodes")
+                .navigationBarTitleDisplayMode(.inline)
+            }
+            .presentationDetents([.medium, .large])
         }
     }
 }

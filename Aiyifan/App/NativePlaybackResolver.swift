@@ -13,11 +13,17 @@ struct NativePlaybackEntry: Equatable, Sendable {
 
 struct NativePlayback: Equatable, Sendable {
     let entries: [NativePlaybackEntry]
-    let episodeTitle: String?
+    let episodes: [Episode]
+    let selectedEpisode: Episode?
 
-    init(entries: [NativePlaybackEntry], episodeTitle: String? = nil) {
+    var episodeTitle: String? {
+        selectedEpisode?.title
+    }
+
+    init(entries: [NativePlaybackEntry], episodes: [Episode] = [], selectedEpisode: Episode? = nil) {
         self.entries = entries
-        self.episodeTitle = episodeTitle
+        self.episodes = episodes
+        self.selectedEpisode = selectedEpisode
     }
 }
 
@@ -230,29 +236,88 @@ enum VideoDetailResponseDecoder {
 }
 
 enum EpisodePlaylistResponseDecoder {
-    static func decodeLatestEpisode(_ data: Data) throws -> EpisodeSelection {
+    static func decodeEpisodes(_ data: Data) throws -> [Episode] {
         let info = try APIResponseParser.firstInfo(from: data)
         guard let episodes = info["playList"] as? [[String: Any]], !episodes.isEmpty else {
             throw NativePlaybackError.unsupportedMedia
         }
 
-        let newest = episodes.enumerated().max { left, right in
-            let leftDate = left.element["updateDate"] as? String ?? ""
-            let rightDate = right.element["updateDate"] as? String ?? ""
-            if leftDate == rightDate {
-                return left.offset < right.offset
+        let decoded = episodes.compactMap { raw -> Episode? in
+            guard
+                let mediaKey = raw["key"] as? String,
+                let title = raw["name"] as? String,
+                !mediaKey.isEmpty,
+                !title.isEmpty
+            else {
+                return nil
             }
-            return leftDate < rightDate
+            let rawDate = raw["updateDate"] as? String
+            return Episode(
+                mediaKey: mediaKey,
+                title: title,
+                updateDate: rawDate?.isEmpty == false ? rawDate : nil
+            )
         }
-        guard
-            let mediaKey = newest?.element["key"] as? String,
-            let title = newest?.element["name"] as? String,
-            !mediaKey.isEmpty,
-            !title.isEmpty
-        else {
+        guard !decoded.isEmpty else {
             throw NativePlaybackError.unsupportedMedia
         }
-        return EpisodeSelection(mediaKey: mediaKey, title: title)
+
+        return decoded.enumerated().sorted { left, right in
+            if
+                let leftDate = parsedDate(left.element.updateDate),
+                let rightDate = parsedDate(right.element.updateDate),
+                leftDate != rightDate
+            {
+                return leftDate > rightDate
+            }
+            let leftNumber = episodeNumber(left.element.title)
+            let rightNumber = episodeNumber(right.element.title)
+            if let leftNumber, let rightNumber, leftNumber != rightNumber {
+                return leftNumber > rightNumber
+            }
+            if (leftNumber != nil) != (rightNumber != nil) {
+                return leftNumber != nil
+            }
+            return left.offset < right.offset
+        }
+        .map(\.element)
+    }
+
+    static func selectEpisode(from episodes: [Episode], preferredKey: String?) -> Episode? {
+        guard let preferredKey else {
+            return episodes.first
+        }
+        return episodes.first { $0.mediaKey == preferredKey } ?? episodes.first
+    }
+
+    static func decodeLatestEpisode(_ data: Data) throws -> EpisodeSelection {
+        guard let episode = selectEpisode(from: try decodeEpisodes(data), preferredKey: nil) else {
+            throw NativePlaybackError.unsupportedMedia
+        }
+        return EpisodeSelection(mediaKey: episode.mediaKey, title: episode.title)
+    }
+
+    private static func episodeNumber(_ title: String) -> Int? {
+        title.split(whereSeparator: { !$0.isNumber }).compactMap { Int($0) }.last
+    }
+
+    private static func parsedDate(_ rawValue: String?) -> Date? {
+        guard let rawValue, !rawValue.isEmpty else {
+            return nil
+        }
+        if let date = ISO8601DateFormatter().date(from: rawValue) {
+            return date
+        }
+        for format in ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd"] {
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.timeZone = TimeZone(secondsFromGMT: 0)
+            formatter.dateFormat = format
+            if let date = formatter.date(from: rawValue) {
+                return date
+            }
+        }
+        return nil
     }
 }
 
@@ -400,7 +465,13 @@ enum NativePlaybackResponseDecoder {
 }
 
 protocol NativePlaybackResolving: Sendable {
-    func resolve(item: AiyifanItem) async throws -> NativePlayback
+    func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback
+}
+
+extension NativePlaybackResolving {
+    func resolve(item: AiyifanItem) async throws -> NativePlayback {
+        try await resolve(item: item, preferredEpisodeKey: nil)
+    }
 }
 
 struct NativePlaybackResolver: NativePlaybackResolving {
@@ -425,7 +496,7 @@ struct NativePlaybackResolver: NativePlaybackResolving {
         return pageHost
     }
 
-    func resolve(item: AiyifanItem) async throws -> NativePlayback {
+    func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
         let pageHost = try Self.validatePage(item)
 
         var pageRequest = URLRequest(url: item.playURL)
@@ -443,7 +514,8 @@ struct NativePlaybackResolver: NativePlaybackResolving {
         let detailData = try await fetch(detailURL, referer: item.playURL)
         let context = try VideoDetailResponseDecoder.decode(detailData)
         let mediaKey: String
-        let episodeTitle: String?
+        let episodes: [Episode]
+        let selectedEpisode: Episode?
         if context.isSerial {
             let playlistURL = try NativePlaybackRequestBuilder.makePlaylistURL(
                 seriesKey: item.listPath,
@@ -452,12 +524,19 @@ struct NativePlaybackResolver: NativePlaybackResolving {
                 certificate: certificate
             )
             let playlistData = try await fetch(playlistURL, referer: item.playURL)
-            let episode = try EpisodePlaylistResponseDecoder.decodeLatestEpisode(playlistData)
+            episodes = try EpisodePlaylistResponseDecoder.decodeEpisodes(playlistData)
+            guard let episode = EpisodePlaylistResponseDecoder.selectEpisode(
+                from: episodes,
+                preferredKey: preferredEpisodeKey
+            ) else {
+                throw NativePlaybackError.unsupportedMedia
+            }
             mediaKey = episode.mediaKey
-            episodeTitle = episode.title
+            selectedEpisode = episode
         } else {
             mediaKey = item.listPath
-            episodeTitle = nil
+            episodes = []
+            selectedEpisode = nil
         }
         let playbackURL = try NativePlaybackRequestBuilder.makeURL(
             mediaKey: mediaKey,
@@ -467,7 +546,11 @@ struct NativePlaybackResolver: NativePlaybackResolving {
         )
         let playbackData = try await fetch(playbackURL, referer: item.playURL)
         let playback = try NativePlaybackResponseDecoder.decode(playbackData)
-        return NativePlayback(entries: playback.entries, episodeTitle: episodeTitle)
+        return NativePlayback(
+            entries: playback.entries,
+            episodes: episodes,
+            selectedEpisode: selectedEpisode
+        )
     }
 
     private func fetch(_ url: URL, referer: URL) async throws -> Data {
@@ -488,5 +571,30 @@ struct NativePlaybackResolver: NativePlaybackResolving {
         else {
             throw NativePlaybackError.invalidResponse
         }
+    }
+}
+
+struct FixtureNativePlaybackResolver: NativePlaybackResolving {
+    func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
+        let episodes = [
+            Episode(mediaKey: "episode-10", title: "10", updateDate: "2026-09-07T10:00:00Z"),
+            Episode(mediaKey: "episode-4", title: "04", updateDate: "2026-09-06T15:00:00Z"),
+            Episode(mediaKey: "episode-2", title: "02", updateDate: "2026-09-06T10:00:00Z")
+        ]
+        let selected = episodes.first { $0.mediaKey == preferredEpisodeKey } ?? episodes[0]
+        return NativePlayback(
+            entries: [
+                NativePlaybackEntry(
+                    url: URL(string: "https://media.example.com/advertisement.mp4")!,
+                    isAdvertisement: true
+                ),
+                NativePlaybackEntry(
+                    url: URL(string: "https://media.example.com/\(selected.mediaKey).m3u8")!,
+                    isAdvertisement: false
+                )
+            ],
+            episodes: episodes,
+            selectedEpisode: selected
+        )
     }
 }

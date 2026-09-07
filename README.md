@@ -1,38 +1,39 @@
 # Aiyifan iOS
 
-Personal iOS wrapper for `https://m.yfsp.tv/`.
+Personal iOS client for Aiyifan (`https://m.yfsp.tv/`).
 
 ## What It Does
 
 - Starts on a native latest-updates page for `电影`, `电视剧`, `综艺`, and `动漫`.
 - Fetches the latest embedded Aiyifan category feeds and shows poster rows for quick browsing.
 - Saves titles for later in a persistent Saved library and supports removing them from either view.
-- Opens the selected Aiyifan item or category section in a native `WKWebView`.
-- Keeps normal WebKit website data such as cookies and login state.
-- Provides back, forward, home, reload, and open-in-Safari controls.
-- The home control returns to the native latest-updates page.
-- Enables inline playback, AirPlay, Picture in Picture support, and background audio mode where iOS and the website player allow it.
+- Resolves supported streams into native `AVPlayer` playback with Picture in Picture and background audio.
+- Mutes front advertisements and restores the viewer's previous mute choice for the program.
+- Lists multi-episode shows newest-first and remembers progress separately for each episode.
+- Provides a third Played tab with resume, remove, and clear-history controls.
+- Supports AirPlay to Apple devices and Google Cast to Chromecast and compatible Android TVs.
+- Uses `WKWebView` only for explicit category browsing or the website fallback.
 
 ## Build
 
 ```sh
-xcodebuild -project Aiyifan.xcodeproj -scheme Aiyifan -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2' -derivedDataPath DerivedData build
+pod install
+xcodebuild -workspace Aiyifan.xcworkspace -scheme Aiyifan -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
 ```
 
 ## Regression Tests
 
-Run unit and UI tests separately with parallel testing disabled. This avoids an Xcode 26 simulator-clone crash seen when both targets are launched together.
+Run the full unit and UI suite after every source change:
 
 ```sh
-xcodebuild -project Aiyifan.xcodeproj -scheme Aiyifan -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2' -derivedDataPath DerivedData -parallel-testing-enabled NO -only-testing:AiyifanTests test
-xcodebuild -project Aiyifan.xcodeproj -scheme Aiyifan -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2' -derivedDataPath DerivedData -parallel-testing-enabled NO -only-testing:AiyifanUITests test
+xcodebuild test -workspace Aiyifan.xcworkspace -scheme Aiyifan -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -enableCodeCoverage YES
 ```
 
 The UI suite uses a deterministic local fixture. Release verification also includes loading the four live feeds and playing a real episode until its timeline advances.
 
 ## Run On iPhone
 
-1. Open `Aiyifan.xcodeproj` in Xcode.
+1. Run `pod install`, then open `Aiyifan.xcworkspace` in Xcode.
 2. Add the Apple account for Team `VGGZ34H2PS` in Xcode Settings > Accounts if it is not already present.
 3. Connect and unlock John's iPhone, then trust this Mac if prompted.
 4. Select John's iPhone as the run destination.
@@ -42,4 +43,4 @@ If Xcode says it cannot create a provisioning profile, keep the bundle id `com.j
 
 ## Notes
 
-Background audio and floating Picture in Picture are enabled at the app level, but final behavior depends on the embedded website's video player. Verify both on a paired physical iPhone before relying on them.
+Background audio, Picture in Picture, AirPlay, and Google Cast require physical-device verification. The iOS Simulator cannot discover or validate real receivers.

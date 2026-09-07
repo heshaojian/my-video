@@ -5,6 +5,7 @@ import SwiftUI
 struct AiyifanApp: App {
     init() {
         configureAudioSession()
+        GoogleCastManager.shared.configure()
     }
 
     var body: some Scene {

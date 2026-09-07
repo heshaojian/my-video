@@ -1,6 +1,7 @@
 DerivedData*/
 build/
 artifacts/
+Pods/
 *.xcuserdata/
 *.xcuserstate
 .DS_Store

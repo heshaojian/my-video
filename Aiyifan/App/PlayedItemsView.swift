@@ -1,0 +1,131 @@
+import SwiftUI
+
+struct PlayedItemsView: View {
+    @ObservedObject var viewModel: BrowserViewModel
+    @ObservedObject var playedItemsStore: PlayedItemsStore
+
+    @State private var isConfirmingClear = false
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                Color(red: 0.055, green: 0.052, blue: 0.073)
+                    .ignoresSafeArea()
+
+                if playedItemsStore.items.isEmpty {
+                    ContentUnavailableView(
+                        "Nothing played yet",
+                        systemImage: "clock.arrow.circlepath",
+                        description: Text("Movies and episodes you start will appear here.")
+                    )
+                    .foregroundStyle(.white)
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 12) {
+                            ForEach(playedItemsStore.items) { record in
+                                PlayedItemRow(
+                                    record: record,
+                                    onPlay: { viewModel.selectPlayed(record) },
+                                    onRemove: { playedItemsStore.remove(record) }
+                                )
+                            }
+                        }
+                        .padding(16)
+                    }
+                }
+            }
+            .navigationTitle("Played")
+            .toolbar {
+                if !playedItemsStore.items.isEmpty {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button(role: .destructive) {
+                            isConfirmingClear = true
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .accessibilityLabel("Clear Played History")
+                        .accessibilityIdentifier("clearPlayed")
+                    }
+                }
+            }
+            .alert("Clear Played History?", isPresented: $isConfirmingClear) {
+                Button("Cancel", role: .cancel) {}
+                Button("Clear All", role: .destructive, action: playedItemsStore.removeAll)
+            } message: {
+                Text("This removes all local watch progress.")
+            }
+        }
+    }
+}
+
+private struct PlayedItemRow: View {
+    let record: PlayedRecord
+    let onPlay: () -> Void
+    let onRemove: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Button(action: onPlay) {
+                HStack(spacing: 12) {
+                    poster
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(record.item.title)
+                            .font(.headline)
+                            .lineLimit(2)
+
+                        if let episodeTitle = record.episodeTitle {
+                            Text("Episode \(episodeTitle)")
+                                .font(.subheadline)
+                                .foregroundStyle(.white.opacity(0.65))
+                        }
+
+                        ProgressView(value: progress)
+                            .tint(.cyan)
+
+                        Text(record.lastPlayedAt, style: .relative)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.48))
+                    }
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("playedItem-\(record.id)")
+
+            Button(role: .destructive, action: onRemove) {
+                Image(systemName: "trash")
+                    .frame(width: 36, height: 36)
+            }
+            .accessibilityLabel("Remove from Played")
+            .accessibilityIdentifier("removePlayed-\(record.id)")
+        }
+        .padding(10)
+        .foregroundStyle(.white)
+        .background(Color.white.opacity(0.07))
+        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+    }
+
+    private var poster: some View {
+        AsyncImage(url: record.item.thumbnailURL) { phase in
+            if case .success(let image) = phase {
+                image.resizable().scaledToFill()
+            } else {
+                Image(systemName: "film")
+                    .foregroundStyle(.white.opacity(0.35))
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(Color.white.opacity(0.06))
+            }
+        }
+        .frame(width: 58, height: 82)
+        .clipped()
+        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+
+    private var progress: Double {
+        guard record.duration > 0 else {
+            return 0
+        }
+        return min(max(record.position / record.duration, 0), 1)
+    }
+}

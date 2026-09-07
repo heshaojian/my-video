@@ -9,9 +9,22 @@ final class AiyifanLatestTapTests: XCTestCase {
     private func launchFixtureApp(resetSavedItems: Bool) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments.append("-AiyifanUseFixtureFeed")
+        app.launchArguments.append("-AiyifanResetPlayedItems")
         if resetSavedItems {
             app.launchArguments.append("-AiyifanResetSavedItems")
         }
+        app.launch()
+        return app
+    }
+
+    private func launchFixtureAppWithPlayedHistory() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "-AiyifanUseFixtureFeed",
+            "-AiyifanResetSavedItems",
+            "-AiyifanResetPlayedItems",
+            "-AiyifanSeedPlayedItems"
+        ]
         app.launch()
         return app
     }
@@ -118,5 +131,107 @@ final class AiyifanLatestTapTests: XCTestCase {
 
         XCTAssertTrue(app.webViews["browserWebView"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.otherElements["nativePlayer"].exists)
+    }
+
+    func testPlayedIsThirdTabAndSeededEpisodeOpensNativePlayer() {
+        let app = launchFixtureAppWithPlayedHistory()
+
+        XCTAssertEqual(app.tabBars.buttons.count, 3)
+        let playedTab = app.tabBars.buttons["Played"]
+        XCTAssertTrue(playedTab.exists)
+        playedTab.tap()
+
+        let playedItem = app.buttons["playedItem-fixture-电视剧::episode-4"]
+        XCTAssertTrue(playedItem.waitForExistence(timeout: 5))
+        playedItem.tap()
+
+        XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Episode 04"].waitForExistence(timeout: 5))
+    }
+
+    func testEpisodePickerShowsNewestFirstAndSwitchesEpisode() {
+        let app = launchFixtureApp()
+        let item = app.buttons["latestItem-fixture-电影"]
+        XCTAssertTrue(item.waitForExistence(timeout: 5))
+        item.tap()
+
+        let episodesButton = app.buttons["showEpisodes"]
+        XCTAssertTrue(episodesButton.waitForExistence(timeout: 5))
+        episodesButton.tap()
+
+        let newest = app.buttons["episodeRow-episode-10"]
+        let older = app.buttons["episodeRow-episode-2"]
+        XCTAssertTrue(newest.waitForExistence(timeout: 5))
+        XCTAssertTrue(older.exists)
+        XCTAssertLessThan(newest.frame.minY, older.frame.minY)
+
+        older.tap()
+        XCTAssertTrue(app.staticTexts["Episode 02"].waitForExistence(timeout: 5))
+    }
+
+    func testAdvertisementIsVisiblyMuted() {
+        let app = launchFixtureApp()
+        app.buttons["latestItem-fixture-电影"].tap()
+
+        XCTAssertTrue(app.staticTexts["Advertisement · Muted"].waitForExistence(timeout: 5))
+    }
+
+    func testPlayedClearAllRequiresConfirmation() {
+        let app = launchFixtureAppWithPlayedHistory()
+        app.tabBars.buttons["Played"].tap()
+        XCTAssertTrue(app.buttons["clearPlayed"].waitForExistence(timeout: 5))
+
+        app.buttons["clearPlayed"].tap()
+        XCTAssertTrue(app.alerts["Clear Played History?"].waitForExistence(timeout: 2))
+        app.alerts.buttons["Clear All"].tap()
+
+        XCTAssertTrue(app.staticTexts["Nothing played yet"].waitForExistence(timeout: 3))
+    }
+
+    func testPlayerOffersAirPlayAndGoogleCastControls() {
+        let app = launchFixtureApp()
+        app.buttons["latestItem-fixture-电影"].tap()
+
+        XCTAssertTrue(app.buttons["airPlayButton"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["googleCastButton"].exists)
+    }
+
+    func testPowerUserSessionKeepsNavigationAndCollectionsConsistent() {
+        let app = launchFixtureAppWithPlayedHistory()
+        let latestItem = app.buttons["latestItem-fixture-电影"]
+        XCTAssertTrue(latestItem.waitForExistence(timeout: 5))
+        app.buttons["saveItem-fixture-电影"].tap()
+
+        for _ in 0..<3 {
+            latestItem.tap()
+            XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
+            app.buttons["closeNativePlayer"].tap()
+            XCTAssertTrue(latestItem.waitForExistence(timeout: 5))
+        }
+
+        app.tabBars.buttons["Saved"].tap()
+        let savedItem = app.buttons["savedItem-fixture-电影"]
+        XCTAssertTrue(savedItem.waitForExistence(timeout: 5))
+        savedItem.tap()
+        XCTAssertTrue(app.buttons["showEpisodes"].waitForExistence(timeout: 5))
+        app.buttons["showEpisodes"].tap()
+        app.buttons["episodeRow-episode-2"].tap()
+        XCTAssertTrue(app.staticTexts["Episode 02"].waitForExistence(timeout: 5))
+        app.buttons["closeNativePlayer"].tap()
+
+        app.tabBars.buttons["Played"].tap()
+        let playedItem = app.buttons["playedItem-fixture-电视剧::episode-4"]
+        XCTAssertTrue(playedItem.waitForExistence(timeout: 5))
+        playedItem.tap()
+        XCTAssertTrue(app.staticTexts["Episode 04"].waitForExistence(timeout: 5))
+        app.buttons["closeNativePlayer"].tap()
+
+        app.buttons["clearPlayed"].tap()
+        XCTAssertTrue(app.alerts["Clear Played History?"].waitForExistence(timeout: 2))
+        app.alerts.buttons["Clear All"].tap()
+        XCTAssertTrue(app.staticTexts["Nothing played yet"].waitForExistence(timeout: 3))
+
+        app.tabBars.buttons["Saved"].tap()
+        XCTAssertTrue(app.buttons["savedItem-fixture-电影"].exists)
     }
 }

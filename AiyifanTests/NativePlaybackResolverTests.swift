@@ -84,7 +84,7 @@ final class NativePlaybackResolverTests: XCTestCase {
         }
     }
 
-    func testDetailAndPlaylistDecodersSelectNewestEpisode() throws {
+    func testDetailAndPlaylistDecodersReturnNewestEpisodesFirst() throws {
         let detail = Data("""
         {"ret":200,"data":{"code":0,"info":[{"key":"series-key","cid":"0,1,4,137","isSerial":true}]}}
         """.utf8)
@@ -97,12 +97,48 @@ final class NativePlaybackResolverTests: XCTestCase {
         """.utf8)
 
         let context = try VideoDetailResponseDecoder.decode(detail)
-        let latestEpisode = try EpisodePlaylistResponseDecoder.decodeLatestEpisode(playlist)
+        let episodes = try EpisodePlaylistResponseDecoder.decodeEpisodes(playlist)
 
         XCTAssertTrue(context.isSerial)
         XCTAssertEqual(context.categoryID, "0,1,4,137")
-        XCTAssertEqual(latestEpisode.mediaKey, "episode-4")
-        XCTAssertEqual(latestEpisode.title, "04")
+        XCTAssertEqual(episodes.map(\.mediaKey), ["episode-4", "episode-3", "episode-1"])
+        XCTAssertEqual(episodes.first?.title, "04")
+    }
+
+    func testEpisodeDecoderUsesNumericLabelsAndStableSourceOrderWhenDatesAreMissing() throws {
+        let playlist = Data("""
+        {"ret":200,"data":{"code":0,"info":[{"playList":[
+          {"key":"special-a","name":"Special","updateDate":""},
+          {"key":"episode-2","name":"Episode 2"},
+          {"key":"episode-10","name":"Episode 10"},
+          {"key":"special-b","name":"Special"}
+        ]}]}}
+        """.utf8)
+
+        let episodes = try EpisodePlaylistResponseDecoder.decodeEpisodes(playlist)
+
+        XCTAssertEqual(episodes.map(\.mediaKey), ["episode-10", "episode-2", "special-a", "special-b"])
+    }
+
+    func testEpisodeSelectionUsesPreferredEpisodeOrFallsBackToNewest() throws {
+        let episodes = [
+            Episode(mediaKey: "episode-4", title: "04", updateDate: nil),
+            Episode(mediaKey: "episode-3", title: "03", updateDate: nil)
+        ]
+
+        XCTAssertEqual(EpisodePlaylistResponseDecoder.selectEpisode(from: episodes, preferredKey: "episode-3")?.mediaKey, "episode-3")
+        XCTAssertEqual(EpisodePlaylistResponseDecoder.selectEpisode(from: episodes, preferredKey: "missing")?.mediaKey, "episode-4")
+    }
+
+    func testNativePlaybackCarriesOrderedEpisodesAndSelectedEpisode() {
+        let newest = Episode(mediaKey: "episode-4", title: "04", updateDate: nil)
+        let older = Episode(mediaKey: "episode-3", title: "03", updateDate: nil)
+
+        let playback = NativePlayback(entries: [], episodes: [newest, older], selectedEpisode: older)
+
+        XCTAssertEqual(playback.episodes, [newest, older])
+        XCTAssertEqual(playback.selectedEpisode, older)
+        XCTAssertEqual(playback.episodeTitle, "03")
     }
 
     func testPlaylistDecoderRejectsEmptyEpisodeList() {
@@ -110,7 +146,7 @@ final class NativePlaybackResolverTests: XCTestCase {
         {"ret":200,"data":{"code":0,"info":[{"playList":[]}]}}
         """.utf8)
 
-        XCTAssertThrowsError(try EpisodePlaylistResponseDecoder.decodeLatestEpisode(playlist)) { error in
+        XCTAssertThrowsError(try EpisodePlaylistResponseDecoder.decodeEpisodes(playlist)) { error in
             XCTAssertEqual(error as? NativePlaybackError, .unsupportedMedia)
         }
     }
