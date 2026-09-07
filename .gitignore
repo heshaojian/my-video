@@ -1,5 +1,4 @@
-DerivedData/
-DerivedData-device/
+DerivedData*/
 build/
 artifacts/
 *.xcuserdata/

@@ -1,6 +1,6 @@
 import Foundation
 
-struct AiyifanItem: Codable, Equatable, Identifiable {
+struct AiyifanItem: Codable, Equatable, Identifiable, Sendable {
     let listPath: String
     let title: String
     let image: String?

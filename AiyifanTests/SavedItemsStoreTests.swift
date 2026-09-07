@@ -3,21 +3,9 @@ import XCTest
 
 @MainActor
 final class SavedItemsStoreTests: XCTestCase {
-    private var defaults: UserDefaults!
-
-    override func setUp() {
-        super.setUp()
-        defaults = UserDefaults(suiteName: "SavedItemsStoreTests")
-        defaults.removePersistentDomain(forName: "SavedItemsStoreTests")
-    }
-
-    override func tearDown() {
-        defaults.removePersistentDomain(forName: "SavedItemsStoreTests")
-        defaults = nil
-        super.tearDown()
-    }
-
     func testTogglePersistsSavedItemAcrossStoreInstances() {
+        let (defaults, suiteName) = isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
         let item = AiyifanItem(listPath: "saved-drama", title: "Saved Drama")
         let store = SavedItemsStore(defaults: defaults)
 
@@ -28,6 +16,8 @@ final class SavedItemsStoreTests: XCTestCase {
     }
 
     func testToggleRemovesExistingSavedItem() {
+        let (defaults, suiteName) = isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
         let item = AiyifanItem(listPath: "saved-drama", title: "Saved Drama")
         let store = SavedItemsStore(defaults: defaults)
         store.toggle(item)
@@ -36,5 +26,10 @@ final class SavedItemsStoreTests: XCTestCase {
 
         XCTAssertFalse(store.contains(item))
         XCTAssertTrue(store.items.isEmpty)
+    }
+
+    private func isolatedDefaults() -> (UserDefaults, String) {
+        let suiteName = "SavedItemsStoreTests.\(UUID().uuidString)"
+        return (UserDefaults(suiteName: suiteName)!, suiteName)
     }
 }

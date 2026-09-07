@@ -27,4 +27,38 @@ final class AiyifanItemURLTests: XCTestCase {
 
         XCTAssertEqual(item.thumbnailURL?.absoluteString, "https://static.yfsp.tv/poster.jpg")
     }
+
+    @MainActor
+    func testSelectingItemRoutesToNativePlayerWithoutOpeningBrowser() {
+        let item = AiyifanItem(
+            listPath: "native-media-key",
+            title: "Native Movie"
+        )
+        let viewModel = BrowserViewModel()
+
+        viewModel.selectItem(item)
+
+        XCTAssertEqual(viewModel.selectedItem, item)
+        XCTAssertTrue(viewModel.isPlaying)
+        XCTAssertFalse(viewModel.isBrowsing)
+        XCTAssertNil(viewModel.selectedURL)
+    }
+
+    @MainActor
+    func testWebsiteFallbackRequiresExplicitStateTransition() {
+        let item = AiyifanItem(
+            listPath: "fallback-media-key",
+            title: "Fallback Movie",
+            url: "/play/fallback-media-key"
+        )
+        let viewModel = BrowserViewModel()
+        viewModel.selectItem(item)
+
+        viewModel.openWebsiteFallback(for: item)
+
+        XCTAssertNil(viewModel.selectedItem)
+        XCTAssertFalse(viewModel.isPlaying)
+        XCTAssertTrue(viewModel.isBrowsing)
+        XCTAssertEqual(viewModel.selectedURL, item.playURL)
+    }
 }

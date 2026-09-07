@@ -6,7 +6,13 @@ struct BrowserView: View {
     @StateObject private var savedItemsStore = SavedItemsStore()
 
     var body: some View {
-        if !viewModel.isBrowsing {
+        if let selectedItem = viewModel.selectedItem {
+            NativePlayerScreen(
+                item: selectedItem,
+                onClose: viewModel.closePlayer,
+                onOpenWebsite: { viewModel.openWebsiteFallback(for: selectedItem) }
+            )
+        } else if !viewModel.isBrowsing {
             LibraryView(viewModel: viewModel, savedItemsStore: savedItemsStore)
         } else {
             VStack(spacing: 0) {
@@ -168,6 +174,7 @@ private struct LatestCategorySection: View {
                 }
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white.opacity(0.5))
+                .accessibilityIdentifier("browseCategory-\(category.id)")
             }
             .padding(.horizontal, 18)
 

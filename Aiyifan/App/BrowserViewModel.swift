@@ -6,6 +6,7 @@ import WebKit
 final class BrowserViewModel: ObservableObject {
     @Published var selectedTitle: String?
     @Published var selectedURL: URL?
+    @Published var selectedItem: AiyifanItem?
     @Published var latestItems: [AiyifanCategory: [AiyifanItem]] = [:]
     @Published var isLoadingLatest = false
     @Published var latestErrorMessage: String?
@@ -24,6 +25,10 @@ final class BrowserViewModel: ObservableObject {
 
     var isBrowsing: Bool {
         selectedURL != nil
+    }
+
+    var isPlaying: Bool {
+        selectedItem != nil
     }
 
     func bind(webView: WKWebView) {
@@ -58,6 +63,7 @@ final class BrowserViewModel: ObservableObject {
     func goHome() {
         selectedTitle = nil
         selectedURL = nil
+        selectedItem = nil
         errorMessage = nil
         webView = nil
         canGoBack = false
@@ -69,11 +75,25 @@ final class BrowserViewModel: ObservableObject {
     func selectCategory(_ category: AiyifanCategory) {
         selectedTitle = category.title
         selectedURL = category.url
+        selectedItem = nil
         errorMessage = nil
     }
 
     func selectItem(_ item: AiyifanItem) {
         selectedTitle = item.title
+        selectedURL = nil
+        selectedItem = item
+        errorMessage = nil
+    }
+
+    func closePlayer() {
+        selectedTitle = nil
+        selectedItem = nil
+    }
+
+    func openWebsiteFallback(for item: AiyifanItem) {
+        selectedTitle = item.title
+        selectedItem = nil
         selectedURL = item.playURL
         errorMessage = nil
     }
