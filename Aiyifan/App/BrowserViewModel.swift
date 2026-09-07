@@ -6,7 +6,7 @@ import WebKit
 final class BrowserViewModel: ObservableObject {
     @Published var selectedTitle: String?
     @Published var selectedURL: URL?
-    @Published var latestItems: [YfspCategory: [YfspItem]] = [:]
+    @Published var latestItems: [AiyifanCategory: [AiyifanItem]] = [:]
     @Published var isLoadingLatest = false
     @Published var latestErrorMessage: String?
     @Published var canGoBack = false
@@ -14,7 +14,7 @@ final class BrowserViewModel: ObservableObject {
     @Published var estimatedProgress = 0.0
     @Published var errorMessage: String?
 
-    private let feedService = YfspFeedService()
+    private let feedService = AiyifanFeedService()
     weak var webView: WKWebView?
 
     var currentURL: URL? {
@@ -64,13 +64,13 @@ final class BrowserViewModel: ObservableObject {
         estimatedProgress = 0.0
     }
 
-    func selectCategory(_ category: YfspCategory) {
+    func selectCategory(_ category: AiyifanCategory) {
         selectedTitle = category.title
         selectedURL = category.url
         errorMessage = nil
     }
 
-    func selectItem(_ item: YfspItem) {
+    func selectItem(_ item: AiyifanItem) {
         selectedTitle = item.title
         selectedURL = item.playURL
         errorMessage = nil
@@ -103,14 +103,14 @@ final class BrowserViewModel: ObservableObject {
         latestErrorMessage = nil
 
         do {
-            let pairs = try await withThrowingTaskGroup(of: (YfspCategory, [YfspItem]).self) { group in
-                for category in YfspCategory.allCases {
+            let pairs = try await withThrowingTaskGroup(of: (AiyifanCategory, [AiyifanItem]).self) { group in
+                for category in AiyifanCategory.allCases {
                     group.addTask { [feedService] in
                         (category, try await feedService.fetchLatest(category: category))
                     }
                 }
 
-                var result: [(YfspCategory, [YfspItem])] = []
+                var result: [(AiyifanCategory, [AiyifanItem])] = []
                 for try await pair in group {
                     result.append(pair)
                 }

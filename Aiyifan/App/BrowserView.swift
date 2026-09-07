@@ -92,7 +92,7 @@ private struct LatestHomeView: View {
                                 .foregroundStyle(.white)
                                 .padding(.horizontal)
                         } else {
-                            ForEach(YfspCategory.allCases) { category in
+                            ForEach(AiyifanCategory.allCases) { category in
                                 LatestCategorySection(
                                     category: category,
                                     items: viewModel.latestItems[category] ?? [],
@@ -113,10 +113,10 @@ private struct LatestHomeView: View {
 }
 
 private struct LatestCategorySection: View {
-    let category: YfspCategory
-    let items: [YfspItem]
+    let category: AiyifanCategory
+    let items: [AiyifanItem]
     let onSelectCategory: () -> Void
-    let onSelectItem: (YfspItem) -> Void
+    let onSelectItem: (AiyifanItem) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -153,7 +153,7 @@ private struct LatestCategorySection: View {
 }
 
 private struct LatestItemCard: View {
-    let item: YfspItem
+    let item: AiyifanItem
     let onTap: () -> Void
 
     var body: some View {

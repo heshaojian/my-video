@@ -1,6 +1,6 @@
 import Foundation
 
-enum YfspCategory: CaseIterable, Identifiable {
+enum AiyifanCategory: CaseIterable, Identifiable {
     case movie
     case drama
     case variety

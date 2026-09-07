@@ -2,7 +2,7 @@ import AVFoundation
 import SwiftUI
 
 @main
-struct YfspApp: App {
+struct AiyifanApp: App {
     init() {
         configureAudioSession()
     }

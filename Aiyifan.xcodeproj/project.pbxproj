@@ -7,145 +7,145 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0F40D661127596558E20A1F0 /* YfspCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A23C113E32E32935FE96A26D /* YfspCategory.swift */; };
-		1E5788BF0DBD575EBD3C1D8C /* BrowserViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 250782910B3C6E65371953DE /* BrowserViewModel.swift */; };
-		54847EEC7241F3C3BE9C5905 /* YfspFeedService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEFA03E531E76159C2F1A364 /* YfspFeedService.swift */; };
-		5A89995F8161E4C9AF1065F2 /* YfspItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0266218726A208C5258513C0 /* YfspItem.swift */; };
-		8B691A99E73703A57AEC9C10 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6351C9283BCECA2D6C4FC1DA /* WebView.swift */; };
-		9531747C44DD36517174991D /* YfspApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD93DD932EA6C17AAC521742 /* YfspApp.swift */; };
-		BEE882AF24FD8C8DA26A7792 /* BrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB68B0D4DCD8774964332EE8 /* BrowserView.swift */; };
-		D5811D0D7F65CC99D1EC70ED /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 147C295598187C8A0C9AD227 /* Foundation.framework */; };
+		1A57AADF54684079A2AF25BF /* BrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E47F598C24D0EA0311BA240D /* BrowserView.swift */; };
+		616699F9E91412CE749ED58B /* AiyifanCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6249B223C97063BF1530E85A /* AiyifanCategory.swift */; };
+		8A2CF227EBF43893FD8F7EC0 /* AiyifanItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 917CBA8A1922F7C39EB58A4F /* AiyifanItem.swift */; };
+		9778EE345F4382AACEFA2E55 /* BrowserViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2365E9300B1BA56A0E6880E5 /* BrowserViewModel.swift */; };
+		D4536EE1A0B559A625DF83E5 /* AiyifanApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26F0FC84F13D07CFEDCFB499 /* AiyifanApp.swift */; };
+		D84AEE410679D9C38DAF7582 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 9815C767C35D963CD42C9C19 /* Foundation.framework */; };
+		E7C6650973CB1C63292B3DA5 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B4F0D0E8A4D0A4781F4A8E7 /* WebView.swift */; };
+		ED3A3A515A8579644CB22DD6 /* AiyifanFeedService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B4CAF8A77410DFBF80E6960 /* AiyifanFeedService.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		0266218726A208C5258513C0 /* YfspItem.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = YfspItem.swift; sourceTree = "<group>"; };
-		147C295598187C8A0C9AD227 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
-		250782910B3C6E65371953DE /* BrowserViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BrowserViewModel.swift; sourceTree = "<group>"; };
-		2D667F957C0CC6774A3A1C75 /* YFSP.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = YFSP.entitlements; sourceTree = "<group>"; };
-		6351C9283BCECA2D6C4FC1DA /* WebView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
-		A23C113E32E32935FE96A26D /* YfspCategory.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = YfspCategory.swift; sourceTree = "<group>"; };
-		AB68B0D4DCD8774964332EE8 /* BrowserView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BrowserView.swift; sourceTree = "<group>"; };
-		BEBE5FD4EEAC0957BAA4FF43 /* YFSP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YFSP.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		BEFA03E531E76159C2F1A364 /* YfspFeedService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = YfspFeedService.swift; sourceTree = "<group>"; };
-		E84A94534CF3106105EDFC42 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		FD93DD932EA6C17AAC521742 /* YfspApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = YfspApp.swift; sourceTree = "<group>"; };
+		2365E9300B1BA56A0E6880E5 /* BrowserViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BrowserViewModel.swift; sourceTree = "<group>"; };
+		26F0FC84F13D07CFEDCFB499 /* AiyifanApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AiyifanApp.swift; sourceTree = "<group>"; };
+		41C9341219D6A2BB04D32CA3 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		6249B223C97063BF1530E85A /* AiyifanCategory.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AiyifanCategory.swift; sourceTree = "<group>"; };
+		7B4CAF8A77410DFBF80E6960 /* AiyifanFeedService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AiyifanFeedService.swift; sourceTree = "<group>"; };
+		917CBA8A1922F7C39EB58A4F /* AiyifanItem.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AiyifanItem.swift; sourceTree = "<group>"; };
+		9815C767C35D963CD42C9C19 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		9B4F0D0E8A4D0A4781F4A8E7 /* WebView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
+		A89834884BFFBE5FB3863F0E /* Aiyifan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Aiyifan.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		E47F598C24D0EA0311BA240D /* BrowserView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BrowserView.swift; sourceTree = "<group>"; };
+		FBEAEE8F6F083E3FFCCEB054 /* Aiyifan.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = Aiyifan.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		D4DB5D5C95DA3F66671AF157 /* Frameworks */ = {
+		DBA9AEB0D499F8E9F8F4A4B2 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				D5811D0D7F65CC99D1EC70ED /* Foundation.framework in Frameworks */,
+				D84AEE410679D9C38DAF7582 /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		1BD15B98EB1E425CA28012F1 /* iOS */ = {
+		0A892D3726CBB01F0F7264D9 = {
 			isa = PBXGroup;
 			children = (
-				147C295598187C8A0C9AD227 /* Foundation.framework */,
-			);
-			name = iOS;
-			sourceTree = "<group>";
-		};
-		4B78C742A4419399AB769F43 /* YFSP */ = {
-			isa = PBXGroup;
-			children = (
-				FDFEAC69B917A73182CA8A90 /* App */,
-				AE81981B0ACDC3EDB8063389 /* Resources */,
-				2D667F957C0CC6774A3A1C75 /* YFSP.entitlements */,
-			);
-			name = YFSP;
-			path = YFSP;
-			sourceTree = "<group>";
-		};
-		53EE84C668A6AE6366D1BCA4 = {
-			isa = PBXGroup;
-			children = (
-				DD57649E6F0C45FF96BB89E0 /* Products */,
-				746EDD3C2E14A4EE20B739A9 /* Frameworks */,
-				4B78C742A4419399AB769F43 /* YFSP */,
+				356787702193A0366800A0B2 /* Products */,
+				A419E8FBAC1D01A6A6EFF6BC /* Frameworks */,
+				1F670FB53D6A3D189B7DA035 /* Aiyifan */,
 			);
 			sourceTree = "<group>";
 		};
-		746EDD3C2E14A4EE20B739A9 /* Frameworks */ = {
+		1F670FB53D6A3D189B7DA035 /* Aiyifan */ = {
 			isa = PBXGroup;
 			children = (
-				1BD15B98EB1E425CA28012F1 /* iOS */,
+				74C45BE2F938688EF4918D59 /* App */,
+				B6637E099EE43C454303B553 /* Resources */,
+				FBEAEE8F6F083E3FFCCEB054 /* Aiyifan.entitlements */,
 			);
-			name = Frameworks;
+			name = Aiyifan;
+			path = Aiyifan;
 			sourceTree = "<group>";
 		};
-		AE81981B0ACDC3EDB8063389 /* Resources */ = {
+		356787702193A0366800A0B2 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				E84A94534CF3106105EDFC42 /* Info.plist */,
-			);
-			name = Resources;
-			path = Resources;
-			sourceTree = "<group>";
-		};
-		DD57649E6F0C45FF96BB89E0 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				BEBE5FD4EEAC0957BAA4FF43 /* YFSP.app */,
+				A89834884BFFBE5FB3863F0E /* Aiyifan.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
 		};
-		FDFEAC69B917A73182CA8A90 /* App */ = {
+		5FA6B97E8BAC64FFD838FC06 /* iOS */ = {
 			isa = PBXGroup;
 			children = (
-				AB68B0D4DCD8774964332EE8 /* BrowserView.swift */,
-				250782910B3C6E65371953DE /* BrowserViewModel.swift */,
-				6351C9283BCECA2D6C4FC1DA /* WebView.swift */,
-				FD93DD932EA6C17AAC521742 /* YfspApp.swift */,
-				A23C113E32E32935FE96A26D /* YfspCategory.swift */,
-				BEFA03E531E76159C2F1A364 /* YfspFeedService.swift */,
-				0266218726A208C5258513C0 /* YfspItem.swift */,
+				9815C767C35D963CD42C9C19 /* Foundation.framework */,
+			);
+			name = iOS;
+			sourceTree = "<group>";
+		};
+		74C45BE2F938688EF4918D59 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				26F0FC84F13D07CFEDCFB499 /* AiyifanApp.swift */,
+				6249B223C97063BF1530E85A /* AiyifanCategory.swift */,
+				7B4CAF8A77410DFBF80E6960 /* AiyifanFeedService.swift */,
+				917CBA8A1922F7C39EB58A4F /* AiyifanItem.swift */,
+				E47F598C24D0EA0311BA240D /* BrowserView.swift */,
+				2365E9300B1BA56A0E6880E5 /* BrowserViewModel.swift */,
+				9B4F0D0E8A4D0A4781F4A8E7 /* WebView.swift */,
 			);
 			name = App;
 			path = App;
 			sourceTree = "<group>";
 		};
+		A419E8FBAC1D01A6A6EFF6BC /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				5FA6B97E8BAC64FFD838FC06 /* iOS */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		B6637E099EE43C454303B553 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				41C9341219D6A2BB04D32CA3 /* Info.plist */,
+			);
+			name = Resources;
+			path = Resources;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		675FE4C4BB4669FDC60055E3 /* YFSP */ = {
+		E13035B18ABFA3F3FE4DC519 /* Aiyifan */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = EFCF9AC1020310E995195014 /* Build configuration list for PBXNativeTarget "YFSP" */;
+			buildConfigurationList = 453A9B96C78BA85129DBE1AC /* Build configuration list for PBXNativeTarget "Aiyifan" */;
 			buildPhases = (
-				C060F1A0FF2EEB45EEAC176A /* Sources */,
-				D4DB5D5C95DA3F66671AF157 /* Frameworks */,
-				325FB33101A74EABED0D025A /* Resources */,
+				196AFD510B8709DEDA214EDB /* Sources */,
+				DBA9AEB0D499F8E9F8F4A4B2 /* Frameworks */,
+				926479380A7ADC2EE82D3406 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
 			);
-			name = YFSP;
-			productName = YFSP;
-			productReference = BEBE5FD4EEAC0957BAA4FF43 /* YFSP.app */;
+			name = Aiyifan;
+			productName = Aiyifan;
+			productReference = A89834884BFFBE5FB3863F0E /* Aiyifan.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		3C7D3D9E442EE7039CE8461F /* Project object */ = {
+		FF47F15CF864FA3BC16BADE2 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
-					675FE4C4BB4669FDC60055E3 = {
+					E13035B18ABFA3F3FE4DC519 = {
 						CreatedOnToolsVersion = 26.2;
 					};
 				};
 			};
-			buildConfigurationList = E7345318652A426567675CDA /* Build configuration list for PBXProject "YFSP" */;
+			buildConfigurationList = 022D0AF332E5A4D675B50D8B /* Build configuration list for PBXProject "Aiyifan" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -153,20 +153,20 @@
 				en,
 				Base,
 			);
-			mainGroup = 53EE84C668A6AE6366D1BCA4;
+			mainGroup = 0A892D3726CBB01F0F7264D9;
 			minimizedProjectReferenceProxies = 0;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = DD57649E6F0C45FF96BB89E0 /* Products */;
+			productRefGroup = 356787702193A0366800A0B2 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				675FE4C4BB4669FDC60055E3 /* YFSP */,
+				E13035B18ABFA3F3FE4DC519 /* Aiyifan */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		325FB33101A74EABED0D025A /* Resources */ = {
+		926479380A7ADC2EE82D3406 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -176,24 +176,24 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		C060F1A0FF2EEB45EEAC176A /* Sources */ = {
+		196AFD510B8709DEDA214EDB /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				BEE882AF24FD8C8DA26A7792 /* BrowserView.swift in Sources */,
-				1E5788BF0DBD575EBD3C1D8C /* BrowserViewModel.swift in Sources */,
-				8B691A99E73703A57AEC9C10 /* WebView.swift in Sources */,
-				9531747C44DD36517174991D /* YfspApp.swift in Sources */,
-				0F40D661127596558E20A1F0 /* YfspCategory.swift in Sources */,
-				54847EEC7241F3C3BE9C5905 /* YfspFeedService.swift in Sources */,
-				5A89995F8161E4C9AF1065F2 /* YfspItem.swift in Sources */,
+				D4536EE1A0B559A625DF83E5 /* AiyifanApp.swift in Sources */,
+				616699F9E91412CE749ED58B /* AiyifanCategory.swift in Sources */,
+				ED3A3A515A8579644CB22DD6 /* AiyifanFeedService.swift in Sources */,
+				8A2CF227EBF43893FD8F7EC0 /* AiyifanItem.swift in Sources */,
+				1A57AADF54684079A2AF25BF /* BrowserView.swift in Sources */,
+				9778EE345F4382AACEFA2E55 /* BrowserViewModel.swift in Sources */,
+				E7C6650973CB1C63292B3DA5 /* WebView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		307FDD141E06FE10D6B3E655 /* Debug */ = {
+		0D62FC437E737D979E3A6513 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -255,22 +255,22 @@
 			};
 			name = Debug;
 		};
-		3F442C6AD65BD13DCC9C74C9 /* Release */ = {
+		21E5D028F0BEEA6B8AFC08E9 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_OBJC_WEAK = NO;
-				CODE_SIGN_ENTITLEMENTS = YFSP/YFSP.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Aiyifan/Aiyifan.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = VGGZ34H2PS;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = YFSP/Resources/Info.plist;
+				INFOPLIST_FILE = Aiyifan/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.john.yfsp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.john.aiyifan;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -281,22 +281,22 @@
 			};
 			name = Release;
 		};
-		8E867CA1FCB0915A38EAFA06 /* Debug */ = {
+		3A7202D4B98D4E2E615DE01B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CLANG_ENABLE_OBJC_WEAK = NO;
-				CODE_SIGN_ENTITLEMENTS = YFSP/YFSP.entitlements;
+				CODE_SIGN_ENTITLEMENTS = Aiyifan/Aiyifan.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = VGGZ34H2PS;
 				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = YFSP/Resources/Info.plist;
+				INFOPLIST_FILE = Aiyifan/Resources/Info.plist;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.john.yfsp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.john.aiyifan;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
@@ -306,7 +306,7 @@
 			};
 			name = Debug;
 		};
-		D24ECD34E709E3A8820961AC /* Release */ = {
+		51F3E05620D41B0C2F970781 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -364,25 +364,25 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		E7345318652A426567675CDA /* Build configuration list for PBXProject "YFSP" */ = {
+		022D0AF332E5A4D675B50D8B /* Build configuration list for PBXProject "Aiyifan" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				307FDD141E06FE10D6B3E655 /* Debug */,
-				D24ECD34E709E3A8820961AC /* Release */,
+				0D62FC437E737D979E3A6513 /* Debug */,
+				51F3E05620D41B0C2F970781 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		EFCF9AC1020310E995195014 /* Build configuration list for PBXNativeTarget "YFSP" */ = {
+		453A9B96C78BA85129DBE1AC /* Build configuration list for PBXNativeTarget "Aiyifan" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				3F442C6AD65BD13DCC9C74C9 /* Release */,
-				8E867CA1FCB0915A38EAFA06 /* Debug */,
+				21E5D028F0BEEA6B8AFC08E9 /* Release */,
+				3A7202D4B98D4E2E615DE01B /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = 3C7D3D9E442EE7039CE8461F /* Project object */;
+	rootObject = FF47F15CF864FA3BC16BADE2 /* Project object */;
 }

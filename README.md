@@ -15,18 +15,18 @@ Personal iOS wrapper for `https://m.yfsp.tv/`.
 ## Build
 
 ```sh
-xcodebuild -project YFSP.xcodeproj -scheme YFSP -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2' -derivedDataPath DerivedData build
+xcodebuild -project Aiyifan.xcodeproj -scheme Aiyifan -destination 'platform=iOS Simulator,name=iPhone 17 Pro,OS=26.2' -derivedDataPath DerivedData build
 ```
 
 ## Run On iPhone
 
-1. Open `YFSP.xcodeproj` in Xcode.
+1. Open `Aiyifan.xcodeproj` in Xcode.
 2. Add the Apple account for Team `VGGZ34H2PS` in Xcode Settings > Accounts if it is not already present.
 3. Connect and unlock John's iPhone, then trust this Mac if prompted.
 4. Select John's iPhone as the run destination.
 5. Press Run.
 
-If Xcode says it cannot create a provisioning profile, keep the bundle id `com.john.yfsp` or change it to a unique personal bundle id, then let Xcode manage signing automatically.
+If Xcode says it cannot create a provisioning profile, keep the bundle id `com.john.aiyifan` or change it to a unique personal bundle id, then let Xcode manage signing automatically.
 
 ## Notes
 

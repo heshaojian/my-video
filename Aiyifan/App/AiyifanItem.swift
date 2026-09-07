@@ -1,6 +1,6 @@
 import Foundation
 
-struct YfspItem: Decodable, Identifiable {
+struct AiyifanItem: Decodable, Identifiable {
     let listPath: String
     let title: String
     let image: URL?

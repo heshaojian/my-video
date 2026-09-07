@@ -32,11 +32,11 @@ Build a personal iOS app that opens `yfsp.tv` in a native shell so John can watc
 
 The app is intentionally small:
 
-- `YfspApp`: SwiftUI entry point and app-wide audio session setup.
+- `AiyifanApp`: SwiftUI entry point and app-wide audio session setup.
 - `BrowserView`: SwiftUI wrapper around the native category landing screen, web experience, and toolbar.
-- `YfspCategory`: section definitions and destination URLs.
-- `YfspFeedService`: fetches category pages and decodes the embedded latest update feed.
-- `YfspItem`: native model for latest update cards.
+- `AiyifanCategory`: section definitions and destination URLs.
+- `AiyifanFeedService`: fetches category pages and decodes the embedded latest update feed.
+- `AiyifanItem`: native model for latest update cards.
 - `WebView`: `UIViewRepresentable` bridge for `WKWebView`.
 - `BrowserViewModel`: observable browser state such as loading progress and navigation availability.
 

@@ -1,24 +1,24 @@
 import Foundation
 
-enum YfspFeedError: Error {
+enum AiyifanFeedError: Error {
     case missingPageData
     case missingFeed
 }
 
-struct YfspFeedService {
+struct AiyifanFeedService {
     private let decoder: JSONDecoder
 
     init() {
         decoder = JSONDecoder()
     }
 
-    func fetchLatest(category: YfspCategory) async throws -> [YfspItem] {
+    func fetchLatest(category: AiyifanCategory) async throws -> [AiyifanItem] {
         let (data, _) = try await URLSession.shared.data(from: category.url)
         guard
             let html = String(data: data, encoding: .utf8),
             let json = extractInjectedJSON(from: html)
         else {
-            throw YfspFeedError.missingPageData
+            throw AiyifanFeedError.missingPageData
         }
 
         guard
@@ -26,11 +26,11 @@ struct YfspFeedService {
             let key = root.keys.first(where: { $0.hasPrefix("slide-list") }),
             let rawItems = root[key]
         else {
-            throw YfspFeedError.missingFeed
+            throw AiyifanFeedError.missingFeed
         }
 
         let itemData = try JSONSerialization.data(withJSONObject: rawItems)
-        return try decoder.decode([YfspItem].self, from: itemData)
+        return try decoder.decode([AiyifanItem].self, from: itemData)
     }
 
     private func extractInjectedJSON(from html: String) -> String? {
