@@ -54,6 +54,7 @@ final class NativePlayerViewModel: ObservableObject {
     @Published private(set) var autoplayNext: Bool
     @Published private(set) var sleepTimer = SleepTimerState.off
     @Published private(set) var autoplayCountdown: Int?
+    @Published private(set) var viewerMetrics: ViewerMetrics?
 
     private let item: AiyifanItem
     private let resolver: any NativePlaybackResolving
@@ -88,13 +89,13 @@ final class NativePlayerViewModel: ObservableObject {
             return nil
         }
         guard let selectedEpisode, !episodes.isEmpty else {
-            return isLoading ? "剧集加载中" : "选择剧集"
+            return isLoading ? "Loading Episodes" : "Select Episode"
         }
         let selectedNumber = episodeNumber(in: selectedEpisode.title)
         let numericTotal = episodes.compactMap { episodeNumber(in: $0.title) }.max()
         let current = selectedNumber.map(String.init) ?? selectedEpisode.title
         let total = max(numericTotal ?? 0, episodes.count)
-        return "第 \(current)/\(total) 集"
+        return "Episode \(current)/\(total)"
     }
 
     private func episodeNumber(in title: String) -> Int? {
@@ -282,6 +283,7 @@ final class NativePlayerViewModel: ObservableObject {
         episodeTitle = nil
         episodes = []
         selectedEpisode = nil
+        viewerMetrics = nil
         pendingResumePosition = 0
         lastRecordedPosition = nil
         progressState = PlaybackProgressState()
@@ -296,6 +298,7 @@ final class NativePlayerViewModel: ObservableObject {
             episodes = playback.episodes
             expectsEpisodes = expectsEpisodes || !playback.episodes.isEmpty
             selectedEpisode = playback.selectedEpisode
+            viewerMetrics = playback.metrics
             episodeTitle = playback.episodeTitle
             pendingResumePosition = playedItemsStore?
                 .record(for: item, episodeKey: playback.selectedEpisode?.mediaKey)?
@@ -570,6 +573,10 @@ struct NativePlayerScreen: View {
             .foregroundStyle(.white)
             .background(Color.black)
 
+            if let metrics = viewModel.viewerMetrics, !metrics.isEmpty {
+                ViewerMetricsBar(metrics: metrics)
+            }
+
             ZStack {
                 NativePlayerController(
                     player: viewModel.player,
@@ -668,7 +675,7 @@ struct NativePlayerScreen: View {
                     .foregroundStyle(.primary)
                     .accessibilityIdentifier("episodeRow-\(episode.id)")
                 }
-                .navigationTitle("剧集")
+                .navigationTitle("Episodes")
                 .navigationBarTitleDisplayMode(.inline)
             }
             .presentationDetents([.medium, .large])
@@ -755,11 +762,48 @@ struct NativePlayerScreen: View {
 
 enum EpisodeDisplayFormatter {
     static func title(for providerTitle: String) -> String {
-        let trimmed = providerTitle.trimmingCharacters(in: .whitespacesAndNewlines)
-        if let number = EpisodeNumberParser.number(in: trimmed) {
-            return "第 \(number) 集"
+        providerTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+private struct ViewerMetricsBar: View {
+    let metrics: ViewerMetrics
+
+    var body: some View {
+        HStack(spacing: 0) {
+            if let likes = metrics.likes {
+                metric("hand.thumbsup.fill", value: CompactMetricFormatter.count(likes), label: "Likes", id: "viewerMetric-likes")
+            }
+            if let favorites = metrics.favorites {
+                metric("bookmark.fill", value: CompactMetricFormatter.count(favorites), label: "Favorites", id: "viewerMetric-favorites")
+            }
+            if let score = metrics.score {
+                metric("star.fill", value: CompactMetricFormatter.score(score), label: "Score", id: "viewerMetric-score")
+            }
+            if let views = metrics.views {
+                metric("flame.fill", value: CompactMetricFormatter.count(views), label: "Views", id: "viewerMetric-views")
+            }
         }
-        return trimmed
+        .frame(maxWidth: .infinity, minHeight: 40)
+        .foregroundStyle(.white.opacity(0.88))
+        .background(Color.black)
+        .overlay(alignment: .bottom) {
+            Divider().overlay(Color.white.opacity(0.12))
+        }
+    }
+
+    private func metric(_ icon: String, value: String, label: String, id: String) -> some View {
+        HStack(spacing: 5) {
+            Image(systemName: icon)
+                .foregroundStyle(label == "Score" ? .yellow : .secondary)
+            Text(value)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity, minHeight: 40)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("\(value) \(label)")
+        .accessibilityIdentifier(id)
     }
 }
 

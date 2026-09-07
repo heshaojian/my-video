@@ -7,24 +7,24 @@ enum AiyifanCategory: String, CaseIterable, Codable, Hashable, Identifiable, Sen
     case anime
 
     var id: String {
-        title
+        rawValue
     }
 
     var title: String {
         switch self {
         case .movie:
-            "电影"
+            "Movies"
         case .drama:
-            "电视剧"
+            "Series"
         case .variety:
-            "综艺"
+            "Variety"
         case .anime:
-            "动漫"
+            "Anime"
         }
     }
 
     var latestTitle: String {
-        "最新\(title)"
+        "Latest \(title)"
     }
 
     var catalogCID: String {

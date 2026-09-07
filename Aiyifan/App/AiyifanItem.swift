@@ -20,6 +20,7 @@ struct AiyifanItem: Codable, Equatable, Identifiable, Sendable {
     let quality: String?
     let popularity: Int?
     let rating: String?
+    let score: Double?
 
     init(
         listPath: String,
@@ -40,7 +41,8 @@ struct AiyifanItem: Codable, Equatable, Identifiable, Sendable {
         language: String? = nil,
         quality: String? = nil,
         popularity: Int? = nil,
-        rating: String? = nil
+        rating: String? = nil,
+        score: Double? = nil
     ) {
         self.listPath = listPath
         self.title = title
@@ -61,6 +63,7 @@ struct AiyifanItem: Codable, Equatable, Identifiable, Sendable {
         self.quality = quality
         self.popularity = popularity
         self.rating = rating
+        self.score = score
     }
 
     var id: String {
@@ -80,7 +83,7 @@ struct AiyifanItem: Codable, Equatable, Identifiable, Sendable {
     }
 
     var updateLabel: String {
-        subTitle?.isEmpty == false ? subTitle! : "最新更新"
+        subTitle?.isEmpty == false ? subTitle! : "Latest update"
     }
 
     enum CodingKeys: String, CodingKey {
@@ -103,6 +106,7 @@ struct AiyifanItem: Codable, Equatable, Identifiable, Sendable {
         case quality
         case popularity
         case rating
+        case score
     }
 
     private static func playURL(from rawPath: String) -> URL {

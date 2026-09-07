@@ -3,13 +3,19 @@ import XCTest
 @MainActor
 final class AiyifanLatestTapTests: XCTestCase {
     private func launchFixtureApp() -> XCUIApplication {
-        launchFixtureApp(resetSavedItems: true)
+        launchFixtureApp(resetSavedItems: true, resetCatalogPreferences: true)
     }
 
-    private func launchFixtureApp(resetSavedItems: Bool) -> XCUIApplication {
+    private func launchFixtureApp(
+        resetSavedItems: Bool,
+        resetCatalogPreferences: Bool = true
+    ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments.append("-AiyifanUseFixtureFeed")
         app.launchArguments.append("-AiyifanResetPlayedItems")
+        if resetCatalogPreferences {
+            app.launchArguments.append("-AiyifanResetCatalogPreferences")
+        }
         if resetSavedItems {
             app.launchArguments.append("-AiyifanResetSavedItems")
         }
@@ -23,6 +29,7 @@ final class AiyifanLatestTapTests: XCTestCase {
             "-AiyifanUseFixtureFeed",
             "-AiyifanResetSavedItems",
             "-AiyifanResetPlayedItems",
+            "-AiyifanResetCatalogPreferences",
             "-AiyifanSeedPlayedItems"
         ]
         app.launch()
@@ -32,7 +39,7 @@ final class AiyifanLatestTapTests: XCTestCase {
     func testTappingLatestItemOpensNativePlayerWithoutBrowser() {
         let app = launchFixtureApp()
 
-        let latestItem = app.buttons["latestItem-fixture-电影"]
+        let latestItem = app.buttons["latestItem-fixture-movie"]
         XCTAssertTrue(latestItem.waitForExistence(timeout: 5))
 
         latestItem.tap()
@@ -46,20 +53,23 @@ final class AiyifanLatestTapTests: XCTestCase {
 
         XCTAssertTrue(app.images["aiyifanBrandMark"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Aiyifan"].exists)
-        XCTAssertTrue(app.staticTexts["最新电影"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["最新电视剧"].exists)
+        XCTAssertTrue(app.staticTexts["Latest"].exists)
+        XCTAssertFalse(app.searchFields.firstMatch.exists)
+        XCTAssertTrue(app.staticTexts["Latest Movies"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Latest Series"].exists)
+        XCTAssertTrue(app.staticTexts["latestScore-fixture-movie"].exists)
 
         app.swipeUp()
         app.swipeUp()
 
-        XCTAssertTrue(app.staticTexts["最新综艺"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.staticTexts["最新动漫"].waitForExistence(timeout: 2))
-        XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH '最新'")).count, 5)
+        XCTAssertTrue(app.staticTexts["Latest Variety"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["Latest Anime"].waitForExistence(timeout: 2))
+        XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Latest'")).count, 5)
     }
 
     func testPopupDoesNotReplacePlaybackPage() {
         let app = launchFixtureApp()
-        app.buttons["latestItem-fixture-电影"].tap()
+        app.buttons["latestItem-fixture-movie"].tap()
 
         app.buttons["playbackSettings"].tap()
         let fallbackButton = app.buttons["openWebsiteFallback"]
@@ -77,16 +87,16 @@ final class AiyifanLatestTapTests: XCTestCase {
     func testSavingLatestItemShowsItInSavedTabAndAllowsRemoval() {
         let app = launchFixtureApp()
 
-        let saveButton = app.buttons["saveItem-fixture-电影"]
+        let saveButton = app.buttons["saveItem-fixture-movie"]
         XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
         saveButton.tap()
 
         app.tabBars.buttons["Saved"].tap()
 
-        let savedItem = app.buttons["savedItem-fixture-电影"]
+        let savedItem = app.buttons["savedItem-fixture-movie"]
         XCTAssertTrue(savedItem.waitForExistence(timeout: 5))
 
-        let removeButton = app.buttons["removeSavedItem-fixture-电影"]
+        let removeButton = app.buttons["removeSavedItem-fixture-movie"]
         XCTAssertTrue(removeButton.exists)
         removeButton.tap()
 
@@ -96,14 +106,14 @@ final class AiyifanLatestTapTests: XCTestCase {
 
     func testSavedItemOpensNativePlayerAndSurvivesRelaunch() {
         var app = launchFixtureApp(resetSavedItems: true)
-        let saveButton = app.buttons["saveItem-fixture-电影"]
+        let saveButton = app.buttons["saveItem-fixture-movie"]
         XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
         saveButton.tap()
         app.terminate()
 
         app = launchFixtureApp(resetSavedItems: false)
         app.tabBars.buttons["Saved"].tap()
-        let savedItem = app.buttons["savedItem-fixture-电影"]
+        let savedItem = app.buttons["savedItem-fixture-movie"]
         XCTAssertTrue(savedItem.waitForExistence(timeout: 5))
         savedItem.tap()
 
@@ -113,7 +123,7 @@ final class AiyifanLatestTapTests: XCTestCase {
 
     func testPlayerCanBeOpenedClosedAndOpenedAgain() {
         let app = launchFixtureApp()
-        let latestItem = app.buttons["latestItem-fixture-电影"]
+        let latestItem = app.buttons["latestItem-fixture-movie"]
         XCTAssertTrue(latestItem.waitForExistence(timeout: 5))
 
         latestItem.tap()
@@ -127,13 +137,13 @@ final class AiyifanLatestTapTests: XCTestCase {
 
     func testAllCategoryButtonOpensNativeCatalogWithoutBrowser() {
         let app = launchFixtureApp()
-        let categoryButton = app.buttons["browseCategory-电影"]
+        let categoryButton = app.buttons["browseCategory-movie"]
         XCTAssertTrue(categoryButton.waitForExistence(timeout: 5))
 
         categoryButton.tap()
 
-        XCTAssertTrue(app.otherElements["nativeCategoryCatalog-电影"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["catalogItem-fixture-catalog-电影-1"].exists)
+        XCTAssertTrue(app.otherElements["nativeCategoryCatalog-movie"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["catalogItem-fixture-catalog-movie-1"].exists)
         XCTAssertFalse(app.webViews["browserWebView"].exists)
         XCTAssertFalse(app.otherElements["nativePlayer"].exists)
     }
@@ -141,7 +151,7 @@ final class AiyifanLatestTapTests: XCTestCase {
     func testEveryAllButtonOpensMatchingNativeCatalog() {
         let app = launchFixtureApp()
 
-        for category in ["电影", "电视剧", "综艺", "动漫"] {
+        for category in ["movie", "drama", "variety", "anime"] {
             let categoryButton = app.buttons["browseCategory-\(category)"]
             if !categoryButton.exists {
                 app.swipeUp()
@@ -157,13 +167,13 @@ final class AiyifanLatestTapTests: XCTestCase {
 
     func testCatalogItemCanBeSavedAndPlayedNatively() {
         let app = launchFixtureApp()
-        app.buttons["browseCategory-电影"].tap()
+        app.buttons["browseCategory-movie"].tap()
 
-        let saveButton = app.buttons["saveCatalogItem-fixture-catalog-电影-1"]
+        let saveButton = app.buttons["saveCatalogItem-fixture-catalog-movie-1"]
         XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
         saveButton.tap()
 
-        let item = app.buttons["catalogItem-fixture-catalog-电影-1"]
+        let item = app.buttons["catalogItem-fixture-catalog-movie-1"]
         XCTAssertTrue(item.exists)
         item.tap()
         XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
@@ -174,13 +184,13 @@ final class AiyifanLatestTapTests: XCTestCase {
         app.buttons["closeCategoryCatalog"].tap()
 
         app.tabBars.buttons["Saved"].tap()
-        XCTAssertTrue(app.buttons["savedItem-fixture-catalog-电影-1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["savedItem-fixture-catalog-movie-1"].waitForExistence(timeout: 5))
     }
 
     func testCatalogSavedItemSurvivesRelaunch() {
         var app = launchFixtureApp(resetSavedItems: true)
-        app.buttons["browseCategory-电影"].tap()
-        let saveButton = app.buttons["saveCatalogItem-fixture-catalog-电影-1"]
+        app.buttons["browseCategory-movie"].tap()
+        let saveButton = app.buttons["saveCatalogItem-fixture-catalog-movie-1"]
         XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
         saveButton.tap()
         app.terminate()
@@ -188,20 +198,20 @@ final class AiyifanLatestTapTests: XCTestCase {
         app = launchFixtureApp(resetSavedItems: false)
         app.tabBars.buttons["Saved"].tap()
 
-        XCTAssertTrue(app.buttons["savedItem-fixture-catalog-电影-1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["savedItem-fixture-catalog-movie-1"].waitForExistence(timeout: 5))
     }
 
     func testCatalogScrollingLoadsSecondPageWithoutDuplicates() {
         let app = launchFixtureApp()
-        app.buttons["browseCategory-电视剧"].tap()
+        app.buttons["browseCategory-drama"].tap()
 
-        let secondPageItem = app.buttons["catalogItem-fixture-catalog-电视剧-25"]
+        let secondPageItem = app.buttons["catalogItem-fixture-catalog-drama-25"]
         for _ in 0..<8 where !secondPageItem.exists {
             app.swipeUp()
         }
 
         XCTAssertTrue(secondPageItem.waitForExistence(timeout: 5))
-        let endMarker = app.staticTexts["已显示全部"]
+        let endMarker = app.staticTexts["All results shown"]
         for _ in 0..<4 where !endMarker.exists {
             app.swipeUp()
         }
@@ -214,16 +224,17 @@ final class AiyifanLatestTapTests: XCTestCase {
             "-AiyifanUseFixtureFeed",
             "-AiyifanResetSavedItems",
             "-AiyifanResetPlayedItems",
+            "-AiyifanResetCatalogPreferences",
             "-AiyifanFixtureCatalogInitialFailure"
         ]
         app.launch()
-        app.buttons["browseCategory-电影"].tap()
+        app.buttons["browseCategory-movie"].tap()
 
         let retry = app.buttons["retryCatalogInitial"]
         XCTAssertTrue(retry.waitForExistence(timeout: 5))
         retry.tap()
 
-        XCTAssertTrue(app.buttons["catalogItem-fixture-catalog-电影-1"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["catalogItem-fixture-catalog-movie-1"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.webViews["browserWebView"].exists)
     }
 
@@ -233,10 +244,11 @@ final class AiyifanLatestTapTests: XCTestCase {
             "-AiyifanUseFixtureFeed",
             "-AiyifanResetSavedItems",
             "-AiyifanResetPlayedItems",
+            "-AiyifanResetCatalogPreferences",
             "-AiyifanFixtureCatalogLoadMoreFailure"
         ]
         app.launch()
-        app.buttons["browseCategory-电视剧"].tap()
+        app.buttons["browseCategory-drama"].tap()
 
         let retry = app.buttons["retryCatalogLoadMore"]
         for _ in 0..<8 where !retry.exists {
@@ -244,7 +256,7 @@ final class AiyifanLatestTapTests: XCTestCase {
         }
         XCTAssertTrue(retry.waitForExistence(timeout: 5))
 
-        let firstPageItem = app.buttons["catalogItem-fixture-catalog-电视剧-1"]
+        let firstPageItem = app.buttons["catalogItem-fixture-catalog-drama-1"]
         for _ in 0..<8 where !firstPageItem.exists {
             app.swipeDown()
         }
@@ -255,7 +267,7 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(retry.waitForExistence(timeout: 3))
         retry.tap()
 
-        let secondPageItem = app.buttons["catalogItem-fixture-catalog-电视剧-25"]
+        let secondPageItem = app.buttons["catalogItem-fixture-catalog-drama-25"]
         for _ in 0..<4 where !secondPageItem.exists {
             app.swipeUp()
         }
@@ -270,9 +282,9 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(playedTab.exists)
         playedTab.tap()
 
-        let playedItem = app.buttons["playedItem-fixture-电视剧::episode-4"]
+        let playedItem = app.buttons["playedItem-fixture-drama::episode-4"]
         XCTAssertTrue(playedItem.waitForExistence(timeout: 5))
-        let playedPosition = app.staticTexts["playedPosition-fixture-电视剧::episode-4"]
+        let playedPosition = app.staticTexts["playedPosition-fixture-drama::episode-4"]
         XCTAssertEqual(playedPosition.label, "Paused at 00:40 / 01:40")
         Thread.sleep(forTimeInterval: 1)
         XCTAssertEqual(playedPosition.label, "Paused at 00:40 / 01:40")
@@ -286,7 +298,7 @@ final class AiyifanLatestTapTests: XCTestCase {
 
     func testEpisodePickerShowsNewestFirstAndSwitchesEpisode() {
         let app = launchFixtureApp()
-        let item = app.buttons["latestItem-fixture-电视剧"]
+        let item = app.buttons["latestItem-fixture-drama"]
         XCTAssertTrue(item.waitForExistence(timeout: 5))
         item.tap()
 
@@ -308,7 +320,7 @@ final class AiyifanLatestTapTests: XCTestCase {
 
     func testAdvertisementIsRemovedFromNativePlayback() {
         let app = launchFixtureApp()
-        app.buttons["latestItem-fixture-电影"].tap()
+        app.buttons["latestItem-fixture-movie"].tap()
 
         XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.staticTexts["Advertisement · Muted"].waitForExistence(timeout: 2))
@@ -320,10 +332,11 @@ final class AiyifanLatestTapTests: XCTestCase {
             "-AiyifanUseFixtureFeed",
             "-AiyifanUsePlayableFixtureMedia",
             "-AiyifanResetSavedItems",
-            "-AiyifanResetPlayedItems"
+            "-AiyifanResetPlayedItems",
+            "-AiyifanResetCatalogPreferences"
         ]
         app.launch()
-        app.buttons["latestItem-fixture-电影"].tap()
+        app.buttons["latestItem-fixture-movie"].tap()
         let player = app.otherElements["nativePlayer"]
         XCTAssertTrue(player.waitForExistence(timeout: 5))
 
@@ -364,15 +377,19 @@ final class AiyifanLatestTapTests: XCTestCase {
 
     func testPlayerOffersAirPlayAndGoogleCastControls() {
         let app = launchFixtureApp()
-        app.buttons["latestItem-fixture-电影"].tap()
+        app.buttons["latestItem-fixture-movie"].tap()
 
         XCTAssertTrue(app.buttons["airPlayButton"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["googleCastButton"].exists)
+        XCTAssertEqual(app.otherElements["viewerMetric-likes"].label, "76 Likes")
+        XCTAssertEqual(app.otherElements["viewerMetric-favorites"].label, "221 Favorites")
+        XCTAssertEqual(app.otherElements["viewerMetric-score"].label, "9.6 Score")
+        XCTAssertEqual(app.otherElements["viewerMetric-views"].label, "170K Views")
     }
 
     func testSerialPlayerOffersEpisodeContinuityAndPlaybackSettings() {
         let app = launchFixtureApp()
-        app.buttons["latestItem-fixture-电视剧"].tap()
+        app.buttons["latestItem-fixture-drama"].tap()
 
         XCTAssertTrue(app.buttons["showEpisodes"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["airPlayButton"].exists)
@@ -387,38 +404,63 @@ final class AiyifanLatestTapTests: XCTestCase {
 
     func testCatalogOffersProviderFiltersSortAndResultCount() {
         let app = launchFixtureApp()
-        app.buttons["browseCategory-电视剧"].tap()
+        app.buttons["browseCategory-drama"].tap()
 
         XCTAssertTrue(app.buttons["catalogFilter"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["catalogSort"].exists)
-        XCTAssertEqual(app.staticTexts["catalogResultCount"].label, "共 30 个结果")
+        XCTAssertEqual(app.staticTexts["catalogResultCount"].label, "30 results")
 
         app.buttons["catalogFilter"].tap()
-        XCTAssertTrue(app.navigationBars["筛选"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.navigationBars["Filters"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.buttons["applyCatalogFilters"].exists)
         XCTAssertTrue(app.buttons["resetCatalogFilters"].exists)
         XCTAssertTrue(app.buttons["cancelCatalogFilters"].exists)
 
-        app.buttons["catalogFilter-语言"].tap()
+        app.buttons["catalogFilter-Language"].tap()
         XCTAssertTrue(app.buttons["英语"].waitForExistence(timeout: 2))
         app.buttons["英语"].tap()
         app.buttons["applyCatalogFilters"].tap()
 
         XCTAssertTrue(app.buttons["catalogFilter"].waitForExistence(timeout: 5))
-        XCTAssertEqual(app.buttons["catalogFilter"].value as? String, "已选 1 项")
-        XCTAssertTrue(app.staticTexts["共 15 个结果"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["catalogItem-fixture-catalog-电视剧-2"].exists)
-        XCTAssertFalse(app.buttons["catalogItem-fixture-catalog-电视剧-1"].exists)
+        XCTAssertEqual(app.buttons["catalogFilter"].value as? String, "1 selected")
+        XCTAssertTrue(app.staticTexts["15 results"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["catalogItem-fixture-catalog-drama-2"].exists)
+        XCTAssertFalse(app.buttons["catalogItem-fixture-catalog-drama-1"].exists)
 
         app.buttons["catalogSort"].tap()
         XCTAssertTrue(app.buttons["catalogSort-3"].waitForExistence(timeout: 2))
         app.buttons["catalogSort-3"].tap()
-        XCTAssertTrue(app.buttons["catalogItem-fixture-catalog-电视剧-30"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["catalogItem-fixture-catalog-drama-30"].waitForExistence(timeout: 5))
 
         app.buttons["catalogSort"].tap()
         XCTAssertTrue(app.buttons["catalogSortDirection"].waitForExistence(timeout: 2))
         app.buttons["catalogSortDirection"].tap()
-        XCTAssertTrue(app.buttons["catalogItem-fixture-catalog-电视剧-2"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["catalogItem-fixture-catalog-drama-2"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["catalogScore-fixture-catalog-drama-2"].exists)
+    }
+
+    func testCatalogFilterAndSortSelectionsSurviveRelaunch() {
+        var app = launchFixtureApp()
+        app.buttons["browseCategory-drama"].tap()
+        XCTAssertTrue(app.buttons["catalogFilter"].waitForExistence(timeout: 5))
+        app.buttons["catalogFilter"].tap()
+        app.buttons["catalogFilter-Language"].tap()
+        XCTAssertTrue(app.buttons["英语"].waitForExistence(timeout: 2))
+        app.buttons["英语"].tap()
+        app.buttons["applyCatalogFilters"].tap()
+        XCTAssertTrue(app.staticTexts["15 results"].waitForExistence(timeout: 5))
+        app.buttons["catalogSort"].tap()
+        app.buttons["catalogSort-3"].tap()
+        XCTAssertTrue(app.buttons["catalogItem-fixture-catalog-drama-30"].waitForExistence(timeout: 5))
+        app.terminate()
+
+        app = launchFixtureApp(resetSavedItems: false, resetCatalogPreferences: false)
+        app.buttons["browseCategory-drama"].tap()
+
+        XCTAssertTrue(app.staticTexts["15 results"].waitForExistence(timeout: 5))
+        XCTAssertEqual(app.buttons["catalogFilter"].value as? String, "1 selected")
+        XCTAssertEqual(app.buttons["catalogSort"].label, "Sort: Rating")
+        XCTAssertTrue(app.buttons["catalogItem-fixture-catalog-drama-30"].exists)
     }
 
     func testSettingsAreAvailableWithoutAddingAFourthTab() {
@@ -438,6 +480,7 @@ final class AiyifanLatestTapTests: XCTestCase {
             "-AiyifanUseFixtureFeed",
             "-AiyifanResetSavedItems",
             "-AiyifanResetPlayedItems",
+            "-AiyifanResetCatalogPreferences",
             "-AiyifanSimulateCastSession"
         ]
         app.launch()
@@ -466,7 +509,7 @@ final class AiyifanLatestTapTests: XCTestCase {
     func testContinueWatchingAppearsAndResumesSeededEpisode() {
         let app = launchFixtureAppWithPlayedHistory()
 
-        let continueItem = app.buttons["continueItem-fixture-电视剧"]
+        let continueItem = app.buttons["continueItem-fixture-drama"]
         XCTAssertTrue(continueItem.waitForExistence(timeout: 5))
         continueItem.tap()
 
@@ -476,34 +519,24 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(episodeControl.label.contains("4/10"))
     }
 
-    func testNativeSearchAndCategoryFilterNarrowLatestResults() {
+    func testLatestCategoryFilterWorksWithoutSearchBar() {
         let app = launchFixtureApp()
-        let search = app.searchFields["Search latest"]
-        XCTAssertTrue(search.waitForExistence(timeout: 5))
-        search.tap()
-        search.typeText("电视剧")
-
-        XCTAssertTrue(app.buttons["searchItem-fixture-电视剧"].waitForExistence(timeout: 3))
-        XCTAssertFalse(app.buttons["searchItem-fixture-电影"].exists)
-
-        app.buttons["clearSearch"].tap()
-        if app.buttons["Close"].exists {
-            app.buttons["Close"].tap()
-        }
+        XCTAssertTrue(app.buttons["filterLatest"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.searchFields.firstMatch.exists)
         app.buttons["filterLatest"].tap()
-        app.buttons["filterCategory-动漫"].tap()
+        app.buttons["filterCategory-anime"].tap()
         app.buttons["applyFilters"].tap()
 
-        XCTAssertTrue(app.buttons["searchItem-fixture-动漫"].waitForExistence(timeout: 3))
-        XCTAssertFalse(app.buttons["searchItem-fixture-电视剧"].exists)
+        XCTAssertTrue(app.buttons["searchItem-fixture-anime"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["searchItem-fixture-drama"].exists)
     }
 
     func testPowerUserSessionKeepsNavigationAndCollectionsConsistent() {
         let app = launchFixtureAppWithPlayedHistory()
-        let latestItem = app.buttons["latestItem-fixture-电影"]
+        let latestItem = app.buttons["latestItem-fixture-movie"]
         XCTAssertTrue(latestItem.waitForExistence(timeout: 5))
-        app.buttons["saveItem-fixture-电影"].tap()
-        app.buttons["saveItem-fixture-电视剧"].tap()
+        app.buttons["saveItem-fixture-movie"].tap()
+        app.buttons["saveItem-fixture-drama"].tap()
 
         for _ in 0..<3 {
             latestItem.tap()
@@ -513,7 +546,7 @@ final class AiyifanLatestTapTests: XCTestCase {
         }
 
         app.tabBars.buttons["Saved"].tap()
-        let savedItem = app.buttons["savedItem-fixture-电视剧"]
+        let savedItem = app.buttons["savedItem-fixture-drama"]
         XCTAssertTrue(savedItem.waitForExistence(timeout: 5))
         savedItem.tap()
         XCTAssertTrue(app.buttons["showEpisodes"].waitForExistence(timeout: 5))
@@ -524,7 +557,7 @@ final class AiyifanLatestTapTests: XCTestCase {
         app.buttons["closeNativePlayer"].tap()
 
         app.tabBars.buttons["Played"].tap()
-        let playedItem = app.buttons["playedItem-fixture-电视剧::episode-4"]
+        let playedItem = app.buttons["playedItem-fixture-drama::episode-4"]
         XCTAssertTrue(playedItem.waitForExistence(timeout: 5))
         playedItem.tap()
         XCTAssertTrue(app.buttons["showEpisodes"].waitForExistence(timeout: 5))
@@ -537,7 +570,7 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Nothing played yet"].waitForExistence(timeout: 3))
 
         app.tabBars.buttons["Saved"].tap()
-        XCTAssertTrue(app.buttons["savedItem-fixture-电影"].exists)
+        XCTAssertTrue(app.buttons["savedItem-fixture-movie"].exists)
     }
 
     func testFiftyActionHeavyUserSessionRemainsConsistent() {
@@ -546,14 +579,15 @@ final class AiyifanLatestTapTests: XCTestCase {
             "-AiyifanUseFixtureFeed",
             "-AiyifanResetSavedItems",
             "-AiyifanResetPlayedItems",
+            "-AiyifanResetCatalogPreferences",
             "-AiyifanSeedPlayedItems",
             "-AiyifanSimulateCastSession"
         ]
         app.launch()
 
-        let latestItem = app.buttons["latestItem-fixture-电影"]
+        let latestItem = app.buttons["latestItem-fixture-movie"]
         XCTAssertTrue(latestItem.waitForExistence(timeout: 5))
-        app.buttons["saveItem-fixture-电影"].tap()
+        app.buttons["saveItem-fixture-movie"].tap()
 
         for _ in 0..<5 {
             latestItem.tap()
@@ -563,7 +597,7 @@ final class AiyifanLatestTapTests: XCTestCase {
         }
 
         app.tabBars.buttons["Saved"].tap()
-        let savedItem = app.buttons["savedItem-fixture-电影"]
+        let savedItem = app.buttons["savedItem-fixture-movie"]
         XCTAssertTrue(savedItem.waitForExistence(timeout: 5))
         for _ in 0..<3 {
             savedItem.tap()
@@ -573,7 +607,7 @@ final class AiyifanLatestTapTests: XCTestCase {
         }
 
         app.tabBars.buttons["Played"].tap()
-        let playedItem = app.buttons["playedItem-fixture-电视剧::episode-4"]
+        let playedItem = app.buttons["playedItem-fixture-drama::episode-4"]
         XCTAssertTrue(playedItem.waitForExistence(timeout: 5))
         for _ in 0..<3 {
             playedItem.tap()
@@ -606,13 +640,13 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(latestItem.exists)
         XCTAssertTrue(app.otherElements["castMiniController"].exists)
 
-        app.buttons["browseCategory-电影"].tap()
-        let catalogItem = app.buttons["catalogItem-fixture-catalog-电影-25"]
+        app.buttons["browseCategory-movie"].tap()
+        let catalogItem = app.buttons["catalogItem-fixture-catalog-movie-25"]
         for _ in 0..<8 where !catalogItem.exists {
             app.swipeUp()
         }
         XCTAssertTrue(catalogItem.waitForExistence(timeout: 5))
-        app.buttons["saveCatalogItem-fixture-catalog-电影-25"].tap()
+        app.buttons["saveCatalogItem-fixture-catalog-movie-25"].tap()
         catalogItem.tap()
         XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
         app.buttons["closeNativePlayer"].tap()
@@ -620,6 +654,6 @@ final class AiyifanLatestTapTests: XCTestCase {
         app.buttons["closeCategoryCatalog"].tap()
 
         app.tabBars.buttons["Saved"].tap()
-        XCTAssertTrue(app.buttons["savedItem-fixture-catalog-电影-25"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["savedItem-fixture-catalog-movie-25"].waitForExistence(timeout: 5))
     }
 }

@@ -65,8 +65,8 @@ struct NativeCategoryCatalogView: View {
                             }
                         }
                     }
-                    .accessibilityLabel("筛选")
-                    .accessibilityValue("已选 \(viewModel.appliedQuery.activeFilterCount) 项")
+                    .accessibilityLabel("Filters")
+                    .accessibilityValue("\(viewModel.appliedQuery.activeFilterCount) selected")
                     .accessibilityIdentifier("catalogFilter")
 
                     catalogSortMenu
@@ -88,17 +88,17 @@ struct NativeCategoryCatalogView: View {
     @ViewBuilder
     private var content: some View {
         if viewModel.isLoadingInitial && viewModel.items.isEmpty {
-            ProgressView("正在加载")
+            ProgressView("Loading")
                 .tint(.white)
                 .foregroundStyle(.white)
                 .accessibilityIdentifier("catalogInitialLoading")
         } else if let message = viewModel.initialErrorMessage, viewModel.items.isEmpty {
             ContentUnavailableView {
-                Label("加载失败", systemImage: "wifi.exclamationmark")
+                Label("Unable to Load", systemImage: "wifi.exclamationmark")
             } description: {
                 Text(message)
             } actions: {
-                Button("重试") {
+                Button("Retry") {
                     Task { await viewModel.loadInitial() }
                 }
                 .buttonStyle(.borderedProminent)
@@ -107,12 +107,12 @@ struct NativeCategoryCatalogView: View {
             .foregroundStyle(.white)
         } else if viewModel.items.isEmpty {
             ContentUnavailableView {
-                Label("未找到内容", systemImage: "line.3.horizontal.decrease.circle")
+                Label("No Titles Found", systemImage: "line.3.horizontal.decrease.circle")
             } description: {
-                Text(viewModel.appliedQuery.activeFilterCount > 0 ? "试试清除筛选条件" : "暂无内容")
+                Text(viewModel.appliedQuery.activeFilterCount > 0 ? "Try clearing your filters." : "No titles are available.")
             } actions: {
                 if viewModel.appliedQuery.activeFilterCount > 0 {
-                    Button("清除筛选") {
+                    Button("Clear Filters") {
                         Task { _ = await viewModel.clearFilters() }
                     }
                     .buttonStyle(.borderedProminent)
@@ -130,7 +130,7 @@ struct NativeCategoryCatalogView: View {
         ScrollView {
             VStack(spacing: 16) {
                 HStack {
-                    Text("共 \(viewModel.totalCount) 个结果")
+                    Text("\(viewModel.totalCount) results")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.72))
                         .accessibilityIdentifier("catalogResultCount")
@@ -193,13 +193,13 @@ struct NativeCategoryCatalogView: View {
             Button {
                 Task { await viewModel.retryLoadMore() }
             } label: {
-                Label("加载失败，点击重试", systemImage: "arrow.clockwise")
+                Label("Load failed. Tap to retry.", systemImage: "arrow.clockwise")
                     .frame(maxWidth: .infinity, minHeight: 44)
             }
             .buttonStyle(.bordered)
             .accessibilityIdentifier("retryCatalogLoadMore")
         } else if viewModel.reachedEnd {
-            Text("已显示全部")
+            Text("All results shown")
                 .font(.caption)
                 .foregroundStyle(.white.opacity(0.5))
                 .frame(height: 44)
@@ -234,7 +234,7 @@ struct NativeCategoryCatalogView: View {
                 }
             } label: {
                 Label(
-                    viewModel.appliedQuery.descending ? "切换为升序" : "切换为降序",
+                    viewModel.appliedQuery.descending ? "Switch to Ascending" : "Switch to Descending",
                     systemImage: viewModel.appliedQuery.descending ? "arrow.up" : "arrow.down"
                 )
             }
@@ -243,7 +243,7 @@ struct NativeCategoryCatalogView: View {
             Image(systemName: "arrow.up.arrow.down.circle")
                 .frame(width: 44, height: 44)
         }
-        .accessibilityLabel("排序：\(viewModel.appliedQuery.sort.title)")
+        .accessibilityLabel("Sort: \(viewModel.appliedQuery.sort.title)")
         .accessibilityIdentifier("catalogSort")
     }
 }
@@ -256,46 +256,46 @@ private struct CatalogFilterSheet: View {
         NavigationStack {
             Group {
                 if viewModel.isLoadingFilters {
-                    ProgressView("正在加载筛选项")
+                    ProgressView("Loading Filters")
                 } else if let message = viewModel.filterErrorMessage, viewModel.filterSet == nil {
                     ContentUnavailableView {
-                        Label("筛选项加载失败", systemImage: "wifi.exclamationmark")
+                        Label("Unable to Load Filters", systemImage: "wifi.exclamationmark")
                     } description: {
                         Text(message)
                     } actions: {
-                        Button("重试") { Task { await viewModel.loadFilters() } }
+                        Button("Retry") { Task { await viewModel.loadFilters() } }
                             .accessibilityIdentifier("retryCatalogFilters")
                     }
                 } else if let filters = viewModel.filterSet {
                     Form {
                         filterPicker(
-                            title: "类型",
+                            title: "Genre",
                             selection: binding(\.genreCID, set: viewModel.setDraftGenre),
                             options: filters.genres
                         )
                         filterPicker(
-                            title: "地区",
+                            title: "Region",
                             selection: binding(\.region, set: viewModel.setDraftRegion),
                             options: filters.regions
                         )
                         filterPicker(
-                            title: "语言",
+                            title: "Language",
                             selection: binding(\.language, set: viewModel.setDraftLanguage),
                             options: filters.languages
                         )
                         filterPicker(
-                            title: "年份",
+                            title: "Year",
                             selection: binding(\.year, set: viewModel.setDraftYear),
                             options: filters.years
                         )
                         filterPicker(
-                            title: "画质",
+                            title: "Quality",
                             selection: binding(\.quality, set: viewModel.setDraftQuality),
                             options: filters.qualities
                         )
                         if !filters.statuses.isEmpty {
                             filterPicker(
-                                title: "状态",
+                                title: "Status",
                                 selection: Binding(
                                     get: { viewModel.draftQuery.status?.rawValue },
                                     set: { viewModel.setDraftStatus($0.flatMap(CatalogSerialStatus.init(rawValue:))) }
@@ -305,7 +305,7 @@ private struct CatalogFilterSheet: View {
                         }
 
                         Section {
-                            Button("重置所有筛选") { viewModel.resetDraftFilters() }
+                            Button("Reset All Filters") { viewModel.resetDraftFilters() }
                                 .frame(maxWidth: .infinity)
                                 .disabled(viewModel.isApplyingQuery)
                                 .accessibilityIdentifier("resetCatalogFilters")
@@ -321,18 +321,18 @@ private struct CatalogFilterSheet: View {
                     }
                 }
             }
-            .navigationTitle("筛选")
+            .navigationTitle("Filters")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("取消") {
+                    Button("Cancel") {
                         viewModel.cancelFilterEditing()
                         onDismiss()
                     }
                     .accessibilityIdentifier("cancelCatalogFilters")
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("应用") {
+                    Button("Apply") {
                         Task {
                             if await viewModel.applyDraftQuery() {
                                 onDismiss()
@@ -353,9 +353,12 @@ private struct CatalogFilterSheet: View {
 
     private func binding(
         _ keyPath: KeyPath<CatalogQuery, String?>,
-        set: @escaping (String?) -> Void
+        set: @escaping @MainActor @Sendable (String?) -> Void
     ) -> Binding<String?> {
-        Binding(get: { viewModel.draftQuery[keyPath: keyPath] }, set: set)
+        Binding(
+            get: { viewModel.draftQuery[keyPath: keyPath] },
+            set: { value in set(value) }
+        )
     }
 
     private func filterPicker(
@@ -365,7 +368,7 @@ private struct CatalogFilterSheet: View {
     ) -> some View {
         Section {
             Picker(title, selection: selection) {
-                Text("全部").tag(String?.none)
+                Text("All").tag(String?.none)
                 ForEach(options) { option in
                     Text(option.title).tag(Optional(option.value))
                 }
@@ -422,6 +425,13 @@ private struct CatalogItemCard: View {
             .padding(7)
             .accessibilityLabel(isSaved ? "Remove from Saved" : "Save for Later")
             .accessibilityIdentifier("saveCatalogItem-\(item.id)")
+
+            if let score = item.score {
+                ProviderScoreBadge(score: score)
+                    .padding(7)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("catalogScore-\(item.id)")
+            }
         }
         .frame(maxWidth: 180, alignment: .leading)
     }

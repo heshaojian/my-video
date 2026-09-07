@@ -15,21 +15,40 @@ struct NativePlayback: Equatable, Sendable {
     let entries: [NativePlaybackEntry]
     let episodes: [Episode]
     let selectedEpisode: Episode?
+    let metrics: ViewerMetrics?
 
     var episodeTitle: String? {
         selectedEpisode?.title
     }
 
-    init(entries: [NativePlaybackEntry], episodes: [Episode] = [], selectedEpisode: Episode? = nil) {
+    init(
+        entries: [NativePlaybackEntry],
+        episodes: [Episode] = [],
+        selectedEpisode: Episode? = nil,
+        metrics: ViewerMetrics? = nil
+    ) {
         self.entries = entries
         self.episodes = episodes
         self.selectedEpisode = selectedEpisode
+        self.metrics = metrics
+    }
+}
+
+struct ViewerMetrics: Equatable, Sendable {
+    let likes: Int?
+    let favorites: Int?
+    let score: Double?
+    let views: Int?
+
+    var isEmpty: Bool {
+        likes == nil && favorites == nil && score == nil && views == nil
     }
 }
 
 struct VideoPlaybackContext: Equatable, Sendable {
     let isSerial: Bool
     let categoryID: String
+    let metrics: ViewerMetrics
 }
 
 struct EpisodeSelection: Equatable, Sendable {
@@ -212,7 +231,16 @@ enum VideoDetailResponseDecoder {
         else {
             throw NativePlaybackError.invalidResponse
         }
-        return VideoPlaybackContext(isSerial: isSerial, categoryID: categoryID)
+        return VideoPlaybackContext(
+            isSerial: isSerial,
+            categoryID: categoryID,
+            metrics: ViewerMetrics(
+                likes: APIResponseParser.nonnegativeCount(info["good"]),
+                favorites: APIResponseParser.nonnegativeCount(info["favoriteCount"]),
+                score: APIResponseParser.score(info["score"]),
+                views: APIResponseParser.nonnegativeCount(info["view"])
+            )
+        )
     }
 }
 
@@ -390,6 +418,31 @@ private enum APIResponseParser {
         }
         return nil
     }
+
+    static func nonnegativeCount(_ value: Any?) -> Int? {
+        guard let value = integer(value), (0...1_000_000_000).contains(value) else {
+            return nil
+        }
+        return value
+    }
+
+    static func score(_ value: Any?) -> Double? {
+        let decoded: Double?
+        if let value = value as? NSNumber {
+            guard CFGetTypeID(value) != CFBooleanGetTypeID() else {
+                return nil
+            }
+            decoded = value.doubleValue
+        } else if let value = value as? String {
+            decoded = Double(value)
+        } else {
+            decoded = nil
+        }
+        guard let decoded, decoded.isFinite, (0...10).contains(decoded) else {
+            return nil
+        }
+        return decoded
+    }
 }
 
 enum NativePlaybackResponseDecoder {
@@ -539,7 +592,8 @@ struct NativePlaybackResolver: NativePlaybackResolving {
         return NativePlayback(
             entries: playback.entries,
             episodes: episodes,
-            selectedEpisode: selectedEpisode
+            selectedEpisode: selectedEpisode,
+            metrics: context.metrics.isEmpty ? nil : context.metrics
         )
     }
 
@@ -596,7 +650,8 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving {
                 )
             ],
             episodes: isSerial ? episodes : [],
-            selectedEpisode: selected
+            selectedEpisode: selected,
+            metrics: ViewerMetrics(likes: 76, favorites: 221, score: 9.6, views: 170_000)
         )
     }
 }

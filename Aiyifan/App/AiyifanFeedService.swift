@@ -10,10 +10,10 @@ protocol AiyifanFeedServing: Sendable {
 }
 
 struct AiyifanFeedService: @unchecked Sendable, AiyifanFeedServing {
-    private let decoder: JSONDecoder
+    private let catalogService: any CategoryCatalogServing
 
-    init() {
-        decoder = JSONDecoder()
+    init(catalogService: any CategoryCatalogServing = CategoryCatalogService()) {
+        self.catalogService = catalogService
     }
 
     func fetchLatest(category: AiyifanCategory) async throws -> [AiyifanItem] {
@@ -21,35 +21,11 @@ struct AiyifanFeedService: @unchecked Sendable, AiyifanFeedServing {
             return Self.fixtureItems(for: category)
         }
 
-        let (data, _) = try await URLSession.shared.data(from: category.url)
-        guard
-            let html = String(data: data, encoding: .utf8),
-            let json = extractInjectedJSON(from: html)
-        else {
-            throw AiyifanFeedError.missingPageData
-        }
-
-        guard
-            let root = try JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any],
-            let key = root.keys.first(where: { $0.hasPrefix("slide-list") }),
-            let rawItems = root[key]
-        else {
-            throw AiyifanFeedError.missingFeed
-        }
-
-        let itemData = try JSONSerialization.data(withJSONObject: rawItems)
-        return try decoder.decode([AiyifanItem].self, from: itemData)
-    }
-
-    private func extractInjectedJSON(from html: String) -> String? {
-        guard
-            let start = html.range(of: "var injectJson = ")?.upperBound,
-            let end = html[start...].range(of: "};")?.lowerBound
-        else {
-            return nil
-        }
-
-        return String(html[start...end])
+        return try await catalogService.fetchPage(
+            query: CatalogQuery(category: category),
+            page: 1,
+            pageSize: 8
+        ).items
     }
 
     private static func fixtureItems(for category: AiyifanCategory) -> [AiyifanItem] {
@@ -65,12 +41,13 @@ struct AiyifanFeedService: @unchecked Sendable, AiyifanFeedServing {
             AiyifanItem(
                 listPath: "fixture-\(category.id)",
                 title: "Fixture \(category.title)",
-                subTitle: "更新至 01 集",
+                subTitle: category == .movie ? "New release" : "Episode 10",
                 url: fixtureURL,
                 isSerial: category != .movie,
                 latestEpisodeKey: category == .movie ? nil : "episode-10",
                 latestEpisodeTitle: category == .movie ? nil : "10",
-                categoryPath: category.catalogCID
+                categoryPath: category.catalogCID,
+                score: 9.4
             )
         ]
     }

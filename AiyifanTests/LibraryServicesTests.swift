@@ -112,6 +112,48 @@ final class FeedRepositoryTests: XCTestCase {
     }
 }
 
+final class AiyifanFeedServiceTests: XCTestCase {
+    func testLatestUsesEightItemUpdatedDescendingCatalogQuery() async throws {
+        let catalog = LatestCatalogRecordingService()
+        let service = AiyifanFeedService(catalogService: catalog)
+
+        let items = try await service.fetchLatest(category: .movie)
+        let request = await catalog.lastRequest()
+
+        XCTAssertEqual(items.first?.score, 9.4)
+        XCTAssertEqual(request?.query, CatalogQuery(category: .movie))
+        XCTAssertEqual(request?.page, 1)
+        XCTAssertEqual(request?.pageSize, 8)
+    }
+}
+
+private actor LatestCatalogRecordingService: CategoryCatalogServing {
+    struct Request: Sendable {
+        let query: CatalogQuery
+        let page: Int
+        let pageSize: Int
+    }
+
+    private var requests: [Request] = []
+
+    func fetchPage(category: AiyifanCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
+        try await fetchPage(query: CatalogQuery(category: category), page: page, pageSize: pageSize)
+    }
+
+    func fetchPage(query: CatalogQuery, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
+        requests.append(Request(query: query, page: page, pageSize: pageSize))
+        return CategoryCatalogPage(
+            items: [AiyifanItem(listPath: "latest", title: "Provider Title", score: 9.4)],
+            page: page,
+            isLastPage: true
+        )
+    }
+
+    func lastRequest() -> Request? {
+        requests.last
+    }
+}
+
 private struct StubFeedService: AiyifanFeedServing {
     let failing: Set<AiyifanCategory>
 

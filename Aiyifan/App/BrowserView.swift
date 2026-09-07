@@ -191,7 +191,7 @@ private struct LatestHomeView: View {
                                         .font(.caption.weight(.semibold))
                                         .foregroundStyle(.cyan)
 
-                                    Text("最新更新")
+                                    Text("Latest")
                                         .font(.system(size: 30, weight: .bold))
                                         .foregroundStyle(.white)
                                 }
@@ -221,9 +221,6 @@ private struct LatestHomeView: View {
                                 .accessibilityIdentifier("appSettings")
                             }
 
-                            Text("中文 / English")
-                                .font(.subheadline)
-                                .foregroundStyle(.white.opacity(0.48))
                         }
                         .padding(.horizontal, 18)
                         .padding(.top, 18)
@@ -252,7 +249,7 @@ private struct LatestHomeView: View {
                                 .frame(maxWidth: .infinity)
                                 .padding(.top, 80)
                         } else if let message = viewModel.latestErrorMessage {
-                            ContentUnavailableView("加载失败", systemImage: "wifi.exclamationmark", description: Text(message))
+                            ContentUnavailableView("Unable to Load", systemImage: "wifi.exclamationmark", description: Text(message))
                                 .foregroundStyle(.white)
                                 .padding(.horizontal)
                         } else if filter.isActive {
@@ -261,7 +258,7 @@ private struct LatestHomeView: View {
                                 onSelectItem: viewModel.selectItem,
                                 isSaved: savedItemsStore.contains,
                                 onToggleSaved: toggleSaved,
-                                onClearSearch: { filter.query = "" }
+                                onClearSearch: { filter = LibraryFilter() }
                             )
                         } else {
                             ForEach(AiyifanCategory.allCases) { category in
@@ -288,11 +285,6 @@ private struct LatestHomeView: View {
             }
         }
         .accessibilityIdentifier("latestHome")
-        .searchable(
-            text: $filter.query,
-            placement: .navigationBarDrawer(displayMode: .always),
-            prompt: "Search latest"
-        )
         .sheet(isPresented: $isShowingFilters) {
             LibraryFilterSheet(filter: $filter, isPresented: $isShowingFilters)
         }
@@ -464,7 +456,7 @@ private struct SearchResultsSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("Results")
+                Text("Filtered Titles")
                     .font(.title3.weight(.semibold))
                     .foregroundStyle(.white)
                 Spacer()
@@ -473,8 +465,8 @@ private struct SearchResultsSection: View {
                         .frame(width: 36, height: 36)
                 }
                 .foregroundStyle(.white.opacity(0.7))
-                .accessibilityLabel("Clear Search")
-                .accessibilityIdentifier("clearSearch")
+                .accessibilityLabel("Clear Filters")
+                .accessibilityIdentifier("clearLatestFilters")
             }
             .padding(.horizontal, 18)
 
@@ -607,7 +599,7 @@ private struct LatestCategorySection: View {
 
                 Button(action: onSelectCategory) {
                     HStack(spacing: 4) {
-                        Text("全部")
+                        Text("All")
                         Image(systemName: "chevron.right")
                     }
                 }
@@ -696,6 +688,13 @@ private struct LatestItemCard: View {
             .padding(7)
             .accessibilityLabel(isSaved ? "Remove from Saved" : "Save for Later")
             .accessibilityIdentifier("saveItem-\(item.id)")
+
+            if let score = item.score {
+                ProviderScoreBadge(score: score)
+                    .padding(7)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityIdentifier("latestScore-\(item.id)")
+            }
         }
         .frame(width: 132, alignment: .leading)
     }

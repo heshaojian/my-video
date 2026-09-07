@@ -4,13 +4,14 @@ Personal iOS client for Aiyifan (`https://m.yfsp.tv/`).
 
 ## What It Does
 
-- Starts on a native latest-updates page for `电影`, `电视剧`, `综艺`, and `动漫`.
+- Starts on an English native Latest page for Movies, Series, Variety, and Anime while preserving provider titles and metadata in their original language.
 - Uses the established Aiyifan folded-mark identity for the app icon, launch screen, in-app header, and Now Playing artwork.
-- Fetches the latest embedded Aiyifan category feeds and shows poster rows for quick browsing.
-- Opens `全部` as a native, pull-to-refresh catalog with 24-item pagination, Save/Favorite controls, and direct native playback.
-- Searches and filters the native library, with Continue Watching and New for You sections.
+- Fetches the latest signed Aiyifan category results and shows provider scores on poster rows.
+- Opens All as a native, pull-to-refresh catalog with 24-item pagination, score badges, Save/Favorite controls, and direct native playback.
+- Filters the native library, with Continue Watching and New for You sections. Search is currently disabled.
+- Remembers independently selected filters, sort order, and sort direction for each category across navigation and app relaunches.
 - Saves titles for later, detects new episodes, and supports per-title update alerts.
-- Resolves supported streams into native `AVPlayer` playback with Picture in Picture and background audio.
+- Resolves supported streams into native `AVPlayer` playback with Picture in Picture, background audio, and provider Likes, Favorites, Score, and Views.
 - Excludes separately supplied front advertisements from native and Cast playback queues while leaving the full program stream untouched.
 - Lists multi-episode shows newest-first, autoplays the next episode, and remembers progress per episode.
 - Continues audio while the screen is locked and provides playback speed, sleep timer, lock-screen Now Playing controls, interruption recovery, and transient-load retry.

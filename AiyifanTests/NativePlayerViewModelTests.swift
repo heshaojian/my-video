@@ -30,14 +30,44 @@ final class NativePlayerViewModelTests: XCTestCase {
         )
 
         XCTAssertTrue(viewModel.shouldShowEpisodeControl)
-        XCTAssertEqual(viewModel.episodeControlTitle, "剧集加载中")
+        XCTAssertEqual(viewModel.episodeControlTitle, "Loading Episodes")
 
         viewModel.start()
         try await waitUntil { viewModel.episodes.count == 10 }
 
-        XCTAssertEqual(viewModel.episodeControlTitle, "第 10/10 集")
+        XCTAssertEqual(viewModel.episodeControlTitle, "Episode 10/10")
         XCTAssertEqual(viewModel.episodes.map(\.mediaKey), (1...10).reversed().map { "episode-\($0)" })
         viewModel.stop()
+    }
+
+    func testPlayerPublishesResolvedViewerMetrics() async throws {
+        let metrics = ViewerMetrics(likes: 76, favorites: 221, score: 9.6, views: 170_000)
+        let playback = NativePlayback(
+            entries: [NativePlaybackEntry(
+                url: URL(string: "https://media.example.com/movie.m3u8")!,
+                isAdvertisement: false
+            )],
+            metrics: metrics
+        )
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "movie", title: "Original Title"),
+            resolver: StubPlaybackResolver(playback: playback)
+        )
+
+        viewModel.start()
+        try await waitUntil { viewModel.viewerMetrics != nil }
+
+        XCTAssertEqual(viewModel.viewerMetrics, metrics)
+        viewModel.stop()
+    }
+
+    func testEnglishMetricFormattingUsesCompactCountsAndValidatedScores() {
+        XCTAssertEqual(CompactMetricFormatter.count(983), "983")
+        XCTAssertEqual(CompactMetricFormatter.count(9_831), "9.8K")
+        XCTAssertEqual(CompactMetricFormatter.count(170_000), "170K")
+        XCTAssertEqual(CompactMetricFormatter.count(1_250_000), "1.3M")
+        XCTAssertEqual(CompactMetricFormatter.score(9.6), "9.6")
+        XCTAssertEqual(CompactMetricFormatter.score(6), "6.0")
     }
 
     func testMovieWithoutEpisodesDoesNotExposeEpisodeControl() {
@@ -58,19 +88,19 @@ final class NativePlayerViewModelTests: XCTestCase {
         )
 
         XCTAssertTrue(viewModel.shouldShowEpisodeControl)
-        XCTAssertEqual(viewModel.episodeControlTitle, "剧集加载中")
+        XCTAssertEqual(viewModel.episodeControlTitle, "Loading Episodes")
 
         viewModel.start()
         try await waitUntil { viewModel.selectedEpisode?.mediaKey == "episode-4" }
 
         XCTAssertEqual(viewModel.episodes.count, 3)
-        XCTAssertEqual(viewModel.episodeControlTitle, "第 4/10 集")
+        XCTAssertEqual(viewModel.episodeControlTitle, "Episode 4/10")
         viewModel.stop()
     }
 
     func testEpisodeDisplayFormatterNormalizesNumericAndSpecialTitles() {
-        XCTAssertEqual(EpisodeDisplayFormatter.title(for: "第10集"), "第 10 集")
-        XCTAssertEqual(EpisodeDisplayFormatter.title(for: "Episode 04"), "第 4 集")
+        XCTAssertEqual(EpisodeDisplayFormatter.title(for: "第10集"), "第10集")
+        XCTAssertEqual(EpisodeDisplayFormatter.title(for: "Episode 04"), "Episode 04")
         XCTAssertEqual(EpisodeDisplayFormatter.title(for: " Special "), "Special")
         XCTAssertEqual(EpisodeDisplayFormatter.title(for: "2026 特别篇"), "2026 特别篇")
         XCTAssertEqual(EpisodeDisplayFormatter.title(for: "SP 2"), "SP 2")

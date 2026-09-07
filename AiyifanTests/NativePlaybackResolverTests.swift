@@ -91,7 +91,7 @@ final class NativePlaybackResolverTests: XCTestCase {
 
     func testDetailAndPlaylistDecodersReturnNewestEpisodesFirst() throws {
         let detail = Data("""
-        {"ret":200,"data":{"code":0,"info":[{"key":"series-key","cid":"0,1,4,137","isSerial":true}]}}
+        {"ret":200,"data":{"code":0,"info":[{"key":"series-key","cid":"0,1,4,137","isSerial":true,"good":76,"favoriteCount":221,"score":"9.6","view":170000}]}}
         """.utf8)
         let playlist = Data("""
         {"ret":200,"data":{"code":0,"info":[{"playList":[
@@ -106,8 +106,29 @@ final class NativePlaybackResolverTests: XCTestCase {
 
         XCTAssertTrue(context.isSerial)
         XCTAssertEqual(context.categoryID, "0,1,4,137")
+        XCTAssertEqual(context.metrics, ViewerMetrics(likes: 76, favorites: 221, score: 9.6, views: 170000))
         XCTAssertEqual(episodes.map(\.mediaKey), ["episode-4", "episode-3", "episode-1"])
         XCTAssertEqual(episodes.first?.title, "04")
+    }
+
+    func testDetailDecoderOmitsMalformedOptionalMetricsIndependently() throws {
+        let detail = Data("""
+        {"ret":200,"data":{"code":0,"info":[{
+          "cid":"0,1,3,27",
+          "isSerial":false,
+          "good":-1,
+          "favoriteCount":29,
+          "score":"10.1",
+          "view":"9831"
+        }]}}
+        """.utf8)
+
+        let context = try VideoDetailResponseDecoder.decode(detail)
+
+        XCTAssertEqual(context.metrics.likes, nil)
+        XCTAssertEqual(context.metrics.favorites, 29)
+        XCTAssertEqual(context.metrics.score, nil)
+        XCTAssertEqual(context.metrics.views, 9831)
     }
 
     func testEpisodeDecoderUsesNumericLabelsAndStableSourceOrderWhenDatesAreMissing() throws {
@@ -167,11 +188,13 @@ final class NativePlaybackResolverTests: XCTestCase {
         let newest = Episode(mediaKey: "episode-4", title: "04", updateDate: nil)
         let older = Episode(mediaKey: "episode-3", title: "03", updateDate: nil)
 
-        let playback = NativePlayback(entries: [], episodes: [newest, older], selectedEpisode: older)
+        let metrics = ViewerMetrics(likes: 7, favorites: 8, score: 9.2, views: 1200)
+        let playback = NativePlayback(entries: [], episodes: [newest, older], selectedEpisode: older, metrics: metrics)
 
         XCTAssertEqual(playback.episodes, [newest, older])
         XCTAssertEqual(playback.selectedEpisode, older)
         XCTAssertEqual(playback.episodeTitle, "03")
+        XCTAssertEqual(playback.metrics, metrics)
     }
 
     func testPlaylistDecoderRejectsEmptyEpisodeList() {

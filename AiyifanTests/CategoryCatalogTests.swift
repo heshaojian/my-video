@@ -3,11 +3,32 @@ import XCTest
 @testable import Aiyifan
 
 final class CategoryCatalogContractTests: XCTestCase {
+    func testProviderCertificateCacheCoalescesConcurrentLoads() async throws {
+        let cache = ProviderCertificateCache(lifetime: 60)
+        let counter = CertificateLoadCounter()
+        let load: @Sendable () async throws -> PlaybackCertificate = {
+            await counter.increment()
+            try await Task.sleep(for: .milliseconds(30))
+            return PlaybackCertificate(publicKey: "public", privateKey: "private")
+        }
+
+        async let first = cache.certificate(for: "yfsp.tv", load: load)
+        async let second = cache.certificate(for: "yfsp.tv", load: load)
+        async let third = cache.certificate(for: "yfsp.tv", load: load)
+        let certificates = try await [first, second, third]
+        let loadCount = await counter.value()
+
+        XCTAssertEqual(Set(certificates.map(\.publicKey)), ["public"])
+        XCTAssertEqual(loadCount, 1)
+    }
+
     func testCategoriesUseProviderCatalogIdentifiers() {
         XCTAssertEqual(AiyifanCategory.movie.catalogCID, "0,1,3")
         XCTAssertEqual(AiyifanCategory.drama.catalogCID, "0,1,4")
         XCTAssertEqual(AiyifanCategory.variety.catalogCID, "0,1,5")
         XCTAssertEqual(AiyifanCategory.anime.catalogCID, "0,1,6")
+        XCTAssertEqual(AiyifanCategory.allCases.map(\.id), ["movie", "drama", "variety", "anime"])
+        XCTAssertEqual(AiyifanCategory.allCases.map(\.title), ["Movies", "Series", "Variety", "Anime"])
     }
 
     func testRequestBuilderSignsCatalogRequestDeterministically() throws {
@@ -178,6 +199,7 @@ final class CategoryCatalogContractTests: XCTestCase {
             "vipResource": "1080P",
             "hot": 123456,
             "rating": "9.1",
+            "score": "9.6",
             "year": "2026",
             "regional": "中国",
             "addTime": "2026-09-07 08:00:00"
@@ -200,6 +222,7 @@ final class CategoryCatalogContractTests: XCTestCase {
         XCTAssertEqual(item.quality, "1080P")
         XCTAssertEqual(item.popularity, 123456)
         XCTAssertEqual(item.rating, "9.1")
+        XCTAssertEqual(item.score, 9.6)
         XCTAssertEqual(item.thumbnailURL?.absoluteString, "https://static.yfsp.tv/drama-42.jpg")
         XCTAssertEqual(item.playURL.absoluteString, "https://m.yfsp.tv/play/drama-42")
         XCTAssertEqual(page.totalCount, 48)
@@ -242,6 +265,30 @@ final class CategoryCatalogContractTests: XCTestCase {
         XCTAssertThrowsError(try CategoryCatalogResponseDecoder.decode(data, page: 1, pageSize: 24))
     }
 
+    func testDecoderOmitsInvalidOptionalScoresWithoutDroppingTitles() throws {
+        for invalidScore in ["-0.1", "10.1", "not-a-score", "infinity"] {
+            let data = catalogSearchResponse(items: [[
+                "key": "movie-score",
+                "title": "Original Provider Title",
+                "score": invalidScore
+            ]])
+
+            let page = try CategoryCatalogResponseDecoder.decode(data, page: 1, pageSize: 24)
+
+            XCTAssertEqual(page.items.first?.title, "Original Provider Title")
+            XCTAssertNil(page.items.first?.score)
+        }
+
+        let booleanScore = catalogSearchResponse(items: [[
+            "key": "movie-boolean-score",
+            "title": "Original Provider Title",
+            "score": true
+        ]])
+        XCTAssertNil(
+            try CategoryCatalogResponseDecoder.decode(booleanScore, page: 1, pageSize: 24).items.first?.score
+        )
+    }
+
     private func catalogSearchResponse(
         count: Int? = nil,
         maxPage: Int = 1,
@@ -262,8 +309,176 @@ final class CategoryCatalogContractTests: XCTestCase {
     }
 }
 
+private actor CertificateLoadCounter {
+    private var count = 0
+
+    func increment() {
+        count += 1
+    }
+
+    func value() -> Int {
+        count
+    }
+}
+
+@MainActor
+final class CatalogPreferenceStoreTests: XCTestCase {
+    func testQueriesPersistIndependentlyByStableCategoryRawValue() {
+        let (store, defaults, suite) = makeStore()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let movie = CatalogQuery(category: .movie, language: "English", sort: .rating, descending: false)
+        let series = CatalogQuery(
+            category: .drama,
+            region: "US",
+            status: .ongoing,
+            sort: .popularity,
+            descending: true
+        )
+
+        store.save(movie)
+        store.save(series)
+
+        XCTAssertEqual(store.query(for: .movie), movie)
+        XCTAssertEqual(store.query(for: .drama), series)
+        XCTAssertNil(store.query(for: .anime))
+    }
+
+    func testClearFiltersRetainsSortAndDirection() {
+        let (store, defaults, suite) = makeStore()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        store.save(CatalogQuery(
+            category: .drama,
+            language: "English",
+            status: .complete,
+            sort: .rating,
+            descending: false
+        ))
+
+        store.clearFilters(for: .drama)
+
+        XCTAssertEqual(
+            store.query(for: .drama),
+            CatalogQuery(category: .drama, sort: .rating, descending: false)
+        )
+    }
+
+    func testCorruptOrInvalidStoredQueryIsIgnored() {
+        let (store, defaults, suite) = makeStore()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(Data("not-json".utf8), forKey: "catalog-preferences")
+
+        XCTAssertNil(store.query(for: .movie))
+
+        store.save(CatalogQuery(category: .movie, status: .ongoing))
+
+        XCTAssertNil(store.query(for: .movie))
+    }
+
+    private func makeStore() -> (CatalogPreferenceStore, UserDefaults, String) {
+        let suite = "CatalogPreferenceStoreTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        return (
+            CatalogPreferenceStore(defaults: defaults, storageKey: "catalog-preferences"),
+            defaults,
+            suite
+        )
+    }
+}
+
 @MainActor
 final class CategoryCatalogViewModelTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        UserDefaults.standard.removeObject(forKey: "aiyifanCatalogPreferencesV1")
+    }
+
+    override func tearDown() {
+        UserDefaults.standard.removeObject(forKey: "aiyifanCatalogPreferencesV1")
+        super.tearDown()
+    }
+
+    func testRestoresPersistedQueryBeforeInitialRequest() async {
+        let (store, defaults, suite) = preferenceStore()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let savedQuery = CatalogQuery(
+            category: .drama,
+            language: "English",
+            sort: .rating,
+            descending: false
+        )
+        store.save(savedQuery)
+        let service = QueryRecordingCatalogService()
+
+        let viewModel = CategoryCatalogViewModel(
+            category: .drama,
+            service: service,
+            preferenceStore: store
+        )
+        await viewModel.loadInitial()
+
+        let requestedQuery = await service.lastQuery()
+        XCTAssertEqual(viewModel.appliedQuery, savedQuery)
+        XCTAssertEqual(requestedQuery, savedQuery)
+    }
+
+    func testOnlySuccessfulFilterAndSortChangesArePersisted() async {
+        let (store, defaults, suite) = preferenceStore()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let original = AiyifanItem(listPath: "original", title: "Original")
+        let filtered = AiyifanItem(listPath: "filtered", title: "Filtered")
+        let sorted = AiyifanItem(listPath: "sorted", title: "Sorted")
+        let service = TransactionalCategoryCatalogService(original: original, filtered: filtered, sorted: sorted)
+        let viewModel = CategoryCatalogViewModel(
+            category: .drama,
+            service: service,
+            preferenceStore: store
+        )
+        await viewModel.loadInitial()
+        viewModel.beginFilterEditing()
+        viewModel.setDraftLanguage("英语")
+
+        let failedApply = await viewModel.applyDraftQuery()
+        XCTAssertFalse(failedApply)
+        XCTAssertNil(store.query(for: .drama))
+
+        let successfulApply = await viewModel.applyDraftQuery()
+        XCTAssertTrue(successfulApply)
+        XCTAssertEqual(store.query(for: .drama)?.language, "英语")
+
+        let successfulSort = await viewModel.applySort(.rating, descending: false)
+        XCTAssertTrue(successfulSort)
+        XCTAssertEqual(store.query(for: .drama)?.sort, CatalogSort.rating)
+        XCTAssertEqual(store.query(for: .drama)?.descending, false)
+    }
+
+    func testStaleRestoredFilterIsRemovedButSortIsRetained() async {
+        let (store, defaults, suite) = preferenceStore()
+        defer { defaults.removePersistentDomain(forName: suite) }
+        store.save(CatalogQuery(
+            category: .drama,
+            language: "Removed Provider Option",
+            sort: .popularity,
+            descending: false
+        ))
+        let service = StaleOptionCatalogService()
+        let viewModel = CategoryCatalogViewModel(
+            category: .drama,
+            service: service,
+            preferenceStore: store
+        )
+
+        await viewModel.loadInitial()
+        await viewModel.loadFilters()
+
+        let requestedQuery = await service.lastQuery()
+        XCTAssertNil(viewModel.appliedQuery.language)
+        XCTAssertEqual(viewModel.appliedQuery.sort, CatalogSort.popularity)
+        XCTAssertFalse(viewModel.appliedQuery.descending)
+        XCTAssertNil(store.query(for: .drama)?.language)
+        XCTAssertNil(requestedQuery?.language)
+    }
+
     func testFilterDraftCancelAndApplyAreTransactional() async {
         let original = AiyifanItem(listPath: "original", title: "Original")
         let filtered = AiyifanItem(listPath: "filtered", title: "Filtered")
@@ -424,6 +639,70 @@ final class CategoryCatalogViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.isApplyingQuery)
     }
 
+    private func preferenceStore() -> (CatalogPreferenceStore, UserDefaults, String) {
+        let suite = "CategoryCatalogViewModelTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defaults.removePersistentDomain(forName: suite)
+        return (
+            CatalogPreferenceStore(defaults: defaults, storageKey: "catalog-preferences"),
+            defaults,
+            suite
+        )
+    }
+
+}
+
+private actor QueryRecordingCatalogService: CategoryCatalogServing {
+    private var queries: [CatalogQuery] = []
+
+    func fetchPage(category: AiyifanCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
+        try await fetchPage(query: CatalogQuery(category: category), page: page, pageSize: pageSize)
+    }
+
+    func fetchPage(query: CatalogQuery, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
+        queries.append(query)
+        return CategoryCatalogPage(
+            items: [AiyifanItem(listPath: "result", title: "Result")],
+            page: page,
+            isLastPage: true
+        )
+    }
+
+    func lastQuery() -> CatalogQuery? {
+        queries.last
+    }
+}
+
+private actor StaleOptionCatalogService: CategoryCatalogServing {
+    private var queries: [CatalogQuery] = []
+
+    func fetchPage(category: AiyifanCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
+        try await fetchPage(query: CatalogQuery(category: category), page: page, pageSize: pageSize)
+    }
+
+    func fetchPage(query: CatalogQuery, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
+        queries.append(query)
+        return CategoryCatalogPage(
+            items: [AiyifanItem(listPath: query.language ?? "default", title: "Result")],
+            page: page,
+            isLastPage: true
+        )
+    }
+
+    func fetchFilters(category: AiyifanCategory) async throws -> CatalogFilterSet {
+        CatalogFilterSet(
+            genres: [],
+            regions: [],
+            languages: [try! CatalogFilterOption(title: "Provider Original", value: "Provider Original")],
+            years: [],
+            qualities: [],
+            statuses: []
+        )
+    }
+
+    func lastQuery() -> CatalogQuery? {
+        queries.last
+    }
 }
 
 private actor StubCategoryCatalogService: CategoryCatalogServing {

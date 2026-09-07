@@ -10,7 +10,7 @@ enum ContentLanguage: String, CaseIterable, Codable, Identifiable, Sendable {
     var title: String {
         switch self {
         case .chinese:
-            "中文"
+            "Chinese"
         case .english:
             "English"
         case .unknown:

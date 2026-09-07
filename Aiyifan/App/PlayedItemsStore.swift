@@ -69,7 +69,7 @@ final class PlayedItemsStore: ObservableObject {
         items = Self.restore(from: defaults, decoder: decoder)
 
         if ProcessInfo.processInfo.arguments.contains("-AiyifanSeedPlayedItems") {
-            let item = AiyifanItem(listPath: "fixture-电视剧", title: "Fixture 电视剧")
+            let item = AiyifanItem(listPath: "fixture-drama", title: "Fixture Series", isSerial: true)
             let episode = Episode(mediaKey: "episode-4", title: "04", updateDate: nil)
             record(item: item, episode: episode, position: 40, duration: 100)
         }

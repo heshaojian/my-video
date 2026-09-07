@@ -36,6 +36,51 @@ enum ProviderSessionFactory {
     }
 }
 
+actor ProviderCertificateCache {
+    static let shared = ProviderCertificateCache()
+
+    private struct Entry {
+        let certificate: PlaybackCertificate
+        let expiresAt: Date
+    }
+
+    private let lifetime: TimeInterval
+    private var entries: [String: Entry] = [:]
+    private var loads: [String: Task<PlaybackCertificate, Error>] = [:]
+
+    init(lifetime: TimeInterval = 300) {
+        self.lifetime = lifetime
+    }
+
+    func certificate(
+        for domain: String,
+        load: @escaping @Sendable () async throws -> PlaybackCertificate
+    ) async throws -> PlaybackCertificate {
+        let now = Date()
+        if let entry = entries[domain], entry.expiresAt > now {
+            return entry.certificate
+        }
+        if let existing = loads[domain] {
+            return try await existing.value
+        }
+
+        let task = Task { try await load() }
+        loads = loads.merging([domain: task], uniquingKeysWith: { _, new in new })
+        do {
+            let certificate = try await task.value
+            entries = entries.merging(
+                [domain: Entry(certificate: certificate, expiresAt: now.addingTimeInterval(lifetime))],
+                uniquingKeysWith: { _, new in new }
+            )
+            loads[domain] = nil
+            return certificate
+        } catch {
+            loads[domain] = nil
+            throw error
+        }
+    }
+}
+
 enum RemoteResourceHostValidator {
     static let providerDomains = [
         "yfsp.tv", "yifan.tv", "yfsp.me", "ayf.tv", "aiyifan.tv",

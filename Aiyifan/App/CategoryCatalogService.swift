@@ -1,3 +1,4 @@
+import CoreFoundation
 import Foundation
 
 struct CategoryCatalogPage: Equatable, Sendable {
@@ -22,10 +23,10 @@ enum CatalogSort: Int, CaseIterable, Codable, Sendable {
 
     var title: String {
         switch self {
-        case .added: "添加时间"
-        case .updated: "更新时间"
-        case .popularity: "人气"
-        case .rating: "评分"
+        case .added: "Date Added"
+        case .updated: "Last Updated"
+        case .popularity: "Popularity"
+        case .rating: "Rating"
         }
     }
 }
@@ -36,8 +37,8 @@ enum CatalogSerialStatus: String, CaseIterable, Codable, Sendable {
 
     var title: String {
         switch self {
-        case .complete: "全集"
-        case .ongoing: "连载中"
+        case .complete: "Complete"
+        case .ongoing: "Ongoing"
         }
     }
 }
@@ -490,7 +491,8 @@ enum CategoryCatalogResponseDecoder {
             language: string(raw["lang"]),
             quality: string(raw["vipResource"]),
             popularity: integer(raw["hot"]),
-            rating: string(raw["rating"])
+            rating: string(raw["rating"]),
+            score: score(raw["score"])
         )
     }
 
@@ -531,6 +533,24 @@ enum CategoryCatalogResponseDecoder {
         return nil
     }
 
+    private static func score(_ value: Any?) -> Double? {
+        let decoded: Double?
+        if let value = value as? NSNumber {
+            guard CFGetTypeID(value) != CFBooleanGetTypeID() else {
+                return nil
+            }
+            decoded = value.doubleValue
+        } else if let value = value as? String {
+            decoded = Double(value)
+        } else {
+            decoded = nil
+        }
+        guard let decoded, decoded.isFinite, (0...10).contains(decoded) else {
+            return nil
+        }
+        return decoded
+    }
+
     private static func boolean(_ value: Any?) -> Bool? {
         if let value = value as? Bool { return value }
         if let value = value as? NSNumber { return value.boolValue }
@@ -548,13 +568,16 @@ enum CategoryCatalogResponseDecoder {
 struct CategoryCatalogService: @unchecked Sendable, CategoryCatalogServing {
     private let session: URLSession
     private let filterCache: CategoryCatalogFilterCache
+    private let certificateCache: ProviderCertificateCache
 
     init(
         session: URLSession? = nil,
-        filterCache: CategoryCatalogFilterCache = .shared
+        filterCache: CategoryCatalogFilterCache = .shared,
+        certificateCache: ProviderCertificateCache = .shared
     ) {
         self.session = session ?? ProviderSessionFactory.make()
         self.filterCache = filterCache
+        self.certificateCache = certificateCache
     }
 
     func fetchPage(category: AiyifanCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
@@ -567,9 +590,7 @@ struct CategoryCatalogService: @unchecked Sendable, CategoryCatalogServing {
         }
 
         let category = query.category
-        let (pageData, pageResponse) = try await session.data(from: category.url)
-        try validate(response: pageResponse, data: pageData, maximumSize: 1_000_000)
-        let certificate = try PlaybackCertificateParser.parse(pageData)
+        let certificate = try await certificate(for: category)
         guard let host = category.url.host else {
             throw CategoryCatalogError.invalidRequest
         }
@@ -597,9 +618,7 @@ struct CategoryCatalogService: @unchecked Sendable, CategoryCatalogServing {
             return cached
         }
 
-        let (pageData, pageResponse) = try await session.data(from: category.url)
-        try validate(response: pageResponse, data: pageData, maximumSize: 1_000_000)
-        let certificate = try PlaybackCertificateParser.parse(pageData)
+        let certificate = try await certificate(for: category)
         guard let host = category.url.host else {
             throw CategoryCatalogError.invalidRequest
         }
@@ -631,6 +650,20 @@ struct CategoryCatalogService: @unchecked Sendable, CategoryCatalogServing {
         let (data, response) = try await session.data(for: request)
         try validate(response: response, data: data, maximumSize: 1_000_000)
         return data
+    }
+
+    private func certificate(for category: AiyifanCategory) async throws -> PlaybackCertificate {
+        guard
+            let host = category.url.host,
+            let domain = RemoteResourceHostValidator.matchingProviderDomain(for: host)
+        else {
+            throw CategoryCatalogError.invalidRequest
+        }
+        return try await certificateCache.certificate(for: domain) {
+            let (data, response) = try await session.data(from: category.url)
+            try validate(response: response, data: data, maximumSize: 1_000_000)
+            return try PlaybackCertificateParser.parse(data)
+        }
     }
 
     private func validate(response: URLResponse, data: Data, maximumSize: Int) throws {
@@ -697,7 +730,8 @@ private actor FixtureCategoryCatalog {
                 language: index.isMultiple(of: 2) ? "英语" : "国语",
                 quality: "1080P",
                 popularity: index,
-                rating: String(index)
+                rating: String(index),
+                score: Double(index % 10) + 0.5
             )
         }
         let filteredItems = allItems.filter { item in

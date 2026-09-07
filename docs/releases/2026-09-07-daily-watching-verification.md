@@ -4,10 +4,11 @@ Date: 2026-09-07
 
 ## Automated Regression
 
-- Full iPhone 17 Pro simulator run after catalog and playback changes: 139/139 passed (112 unit/integration, 27 UI).
+- Full iPhone 17 Pro simulator run after the English-interface, metrics, catalog-preference, and playback changes: 152/152 actual test cases passed (124 unit/integration, 28 UI).
+- Xcode reported a runner-service infrastructure failure after all 28 UI test cases had passed; no test case or assertion failed.
 - App-icon, launch-branding, lock-screen metadata, audio-session, interruption recovery, and MediaPlayer background-artwork regression tests: passed.
 - Program-only local/Cast queues, frozen Played timestamps, active-playback-only progress, and fullscreen/Picture in Picture lifecycle tests: passed.
-- Native catalog filter, sort, result count, Save/play, pagination, retry, and race-condition tests: passed.
+- Native catalog filter, persistent per-category sort, result count, Save/play, pagination, retry, and race-condition tests: passed.
 - Deterministic 50-plus-action power-user session: passed on the stable iPhone 17 Pro simulator.
 - Release simulator build: passed.
 - Xcode static analysis: passed with no findings.
@@ -20,9 +21,11 @@ The long-session scenario repeatedly opens and closes native playback from Lates
 
 | Feature or failure path | Automated evidence | Result | Hardware check |
 | --- | --- | --- | --- |
-| Latest contains only `电影`, `电视剧`, `综艺`, `动漫`; native search and category filtering | `AiyifanLatestTapTests` latest/search scenarios | Passed | No |
-| Native `全部` for all four categories | Matching catalog navigation UI scenario | Passed | No |
-| Provider filters, sort direction, result count, pagination, empty/error/retry behavior | Catalog unit, race, and UI scenarios | Passed | No |
+| Latest contains only Movies, Series, Variety, and Anime; search control is absent and category filtering remains available | `AiyifanLatestTapTests` latest/filter scenarios | Passed | No |
+| App-owned interface is English while provider titles, episode names, descriptions, and filter values remain original | Static string scan plus latest/catalog/player UI scenarios | Passed | No |
+| Native All catalog for all four categories | Matching catalog navigation UI scenario | Passed | No |
+| Provider filters, per-category persisted sort and direction, result count, pagination, empty/error/retry behavior | Catalog preference, unit, race, relaunch, and UI scenarios | Passed | No |
+| Provider score on Latest and All cards; Likes, Favorites, Score, and Views in native playback | Feed/catalog/resolver unit tests plus score and player-metric UI scenarios | Passed | No |
 | Save/favorite add, remove, persistence, and update tracking | Saved store plus Latest/catalog UI scenarios | Passed | No |
 | Native movie and serial playback without an implicit web view | Routing, resolver, and playback UI scenarios | Passed | No |
 | Complete episode list, newest-first ordering, selection, autoplay continuity, and legacy Played restoration | Resolver, player model, navigator, and episode-picker scenarios | Passed | No |
@@ -39,7 +42,9 @@ The long-session scenario repeatedly opens and closes native playback from Lates
 ## Live Provider Checks
 
 - `电影`, `电视剧`, `综艺`, and `动漫` feeds each returned HTTP 200 and eight current items.
-- Native catalog pages one and two returned 24 valid items per page for all four categories using the current signed `/api/list/index` contract.
+- The signed latest-results response exposed provider score data without per-card detail requests.
+- The current detail response exposed `good`, `favoriteCount`, `score`, and `view`; malformed individual values are omitted without blocking playback.
+- Native catalog pages one and two returned 24 valid items per page for all four categories using the current signed `/api/list/Search` contract.
 - Movie smoke check: `特立独行` resolved through the current signed playback API to a reachable HTTPS HLS manifest.
 - Serial smoke check: `交锋` returned six episodes, selected newest episode `06`, and resolved to a reachable HTTPS HLS manifest.
 - Both playback responses contained one separately supplied provider advertisement before the program; the decoder excluded it and retained only the validated full program stream.

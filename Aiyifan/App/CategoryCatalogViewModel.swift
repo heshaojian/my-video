@@ -24,17 +24,20 @@ final class CategoryCatalogViewModel: ObservableObject {
     @Published private(set) var totalCount = 0
 
     private let service: any CategoryCatalogServing
+    private let preferenceStore: CatalogPreferenceStore
     private var generation = 0
 
     init(
         category: AiyifanCategory,
         pageSize: Int = 24,
-        service: any CategoryCatalogServing = CategoryCatalogService()
+        service: any CategoryCatalogServing = CategoryCatalogService(),
+        preferenceStore: CatalogPreferenceStore = .shared
     ) {
         self.category = category
         self.pageSize = pageSize
         self.service = service
-        let initialQuery = CatalogQuery(category: category)
+        self.preferenceStore = preferenceStore
+        let initialQuery = preferenceStore.query(for: category) ?? CatalogQuery(category: category)
         appliedQuery = initialQuery
         draftQuery = initialQuery
     }
@@ -65,7 +68,13 @@ final class CategoryCatalogViewModel: ObservableObject {
         isLoadingFilters = true
         filterErrorMessage = nil
         do {
-            filterSet = try await service.fetchFilters(category: category)
+            let filters = try await service.fetchFilters(category: category)
+            filterSet = filters
+            let reconciled = reconciledQuery(appliedQuery, with: filters)
+            if reconciled != appliedQuery {
+                draftQuery = reconciled
+                _ = await applyQuery(reconciled)
+            }
         } catch {
             filterErrorMessage = error.localizedDescription
         }
@@ -182,6 +191,7 @@ final class CategoryCatalogViewModel: ObservableObject {
             appliedQuery = query
             draftQuery = query
             applyInitial(page)
+            preferenceStore.save(query)
             isApplyingQuery = false
             return true
         } catch {
@@ -234,5 +244,25 @@ final class CategoryCatalogViewModel: ObservableObject {
         initialErrorMessage = nil
         loadMoreErrorMessage = nil
         refreshErrorMessage = nil
+    }
+
+    private func reconciledQuery(_ query: CatalogQuery, with filters: CatalogFilterSet) -> CatalogQuery {
+        let genre = filters.genres.contains { $0.value == query.genreCID } ? query.genreCID : nil
+        let region = filters.regions.contains { $0.value == query.region } ? query.region : nil
+        let language = filters.languages.contains { $0.value == query.language } ? query.language : nil
+        let year = filters.years.contains { $0.value == query.year } ? query.year : nil
+        let quality = filters.qualities.contains { $0.value == query.quality } ? query.quality : nil
+        let status = filters.statuses.contains { $0.value == query.status?.rawValue } ? query.status : nil
+        return CatalogQuery(
+            category: category,
+            genreCID: genre,
+            region: region,
+            language: language,
+            year: year,
+            quality: quality,
+            status: status,
+            sort: query.sort,
+            descending: query.descending
+        )
     }
 }
