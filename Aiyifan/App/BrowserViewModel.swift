@@ -7,6 +7,7 @@ final class BrowserViewModel: ObservableObject {
     @Published var selectedTitle: String?
     @Published var selectedURL: URL?
     @Published var selectedItem: AiyifanItem?
+    @Published var selectedCategory: AiyifanCategory?
     @Published var selectedEpisodeKey: String?
     @Published var latestItems: [AiyifanCategory: [AiyifanItem]] = [:]
     @Published var isLoadingLatest = false
@@ -71,6 +72,7 @@ final class BrowserViewModel: ObservableObject {
         selectedTitle = nil
         selectedURL = nil
         selectedItem = nil
+        selectedCategory = nil
         selectedEpisodeKey = nil
         errorMessage = nil
         webView = nil
@@ -82,10 +84,16 @@ final class BrowserViewModel: ObservableObject {
 
     func selectCategory(_ category: AiyifanCategory) {
         selectedTitle = category.title
-        selectedURL = category.url
+        selectedURL = nil
         selectedItem = nil
+        selectedCategory = category
         selectedEpisodeKey = nil
         errorMessage = nil
+    }
+
+    func closeCategory() {
+        selectedTitle = nil
+        selectedCategory = nil
     }
 
     func selectItem(_ item: AiyifanItem) {
@@ -115,6 +123,7 @@ final class BrowserViewModel: ObservableObject {
         selectedItem = nil
         selectedEpisodeKey = nil
         selectedURL = item.playURL
+        selectedCategory = nil
         errorMessage = nil
     }
 
@@ -171,6 +180,7 @@ final class BrowserViewModel: ObservableObject {
         selectedTitle = destination.item.title
         selectedURL = nil
         selectedItem = destination.item
+        selectedCategory = nil
         selectedEpisodeKey = destination.episodeKey
         errorMessage = nil
     }

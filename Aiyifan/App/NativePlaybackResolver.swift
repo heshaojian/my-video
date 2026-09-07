@@ -1,4 +1,3 @@
-import CryptoKit
 import Foundation
 
 struct PlaybackCertificate: Equatable, Sendable {
@@ -99,12 +98,6 @@ enum PlaybackCertificateParser {
 }
 
 enum NativePlaybackRequestBuilder {
-    private static let supportedDomains = [
-        "yfsp.tv", "yifan.tv", "yfsp.me", "ayf.tv", "aiyifan.tv",
-        "wyav.tv", "flyv.tv", "jssp.tv", "iyf.tv", "lgsp.tv",
-        "tripdata.app", "kubb.tv"
-    ]
-
     static func makeURL(
         mediaKey: String,
         albumMode: Bool = true,
@@ -120,10 +113,10 @@ enum NativePlaybackRequestBuilder {
             URLQueryItem(name: "device", value: "1"),
             URLQueryItem(name: "isMasterSupport", value: "1")
         ]
-        return try makeSignedURL(
+        try validateMediaKey(mediaKey)
+        return try ProviderRequestSigner.makeSignedURL(
             path: "/v3/video/play",
             parameters: parameters,
-            mediaKey: mediaKey,
             siteHost: siteHost,
             certificate: certificate
         )
@@ -146,10 +139,10 @@ enum NativePlaybackRequestBuilder {
             URLQueryItem(name: "id", value: mediaKey),
             URLQueryItem(name: "region", value: "GL.")
         ]
-        return try makeSignedURL(
+        try validateMediaKey(mediaKey)
+        return try ProviderRequestSigner.makeSignedURL(
             path: "/v3/video/detail",
             parameters: parameters,
-            mediaKey: mediaKey,
             siteHost: siteHost,
             certificate: certificate
         )
@@ -171,53 +164,19 @@ enum NativePlaybackRequestBuilder {
             URLQueryItem(name: "taxis", value: "0"),
             URLQueryItem(name: "cid", value: categoryID)
         ]
-        return try makeSignedURL(
+        try validateMediaKey(seriesKey)
+        return try ProviderRequestSigner.makeSignedURL(
             path: "/v3/video/languagesplaylist",
             parameters: parameters,
-            mediaKey: seriesKey,
             siteHost: siteHost,
             certificate: certificate
         )
     }
 
-    private static func makeSignedURL(
-        path: String,
-        parameters: [URLQueryItem],
-        mediaKey: String,
-        siteHost: String,
-        certificate: PlaybackCertificate
-    ) throws -> URL {
+    private static func validateMediaKey(_ mediaKey: String) throws {
         guard mediaKey.range(of: #"^[A-Za-z0-9_-]{1,128}$"#, options: .regularExpression) != nil else {
             throw NativePlaybackError.invalidMediaKey
         }
-        let normalizedHost = siteHost.lowercased()
-        guard let domain = supportedDomains.first(where: {
-            normalizedHost == $0 || normalizedHost.hasSuffix(".\($0)")
-        }) else {
-            throw NativePlaybackError.unsupportedSite
-        }
-
-        let unsignedQuery = parameters
-            .map { "\($0.name)=\($0.value ?? "")" }
-            .joined(separator: "&")
-        let signatureSource = "\(certificate.publicKey)&\(unsignedQuery.lowercased())&\(certificate.privateKey)"
-        let signature = Insecure.MD5.hash(data: Data(signatureSource.utf8))
-            .map { String(format: "%02x", $0) }
-            .joined()
-
-        var components = URLComponents()
-        components.scheme = "https"
-        components.host = "m10.\(domain)"
-        components.path = path
-        components.queryItems = parameters + [
-            URLQueryItem(name: "vv", value: signature),
-            URLQueryItem(name: "pub", value: certificate.publicKey)
-        ]
-
-        guard let url = components.url else {
-            throw NativePlaybackError.invalidResponse
-        }
-        return url
     }
 }
 

@@ -24,6 +24,13 @@ struct BrowserView: View {
                     onClose: viewModel.closePlayer,
                     onOpenWebsite: { viewModel.openWebsiteFallback(for: selectedItem) }
                 )
+            } else if let selectedCategory = viewModel.selectedCategory {
+                NativeCategoryCatalogView(
+                    category: selectedCategory,
+                    savedItemsStore: savedItemsStore,
+                    onSelectItem: viewModel.selectItem,
+                    onClose: viewModel.closeCategory
+                )
             } else if !viewModel.isBrowsing {
                 LibraryView(
                     viewModel: viewModel,

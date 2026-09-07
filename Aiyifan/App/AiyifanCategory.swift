@@ -27,6 +27,19 @@ enum AiyifanCategory: String, CaseIterable, Codable, Hashable, Identifiable, Sen
         "最新\(title)"
     }
 
+    var catalogCID: String {
+        switch self {
+        case .movie:
+            "0,1,3"
+        case .drama:
+            "0,1,4"
+        case .variety:
+            "0,1,5"
+        case .anime:
+            "0,1,6"
+        }
+    }
+
     var url: URL {
         switch self {
         case .movie:

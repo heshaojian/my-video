@@ -9,6 +9,8 @@ struct AiyifanItem: Codable, Equatable, Identifiable, Sendable {
     let subTitle: String?
     let addTime: String?
     let url: String?
+    let year: String?
+    let region: String?
 
     init(
         listPath: String,
@@ -18,7 +20,9 @@ struct AiyifanItem: Codable, Equatable, Identifiable, Sendable {
         verticalImg: String? = nil,
         subTitle: String? = nil,
         addTime: String? = nil,
-        url: String? = nil
+        url: String? = nil,
+        year: String? = nil,
+        region: String? = nil
     ) {
         self.listPath = listPath
         self.title = title
@@ -28,6 +32,8 @@ struct AiyifanItem: Codable, Equatable, Identifiable, Sendable {
         self.subTitle = subTitle
         self.addTime = addTime
         self.url = url
+        self.year = year
+        self.region = region
     }
 
     var id: String {
@@ -59,6 +65,8 @@ struct AiyifanItem: Codable, Equatable, Identifiable, Sendable {
         case subTitle
         case addTime
         case url
+        case year
+        case region
     }
 
     private static func playURL(from rawPath: String) -> URL {
