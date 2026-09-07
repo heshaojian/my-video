@@ -196,6 +196,39 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(app.buttons["googleCastButton"].exists)
     }
 
+    func testContinueWatchingAppearsAndResumesSeededEpisode() {
+        let app = launchFixtureAppWithPlayedHistory()
+
+        let continueItem = app.buttons["continueItem-fixture-电视剧"]
+        XCTAssertTrue(continueItem.waitForExistence(timeout: 5))
+        continueItem.tap()
+
+        XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Episode 04"].waitForExistence(timeout: 5))
+    }
+
+    func testNativeSearchAndCategoryFilterNarrowLatestResults() {
+        let app = launchFixtureApp()
+        let search = app.searchFields["Search latest"]
+        XCTAssertTrue(search.waitForExistence(timeout: 5))
+        search.tap()
+        search.typeText("电视剧")
+
+        XCTAssertTrue(app.buttons["searchItem-fixture-电视剧"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["searchItem-fixture-电影"].exists)
+
+        app.buttons["clearSearch"].tap()
+        if app.buttons["Close"].exists {
+            app.buttons["Close"].tap()
+        }
+        app.buttons["filterLatest"].tap()
+        app.buttons["filterCategory-动漫"].tap()
+        app.buttons["applyFilters"].tap()
+
+        XCTAssertTrue(app.buttons["searchItem-fixture-动漫"].waitForExistence(timeout: 3))
+        XCTAssertFalse(app.buttons["searchItem-fixture-电视剧"].exists)
+    }
+
     func testPowerUserSessionKeepsNavigationAndCollectionsConsistent() {
         let app = launchFixtureAppWithPlayedHistory()
         let latestItem = app.buttons["latestItem-fixture-电影"]

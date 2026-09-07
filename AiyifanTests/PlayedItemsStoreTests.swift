@@ -109,6 +109,30 @@ final class PlayedItemsStoreTests: XCTestCase {
         XCTAssertEqual(restored.items[0].item, item)
     }
 
+    func testWatchedUnwatchedRestartAndTitleResetPersist() {
+        let (defaults, suiteName) = isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let item = AiyifanItem(listPath: "series", title: "Series")
+        let first = Episode(mediaKey: "episode-1", title: "01", updateDate: nil)
+        let second = Episode(mediaKey: "episode-2", title: "02", updateDate: nil)
+        let store = PlayedItemsStore(defaults: defaults)
+        store.record(item: item, episode: first, position: 20, duration: 100)
+        store.record(item: item, episode: second, position: 30, duration: 100)
+
+        let firstRecord = store.record(for: item, episodeKey: first.mediaKey)!
+        store.markWatched(firstRecord)
+        XCTAssertTrue(store.record(for: item, episodeKey: first.mediaKey)!.isCompleted)
+
+        store.markUnwatched(store.record(for: item, episodeKey: first.mediaKey)!)
+        XCTAssertFalse(store.record(for: item, episodeKey: first.mediaKey)!.isCompleted)
+
+        store.restart(store.record(for: item, episodeKey: second.mediaKey)!)
+        XCTAssertEqual(store.record(for: item, episodeKey: second.mediaKey)!.position, 0)
+
+        store.removeAll(for: item)
+        XCTAssertTrue(PlayedItemsStore(defaults: defaults).items.isEmpty)
+    }
+
     private func isolatedDefaults() -> (UserDefaults, String) {
         let suiteName = "PlayedItemsStoreTests.\(UUID().uuidString)"
         return (UserDefaults(suiteName: suiteName)!, suiteName)

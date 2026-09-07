@@ -7,13 +7,17 @@ struct PlayedRecord: Codable, Equatable, Identifiable, Sendable {
     let position: Double
     let duration: Double
     let lastPlayedAt: Date
+    var completionOverride: Bool? = nil
 
     var id: String {
         "\(item.id)::\(episodeKey ?? "movie")"
     }
 
     var isCompleted: Bool {
-        duration > 0 && position / duration >= 0.9
+        if let completionOverride {
+            return completionOverride
+        }
+        return duration > 0 && position / duration >= 0.9
     }
 
     var resumePosition: Double {
@@ -85,6 +89,40 @@ final class PlayedItemsStore: ObservableObject {
 
     func removeAll() {
         replace(with: [])
+    }
+
+    func markWatched(_ record: PlayedRecord) {
+        replaceRecord(record, position: record.duration, completionOverride: true)
+    }
+
+    func markUnwatched(_ record: PlayedRecord) {
+        replaceRecord(record, position: 0, completionOverride: nil)
+    }
+
+    func restart(_ record: PlayedRecord) {
+        replaceRecord(record, position: 0, completionOverride: nil)
+    }
+
+    func removeAll(for item: AiyifanItem) {
+        replace(with: items.filter { $0.item.id != item.id })
+    }
+
+    private func replaceRecord(
+        _ record: PlayedRecord,
+        position: Double,
+        completionOverride: Bool?
+    ) {
+        let updated = PlayedRecord(
+            item: record.item,
+            episodeKey: record.episodeKey,
+            episodeTitle: record.episodeTitle,
+            position: position,
+            duration: record.duration,
+            lastPlayedAt: Date(),
+            completionOverride: completionOverride
+        )
+        replace(with: ([updated] + items.filter { $0.id != record.id })
+            .sorted { $0.lastPlayedAt > $1.lastPlayedAt })
     }
 
     private func replace(with updatedItems: [PlayedRecord]) {

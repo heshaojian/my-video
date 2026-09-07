@@ -7,298 +7,272 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		31AB861358DCD10B20A6E7BE /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E03F25DC215C9B495FC23EBD /* Foundation.framework */; };
-		3B61A51E53A726010B0AE24B /* NativePlaybackResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26BAFC73BA95005BA6C7BB27 /* NativePlaybackResolver.swift */; };
-		3BB1985A363A734518A4B2F5 /* PlayedItemsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74DB9B212FE3E101D289CCD1 /* PlayedItemsStore.swift */; };
-		46867CD874DA7F1F1FB9ED4A /* AiyifanCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AA6666E2B780F0E6C653574 /* AiyifanCategory.swift */; };
-		49ACE1E72E534A8DB71F5843 /* CastingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92F35D0CB0CA121E2B9B319C /* CastingTests.swift */; };
-		4BE3A7E20E6A8FD4BC87586D /* NativePlaybackResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 31BF5EC29D7B9D88FA1355F7 /* NativePlaybackResolverTests.swift */; };
-		5D979CF8A753653A33D35F4D /* BrowserViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F96A9EF3CAF48F19D196841 /* BrowserViewModel.swift */; };
-		60F9BE3D83A3B89AC2743848 /* PlayedItemsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 80A499CF812BDDE47BE61E90 /* PlayedItemsStoreTests.swift */; };
-		6208B28B75FFB47D6767E4CA /* AiyifanItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 955C0380694278A579F0FAD9 /* AiyifanItem.swift */; };
-		656EFC6AA5DC6CA9709E325C /* WebViewLoadTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65B5F0078FB458A111FF0A80 /* WebViewLoadTrackerTests.swift */; };
-		6EBA8E4928AE0661117ADBF5 /* WebViewPopupPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = FE59951246A289AAA4195AA4 /* WebViewPopupPolicyTests.swift */; };
-		7F17199552742C42E43B20F9 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64F9CC51880FFB642AB69FCE /* WebView.swift */; };
-		7F34F06E1A909C52D2396587 /* AiyifanLatestTapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 96F10CB6209C3DD7F8726753 /* AiyifanLatestTapTests.swift */; };
-		905E62B12551D36CFF6626DD /* SavedItemsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5798102DB46E38AF4AA66F95 /* SavedItemsStore.swift */; };
-		9570B2BE54F2F95FA26E5A86 /* SavedItemsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9251B4D758F9BD6386979F47 /* SavedItemsStoreTests.swift */; };
-		964D910C5479B059135EACB1 /* libPods-AiyifanTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 939FBE75725884FB7FBC6164 /* libPods-AiyifanTests.a */; };
-		A23C1E9881A78EE425CB8E87 /* libPods-Aiyifan.a in Frameworks */ = {isa = PBXBuildFile; fileRef = D32459DA65278AD84AB82FD3 /* libPods-Aiyifan.a */; };
-		A7CB357281380AAD3BF0642A /* AiyifanApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = C075F31A1F4DC3991DC54800 /* AiyifanApp.swift */; };
-		AA919A5C88D8419118424A3A /* BrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0577F386DB004FC8100614C5 /* BrowserView.swift */; };
-		ADD8A9DC5D20220F9A72B2E0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E03F25DC215C9B495FC23EBD /* Foundation.framework */; };
-		C72E1B54BAF860B359130CDF /* libPods-AiyifanUITests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 9128F7CA112C1C1ADA8C726D /* libPods-AiyifanUITests.a */; };
-		DDDF246F1289F0E64BCEC95A /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = E03F25DC215C9B495FC23EBD /* Foundation.framework */; };
-		DDEE65873FDDD2456C4AF309 /* AiyifanItemURLTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7F62997EF14D5172937F31F /* AiyifanItemURLTests.swift */; };
-		DE1C35B91E6005E476CD4E4A /* Episode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57AAFE716CE90B6CE6290EB7 /* Episode.swift */; };
-		DF6205DDEC74B9652EE146C9 /* PlayedItemsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 554C8125D2D8864039CA4D4B /* PlayedItemsView.swift */; };
-		E8E11CD84E52601432F9FE0F /* Casting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A51F316DF94F5B6D4228B0E /* Casting.swift */; };
-		E98561F487B52B2A5D10CB6D /* NativePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8311EEA618D6E449676A78C3 /* NativePlayerView.swift */; };
-		FE9E3AB115CC3DD6E9A04C11 /* AiyifanFeedService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B52AE886F7A138832D59F1D /* AiyifanFeedService.swift */; };
-		FEB306E4632D3A712F6A2056 /* NativePlayerViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AECECDDF1B772AF60D5C9BC /* NativePlayerViewModelTests.swift */; };
+		0090E33AFB389827DAF7B8B8 /* NativePlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 398871B6A17BEEC8A8ACF7E0 /* NativePlayerView.swift */; };
+		0498C62896EBB67F13ED77EC /* WebViewPopupPolicyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 16FB736C6B6B402AB3FCD57A /* WebViewPopupPolicyTests.swift */; };
+		086854224DF46CFB4E1107D2 /* LibraryDiscovery.swift in Sources */ = {isa = PBXBuildFile; fileRef = C94A69DEB42495F2A44E175B /* LibraryDiscovery.swift */; };
+		0C5460E2B9DB64AF198EB7E9 /* LibraryFeaturesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B0F6D939BC0C8143664D56DE /* LibraryFeaturesTests.swift */; };
+		0F405922079ABAB262FA44F3 /* AiyifanLatestTapTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 14949DD0672FE307E0C96021 /* AiyifanLatestTapTests.swift */; };
+		20B8FB462FDAB241E426D484 /* SavedItemsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7A59D571C3595650C085FB7 /* SavedItemsStore.swift */; };
+		20EF528F898C7C76F27751B5 /* AiyifanFeedService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9A786EB99112E776AA1DC7A7 /* AiyifanFeedService.swift */; };
+		23C44363FDB15F4F519C68E0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 699A333066EEFE87190EDE68 /* Foundation.framework */; };
+		300A0A10F11CD24704E91171 /* AiyifanItemURLTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB5F270CC3D654E0E08663F6 /* AiyifanItemURLTests.swift */; };
+		413D5C500AD354F52C12A872 /* PlayedItemsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = DEAB5B1E749472D9F479FEAA /* PlayedItemsStoreTests.swift */; };
+		5C850C3DEE978205E286AC4E /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E45561093750160B0EF8B77 /* WebView.swift */; };
+		604C8F8247D05EF0EACDADA7 /* PosterImage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 092C7E99C9DB86B62972A008 /* PosterImage.swift */; };
+		62E098797F46D7C3BA3D3BAB /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 699A333066EEFE87190EDE68 /* Foundation.framework */; };
+		6F8FBBF1155BC40F55DD2377 /* libPods-Aiyifan.a in Frameworks */ = {isa = PBXBuildFile; fileRef = E15E251F760CEAC0AD0AA500 /* libPods-Aiyifan.a */; };
+		70B808A688259C05C2D81DE8 /* EpisodeNavigator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 803CFA489CC608E68AA4883F /* EpisodeNavigator.swift */; };
+		73EAB0B5E52CC8DBE6189B9B /* libPods-AiyifanTests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = 9FCDC30D0CF9062156201E51 /* libPods-AiyifanTests.a */; };
+		74371B6CB6E422A38D2A2B80 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 699A333066EEFE87190EDE68 /* Foundation.framework */; };
+		8D4207E9B5C3F78D4604F96D /* PlayedItemsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8FA92D4130FC9E4ABB715B50 /* PlayedItemsStore.swift */; };
+		983370C69EB4EEDEC110F971 /* NativePlaybackResolverTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B6F2064711C8EDA3D465D8A /* NativePlaybackResolverTests.swift */; };
+		98E6FF4E27EE5FB84DFE95EF /* BrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E5F77C21B8B263FD3D017268 /* BrowserView.swift */; };
+		99348C33BF50D91C174EAED2 /* PlayedItemsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 648F96120F8D8A7BA70C0E73 /* PlayedItemsView.swift */; };
+		A7673B45771FB7FA57174799 /* BrowserViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91AF98C1A9B245E03A7B47C5 /* BrowserViewModel.swift */; };
+		AC7F611101138CDCC4F1C118 /* WebViewLoadTrackerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AB14CDD0CAFEC8B45186DBE /* WebViewLoadTrackerTests.swift */; };
+		AEC9721616B16B8CCBD2F5A1 /* libPods-AiyifanUITests.a in Frameworks */ = {isa = PBXBuildFile; fileRef = C0E0BA43A9EA89AFC6E533E2 /* libPods-AiyifanUITests.a */; };
+		AF3F05FA17EF73D0C9DB1B42 /* NativePlaybackResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88ABACCB15ECA8A2F3F24C5F /* NativePlaybackResolver.swift */; };
+		B4E34BAD3C7DB5D0DB89C6CA /* AiyifanApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D79A58A3ED1D98C50B1BC8 /* AiyifanApp.swift */; };
+		B590778379B76AEE3FD2198F /* CastingTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = CA1684C5C7E3F4176B6D1360 /* CastingTests.swift */; };
+		BA73B62A04B52849ABF91A2F /* AiyifanItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70957A2E99A2085A8213A3C1 /* AiyifanItem.swift */; };
+		C76762D5953540918D3295A9 /* AiyifanCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9DEDD7D6876DCABBDF66C6A5 /* AiyifanCategory.swift */; };
+		D79AF8695F70E56D7573AD22 /* NativePlayerViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81C09D57FDB01D6F1A2176EB /* NativePlayerViewModelTests.swift */; };
+		DEA72AD9067C78AEBBA0FE62 /* Episode.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5CB17137BFA47CC83C3B851 /* Episode.swift */; };
+		EAC94B94C131CFEDC6E0A0D1 /* SavedItemsStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E0756E182AEA3AA3C7068B8 /* SavedItemsStoreTests.swift */; };
+		FDE8493017B6CAB7E66ABCFD /* Casting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AD29047EFB9A86FE4F9780C /* Casting.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		4687552617F450C99DDEA9B3 /* PBXContainerItemProxy */ = {
+		31EFAEF112DB9582E1F06960 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = 6EC858E341339BA325875EAB /* Project object */;
+			containerPortal = C9EB2942C0A73429E8DDBD82 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = D07F3080DAED647266018822;
+			remoteGlobalIDString = 063183B8DFE866059F5CF9A7;
 			remoteInfo = Aiyifan;
 		};
-		5A474896F9170E8E7A1EE931 /* PBXContainerItemProxy */ = {
+		D05F0DF4DAFCF867B9BB86AA /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
-			containerPortal = 6EC858E341339BA325875EAB /* Project object */;
+			containerPortal = C9EB2942C0A73429E8DDBD82 /* Project object */;
 			proxyType = 1;
-			remoteGlobalIDString = D07F3080DAED647266018822;
+			remoteGlobalIDString = 063183B8DFE866059F5CF9A7;
 			remoteInfo = Aiyifan;
 		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		00AB303B972F6C4AA8F92248 /* Pods-Aiyifan.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Aiyifan.release.xcconfig"; path = "Target Support Files/Pods-Aiyifan/Pods-Aiyifan.release.xcconfig"; sourceTree = "<group>"; };
-		0577F386DB004FC8100614C5 /* BrowserView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BrowserView.swift; sourceTree = "<group>"; };
-		0AA6666E2B780F0E6C653574 /* AiyifanCategory.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AiyifanCategory.swift; sourceTree = "<group>"; };
-		0AECECDDF1B772AF60D5C9BC /* NativePlayerViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NativePlayerViewModelTests.swift; sourceTree = "<group>"; };
-		26BAFC73BA95005BA6C7BB27 /* NativePlaybackResolver.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NativePlaybackResolver.swift; sourceTree = "<group>"; };
-		2A51F316DF94F5B6D4228B0E /* Casting.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Casting.swift; sourceTree = "<group>"; };
-		31BF5EC29D7B9D88FA1355F7 /* NativePlaybackResolverTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NativePlaybackResolverTests.swift; sourceTree = "<group>"; };
-		3A8277A8A37C60E06ED05B27 /* Pods-Aiyifan.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Aiyifan.debug.xcconfig"; path = "Target Support Files/Pods-Aiyifan/Pods-Aiyifan.debug.xcconfig"; sourceTree = "<group>"; };
-		4F96A9EF3CAF48F19D196841 /* BrowserViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BrowserViewModel.swift; sourceTree = "<group>"; };
-		50DBA97C01DB55471DD84BFD /* Pods-AiyifanUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-AiyifanUITests.debug.xcconfig"; path = "Target Support Files/Pods-AiyifanUITests/Pods-AiyifanUITests.debug.xcconfig"; sourceTree = "<group>"; };
-		554C8125D2D8864039CA4D4B /* PlayedItemsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlayedItemsView.swift; sourceTree = "<group>"; };
-		5798102DB46E38AF4AA66F95 /* SavedItemsStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SavedItemsStore.swift; sourceTree = "<group>"; };
-		57AAFE716CE90B6CE6290EB7 /* Episode.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Episode.swift; sourceTree = "<group>"; };
-		64F9CC51880FFB642AB69FCE /* WebView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
-		65B5F0078FB458A111FF0A80 /* WebViewLoadTrackerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WebViewLoadTrackerTests.swift; sourceTree = "<group>"; };
-		74DB9B212FE3E101D289CCD1 /* PlayedItemsStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlayedItemsStore.swift; sourceTree = "<group>"; };
-		7B52AE886F7A138832D59F1D /* AiyifanFeedService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AiyifanFeedService.swift; sourceTree = "<group>"; };
-		80A499CF812BDDE47BE61E90 /* PlayedItemsStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlayedItemsStoreTests.swift; sourceTree = "<group>"; };
-		8311EEA618D6E449676A78C3 /* NativePlayerView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NativePlayerView.swift; sourceTree = "<group>"; };
-		83C5E0DDC84D65FEA7108E78 /* Pods-AiyifanUITests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-AiyifanUITests.release.xcconfig"; path = "Target Support Files/Pods-AiyifanUITests/Pods-AiyifanUITests.release.xcconfig"; sourceTree = "<group>"; };
-		9128F7CA112C1C1ADA8C726D /* libPods-AiyifanUITests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-AiyifanUITests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		9251B4D758F9BD6386979F47 /* SavedItemsStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SavedItemsStoreTests.swift; sourceTree = "<group>"; };
-		92F35D0CB0CA121E2B9B319C /* CastingTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CastingTests.swift; sourceTree = "<group>"; };
-		939FBE75725884FB7FBC6164 /* libPods-AiyifanTests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-AiyifanTests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		955C0380694278A579F0FAD9 /* AiyifanItem.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AiyifanItem.swift; sourceTree = "<group>"; };
-		96F10CB6209C3DD7F8726753 /* AiyifanLatestTapTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AiyifanLatestTapTests.swift; sourceTree = "<group>"; };
-		9FB531799CFF792409D73454 /* Pods-AiyifanTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-AiyifanTests.release.xcconfig"; path = "Target Support Files/Pods-AiyifanTests/Pods-AiyifanTests.release.xcconfig"; sourceTree = "<group>"; };
-		A367B66EBE58C3BB63300D99 /* Aiyifan.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = Aiyifan.entitlements; sourceTree = "<group>"; };
-		A7F62997EF14D5172937F31F /* AiyifanItemURLTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AiyifanItemURLTests.swift; sourceTree = "<group>"; };
-		BB3F1FF06858840FEFB530F2 /* Pods-AiyifanTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-AiyifanTests.debug.xcconfig"; path = "Target Support Files/Pods-AiyifanTests/Pods-AiyifanTests.debug.xcconfig"; sourceTree = "<group>"; };
-		C075F31A1F4DC3991DC54800 /* AiyifanApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AiyifanApp.swift; sourceTree = "<group>"; };
-		C37121FFCB8FF091FD9E3E83 /* AiyifanUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AiyifanUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		D32459DA65278AD84AB82FD3 /* libPods-Aiyifan.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Aiyifan.a"; sourceTree = BUILT_PRODUCTS_DIR; };
-		E03F25DC215C9B495FC23EBD /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
-		E484C5A052B92EB4D4624C23 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		F4292D7B2FE45C28D835BF86 /* Aiyifan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Aiyifan.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		F8D53586C9FE5F4A974BA53D /* AiyifanTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AiyifanTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		FE59951246A289AAA4195AA4 /* WebViewPopupPolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WebViewPopupPolicyTests.swift; sourceTree = "<group>"; };
+		01180C892BD9C715082A8852 /* Aiyifan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Aiyifan.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		092C7E99C9DB86B62972A008 /* PosterImage.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PosterImage.swift; sourceTree = "<group>"; };
+		14949DD0672FE307E0C96021 /* AiyifanLatestTapTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AiyifanLatestTapTests.swift; sourceTree = "<group>"; };
+		16FB736C6B6B402AB3FCD57A /* WebViewPopupPolicyTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WebViewPopupPolicyTests.swift; sourceTree = "<group>"; };
+		35AB444C9001C1960A80578D /* AiyifanTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AiyifanTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		36A395E8230725E5B7807C48 /* Pods-AiyifanTests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-AiyifanTests.release.xcconfig"; path = "Target Support Files/Pods-AiyifanTests/Pods-AiyifanTests.release.xcconfig"; sourceTree = "<group>"; };
+		398871B6A17BEEC8A8ACF7E0 /* NativePlayerView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NativePlayerView.swift; sourceTree = "<group>"; };
+		4060FA53E8D8869178C2A21E /* Pods-AiyifanUITests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-AiyifanUITests.debug.xcconfig"; path = "Target Support Files/Pods-AiyifanUITests/Pods-AiyifanUITests.debug.xcconfig"; sourceTree = "<group>"; };
+		57D79A58A3ED1D98C50B1BC8 /* AiyifanApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AiyifanApp.swift; sourceTree = "<group>"; };
+		5AD29047EFB9A86FE4F9780C /* Casting.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Casting.swift; sourceTree = "<group>"; };
+		648F96120F8D8A7BA70C0E73 /* PlayedItemsView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlayedItemsView.swift; sourceTree = "<group>"; };
+		699A333066EEFE87190EDE68 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		6F047FA39DC4791E6B621520 /* Aiyifan.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = Aiyifan.entitlements; sourceTree = "<group>"; };
+		70957A2E99A2085A8213A3C1 /* AiyifanItem.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AiyifanItem.swift; sourceTree = "<group>"; };
+		7B6F2064711C8EDA3D465D8A /* NativePlaybackResolverTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NativePlaybackResolverTests.swift; sourceTree = "<group>"; };
+		7C8125F7D615ACC7E015FD12 /* Pods-AiyifanTests.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-AiyifanTests.debug.xcconfig"; path = "Target Support Files/Pods-AiyifanTests/Pods-AiyifanTests.debug.xcconfig"; sourceTree = "<group>"; };
+		7E45561093750160B0EF8B77 /* WebView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
+		803CFA489CC608E68AA4883F /* EpisodeNavigator.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = EpisodeNavigator.swift; sourceTree = "<group>"; };
+		81C09D57FDB01D6F1A2176EB /* NativePlayerViewModelTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NativePlayerViewModelTests.swift; sourceTree = "<group>"; };
+		88ABACCB15ECA8A2F3F24C5F /* NativePlaybackResolver.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = NativePlaybackResolver.swift; sourceTree = "<group>"; };
+		8AB14CDD0CAFEC8B45186DBE /* WebViewLoadTrackerTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WebViewLoadTrackerTests.swift; sourceTree = "<group>"; };
+		8FA92D4130FC9E4ABB715B50 /* PlayedItemsStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlayedItemsStore.swift; sourceTree = "<group>"; };
+		91AF98C1A9B245E03A7B47C5 /* BrowserViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BrowserViewModel.swift; sourceTree = "<group>"; };
+		9A786EB99112E776AA1DC7A7 /* AiyifanFeedService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AiyifanFeedService.swift; sourceTree = "<group>"; };
+		9DEDD7D6876DCABBDF66C6A5 /* AiyifanCategory.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AiyifanCategory.swift; sourceTree = "<group>"; };
+		9E0756E182AEA3AA3C7068B8 /* SavedItemsStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SavedItemsStoreTests.swift; sourceTree = "<group>"; };
+		9FCDC30D0CF9062156201E51 /* libPods-AiyifanTests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-AiyifanTests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		AF971DBDB82AFA8A236A1BB2 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B0F6D939BC0C8143664D56DE /* LibraryFeaturesTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryFeaturesTests.swift; sourceTree = "<group>"; };
+		B5CB17137BFA47CC83C3B851 /* Episode.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Episode.swift; sourceTree = "<group>"; };
+		B7343D1BC2E80A3A683DFA5D /* Pods-AiyifanUITests.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-AiyifanUITests.release.xcconfig"; path = "Target Support Files/Pods-AiyifanUITests/Pods-AiyifanUITests.release.xcconfig"; sourceTree = "<group>"; };
+		C0E0BA43A9EA89AFC6E533E2 /* libPods-AiyifanUITests.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-AiyifanUITests.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		C94A69DEB42495F2A44E175B /* LibraryDiscovery.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = LibraryDiscovery.swift; sourceTree = "<group>"; };
+		CA1684C5C7E3F4176B6D1360 /* CastingTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CastingTests.swift; sourceTree = "<group>"; };
+		CF6990B2C5E340B7EF499FE8 /* Pods-Aiyifan.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Aiyifan.debug.xcconfig"; path = "Target Support Files/Pods-Aiyifan/Pods-Aiyifan.debug.xcconfig"; sourceTree = "<group>"; };
+		D093A28D432080EC7A77BEF1 /* AiyifanUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = AiyifanUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D2462858B329B4739B85BB23 /* Pods-Aiyifan.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Aiyifan.release.xcconfig"; path = "Target Support Files/Pods-Aiyifan/Pods-Aiyifan.release.xcconfig"; sourceTree = "<group>"; };
+		DEAB5B1E749472D9F479FEAA /* PlayedItemsStoreTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = PlayedItemsStoreTests.swift; sourceTree = "<group>"; };
+		E15E251F760CEAC0AD0AA500 /* libPods-Aiyifan.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-Aiyifan.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		E5F77C21B8B263FD3D017268 /* BrowserView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BrowserView.swift; sourceTree = "<group>"; };
+		E7A59D571C3595650C085FB7 /* SavedItemsStore.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SavedItemsStore.swift; sourceTree = "<group>"; };
+		EB5F270CC3D654E0E08663F6 /* AiyifanItemURLTests.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AiyifanItemURLTests.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		30A74CA73FAB14644A0D040F /* Frameworks */ = {
+		2DCF3AFDACD8ABB1492A68A3 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				DDDF246F1289F0E64BCEC95A /* Foundation.framework in Frameworks */,
-				C72E1B54BAF860B359130CDF /* libPods-AiyifanUITests.a in Frameworks */,
+				62E098797F46D7C3BA3D3BAB /* Foundation.framework in Frameworks */,
+				73EAB0B5E52CC8DBE6189B9B /* libPods-AiyifanTests.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		795158F120BF652393BCD70D /* Frameworks */ = {
+		62775A1C0C81929A35E8C28A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				ADD8A9DC5D20220F9A72B2E0 /* Foundation.framework in Frameworks */,
-				A23C1E9881A78EE425CB8E87 /* libPods-Aiyifan.a in Frameworks */,
+				23C44363FDB15F4F519C68E0 /* Foundation.framework in Frameworks */,
+				6F8FBBF1155BC40F55DD2377 /* libPods-Aiyifan.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		B5826D83444F84EC699799F1 /* Frameworks */ = {
+		B00F417374BEDEB8F0122E06 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				31AB861358DCD10B20A6E7BE /* Foundation.framework in Frameworks */,
-				964D910C5479B059135EACB1 /* libPods-AiyifanTests.a in Frameworks */,
+				74371B6CB6E422A38D2A2B80 /* Foundation.framework in Frameworks */,
+				AEC9721616B16B8CCBD2F5A1 /* libPods-AiyifanUITests.a in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		06AE703C2E091C70B766C1C2 /* Frameworks */ = {
+		1EE421EF6A87BE3BB1B7AAF2 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				DD3D9ACE00AC76120D12F17E /* iOS */,
-				D32459DA65278AD84AB82FD3 /* libPods-Aiyifan.a */,
-				939FBE75725884FB7FBC6164 /* libPods-AiyifanTests.a */,
-				9128F7CA112C1C1ADA8C726D /* libPods-AiyifanUITests.a */,
+				01180C892BD9C715082A8852 /* Aiyifan.app */,
+				35AB444C9001C1960A80578D /* AiyifanTests.xctest */,
+				D093A28D432080EC7A77BEF1 /* AiyifanUITests.xctest */,
 			);
-			name = Frameworks;
+			name = Products;
 			sourceTree = "<group>";
 		};
-		17CAAC5A2513D68ADF6555E8 /* Aiyifan */ = {
+		2CD8BF29099F019410468B1E /* AiyifanUITests */ = {
 			isa = PBXGroup;
 			children = (
-				7B3C88999BC7059BC2C78B74 /* App */,
-				C17781403EB673A32A1C5CCD /* Resources */,
-				A367B66EBE58C3BB63300D99 /* Aiyifan.entitlements */,
-			);
-			name = Aiyifan;
-			path = Aiyifan;
-			sourceTree = "<group>";
-		};
-		3E8A20C623CB6725D0D9E11B /* AiyifanUITests */ = {
-			isa = PBXGroup;
-			children = (
-				96F10CB6209C3DD7F8726753 /* AiyifanLatestTapTests.swift */,
+				14949DD0672FE307E0C96021 /* AiyifanLatestTapTests.swift */,
 			);
 			name = AiyifanUITests;
 			path = AiyifanUITests;
 			sourceTree = "<group>";
 		};
-		7B3C88999BC7059BC2C78B74 /* App */ = {
+		4166A934503F8E75EBA6249D /* iOS */ = {
 			isa = PBXGroup;
 			children = (
-				C075F31A1F4DC3991DC54800 /* AiyifanApp.swift */,
-				0AA6666E2B780F0E6C653574 /* AiyifanCategory.swift */,
-				7B52AE886F7A138832D59F1D /* AiyifanFeedService.swift */,
-				955C0380694278A579F0FAD9 /* AiyifanItem.swift */,
-				0577F386DB004FC8100614C5 /* BrowserView.swift */,
-				4F96A9EF3CAF48F19D196841 /* BrowserViewModel.swift */,
-				2A51F316DF94F5B6D4228B0E /* Casting.swift */,
-				57AAFE716CE90B6CE6290EB7 /* Episode.swift */,
-				26BAFC73BA95005BA6C7BB27 /* NativePlaybackResolver.swift */,
-				8311EEA618D6E449676A78C3 /* NativePlayerView.swift */,
-				74DB9B212FE3E101D289CCD1 /* PlayedItemsStore.swift */,
-				554C8125D2D8864039CA4D4B /* PlayedItemsView.swift */,
-				5798102DB46E38AF4AA66F95 /* SavedItemsStore.swift */,
-				64F9CC51880FFB642AB69FCE /* WebView.swift */,
-			);
-			name = App;
-			path = App;
-			sourceTree = "<group>";
-		};
-		C17781403EB673A32A1C5CCD /* Resources */ = {
-			isa = PBXGroup;
-			children = (
-				E484C5A052B92EB4D4624C23 /* Info.plist */,
-			);
-			name = Resources;
-			path = Resources;
-			sourceTree = "<group>";
-		};
-		C3482BA03F7466147A05E65B /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				F4292D7B2FE45C28D835BF86 /* Aiyifan.app */,
-				F8D53586C9FE5F4A974BA53D /* AiyifanTests.xctest */,
-				C37121FFCB8FF091FD9E3E83 /* AiyifanUITests.xctest */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
-		CB4C01887023C9D88E9093EE /* AiyifanTests */ = {
-			isa = PBXGroup;
-			children = (
-				A7F62997EF14D5172937F31F /* AiyifanItemURLTests.swift */,
-				92F35D0CB0CA121E2B9B319C /* CastingTests.swift */,
-				31BF5EC29D7B9D88FA1355F7 /* NativePlaybackResolverTests.swift */,
-				0AECECDDF1B772AF60D5C9BC /* NativePlayerViewModelTests.swift */,
-				80A499CF812BDDE47BE61E90 /* PlayedItemsStoreTests.swift */,
-				9251B4D758F9BD6386979F47 /* SavedItemsStoreTests.swift */,
-				65B5F0078FB458A111FF0A80 /* WebViewLoadTrackerTests.swift */,
-				FE59951246A289AAA4195AA4 /* WebViewPopupPolicyTests.swift */,
-			);
-			name = AiyifanTests;
-			path = AiyifanTests;
-			sourceTree = "<group>";
-		};
-		D588EF3DBEFEFF07D2D02620 = {
-			isa = PBXGroup;
-			children = (
-				C3482BA03F7466147A05E65B /* Products */,
-				06AE703C2E091C70B766C1C2 /* Frameworks */,
-				17CAAC5A2513D68ADF6555E8 /* Aiyifan */,
-				CB4C01887023C9D88E9093EE /* AiyifanTests */,
-				3E8A20C623CB6725D0D9E11B /* AiyifanUITests */,
-				E11B71334474DB3C9DC4B8CB /* Pods */,
-			);
-			sourceTree = "<group>";
-		};
-		DD3D9ACE00AC76120D12F17E /* iOS */ = {
-			isa = PBXGroup;
-			children = (
-				E03F25DC215C9B495FC23EBD /* Foundation.framework */,
+				699A333066EEFE87190EDE68 /* Foundation.framework */,
 			);
 			name = iOS;
 			sourceTree = "<group>";
 		};
-		E11B71334474DB3C9DC4B8CB /* Pods */ = {
+		835CF224A02C0FE843055027 /* Pods */ = {
 			isa = PBXGroup;
 			children = (
-				00AB303B972F6C4AA8F92248 /* Pods-Aiyifan.release.xcconfig */,
-				3A8277A8A37C60E06ED05B27 /* Pods-Aiyifan.debug.xcconfig */,
-				9FB531799CFF792409D73454 /* Pods-AiyifanTests.release.xcconfig */,
-				BB3F1FF06858840FEFB530F2 /* Pods-AiyifanTests.debug.xcconfig */,
-				83C5E0DDC84D65FEA7108E78 /* Pods-AiyifanUITests.release.xcconfig */,
-				50DBA97C01DB55471DD84BFD /* Pods-AiyifanUITests.debug.xcconfig */,
+				D2462858B329B4739B85BB23 /* Pods-Aiyifan.release.xcconfig */,
+				CF6990B2C5E340B7EF499FE8 /* Pods-Aiyifan.debug.xcconfig */,
+				36A395E8230725E5B7807C48 /* Pods-AiyifanTests.release.xcconfig */,
+				7C8125F7D615ACC7E015FD12 /* Pods-AiyifanTests.debug.xcconfig */,
+				B7343D1BC2E80A3A683DFA5D /* Pods-AiyifanUITests.release.xcconfig */,
+				4060FA53E8D8869178C2A21E /* Pods-AiyifanUITests.debug.xcconfig */,
 			);
 			name = Pods;
 			path = Pods;
 			sourceTree = "<group>";
 		};
+		8F2822B13A536D9A368C907E /* AiyifanTests */ = {
+			isa = PBXGroup;
+			children = (
+				EB5F270CC3D654E0E08663F6 /* AiyifanItemURLTests.swift */,
+				CA1684C5C7E3F4176B6D1360 /* CastingTests.swift */,
+				B0F6D939BC0C8143664D56DE /* LibraryFeaturesTests.swift */,
+				7B6F2064711C8EDA3D465D8A /* NativePlaybackResolverTests.swift */,
+				81C09D57FDB01D6F1A2176EB /* NativePlayerViewModelTests.swift */,
+				DEAB5B1E749472D9F479FEAA /* PlayedItemsStoreTests.swift */,
+				9E0756E182AEA3AA3C7068B8 /* SavedItemsStoreTests.swift */,
+				8AB14CDD0CAFEC8B45186DBE /* WebViewLoadTrackerTests.swift */,
+				16FB736C6B6B402AB3FCD57A /* WebViewPopupPolicyTests.swift */,
+			);
+			name = AiyifanTests;
+			path = AiyifanTests;
+			sourceTree = "<group>";
+		};
+		935F87786BA2EC51F5EC8F64 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				4166A934503F8E75EBA6249D /* iOS */,
+				E15E251F760CEAC0AD0AA500 /* libPods-Aiyifan.a */,
+				9FCDC30D0CF9062156201E51 /* libPods-AiyifanTests.a */,
+				C0E0BA43A9EA89AFC6E533E2 /* libPods-AiyifanUITests.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		C021F71A818A62129D8DA60C /* App */ = {
+			isa = PBXGroup;
+			children = (
+				57D79A58A3ED1D98C50B1BC8 /* AiyifanApp.swift */,
+				9DEDD7D6876DCABBDF66C6A5 /* AiyifanCategory.swift */,
+				9A786EB99112E776AA1DC7A7 /* AiyifanFeedService.swift */,
+				70957A2E99A2085A8213A3C1 /* AiyifanItem.swift */,
+				E5F77C21B8B263FD3D017268 /* BrowserView.swift */,
+				91AF98C1A9B245E03A7B47C5 /* BrowserViewModel.swift */,
+				5AD29047EFB9A86FE4F9780C /* Casting.swift */,
+				B5CB17137BFA47CC83C3B851 /* Episode.swift */,
+				803CFA489CC608E68AA4883F /* EpisodeNavigator.swift */,
+				C94A69DEB42495F2A44E175B /* LibraryDiscovery.swift */,
+				88ABACCB15ECA8A2F3F24C5F /* NativePlaybackResolver.swift */,
+				398871B6A17BEEC8A8ACF7E0 /* NativePlayerView.swift */,
+				8FA92D4130FC9E4ABB715B50 /* PlayedItemsStore.swift */,
+				648F96120F8D8A7BA70C0E73 /* PlayedItemsView.swift */,
+				092C7E99C9DB86B62972A008 /* PosterImage.swift */,
+				E7A59D571C3595650C085FB7 /* SavedItemsStore.swift */,
+				7E45561093750160B0EF8B77 /* WebView.swift */,
+			);
+			name = App;
+			path = App;
+			sourceTree = "<group>";
+		};
+		C36E8C8C9B03C0118FA5D6EE /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				AF971DBDB82AFA8A236A1BB2 /* Info.plist */,
+			);
+			name = Resources;
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		D7E4346272F4F0903CF84688 = {
+			isa = PBXGroup;
+			children = (
+				1EE421EF6A87BE3BB1B7AAF2 /* Products */,
+				935F87786BA2EC51F5EC8F64 /* Frameworks */,
+				E271847B573BC0501E9AF114 /* Aiyifan */,
+				8F2822B13A536D9A368C907E /* AiyifanTests */,
+				2CD8BF29099F019410468B1E /* AiyifanUITests */,
+				835CF224A02C0FE843055027 /* Pods */,
+			);
+			sourceTree = "<group>";
+		};
+		E271847B573BC0501E9AF114 /* Aiyifan */ = {
+			isa = PBXGroup;
+			children = (
+				C021F71A818A62129D8DA60C /* App */,
+				C36E8C8C9B03C0118FA5D6EE /* Resources */,
+				6F047FA39DC4791E6B621520 /* Aiyifan.entitlements */,
+			);
+			name = Aiyifan;
+			path = Aiyifan;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		3CE61C72E8C1E2A25017EE5A /* AiyifanTests */ = {
+		063183B8DFE866059F5CF9A7 /* Aiyifan */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 6B189139C195E350BB5CD23B /* Build configuration list for PBXNativeTarget "AiyifanTests" */;
+			buildConfigurationList = FF71507B89911A4BA2B76CF2 /* Build configuration list for PBXNativeTarget "Aiyifan" */;
 			buildPhases = (
-				F6DDC56A28F65FA49AD7B16A /* [CP] Check Pods Manifest.lock */,
-				E65CA1C6E2EA64413BF7A509 /* Sources */,
-				B5826D83444F84EC699799F1 /* Frameworks */,
-				FFC558B4FA6B4E83AB3B6EDC /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				9346724904AC824813E374B8 /* PBXTargetDependency */,
-			);
-			name = AiyifanTests;
-			productName = AiyifanTests;
-			productReference = F8D53586C9FE5F4A974BA53D /* AiyifanTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
-		};
-		65A29DC0AD0B60C214414948 /* AiyifanUITests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = F1FEDB642A5EF8D66A6EAAD6 /* Build configuration list for PBXNativeTarget "AiyifanUITests" */;
-			buildPhases = (
-				79D49655419662AC0BDDFAC9 /* [CP] Check Pods Manifest.lock */,
-				D2009DEC1877E2259D3DCF57 /* Sources */,
-				30A74CA73FAB14644A0D040F /* Frameworks */,
-				638B44F76A3ACAE4B64D2D2E /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				F8ACF27CCD51C4036510D4BF /* PBXTargetDependency */,
-			);
-			name = AiyifanUITests;
-			productName = AiyifanUITests;
-			productReference = C37121FFCB8FF091FD9E3E83 /* AiyifanUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
-		};
-		D07F3080DAED647266018822 /* Aiyifan */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = EA1D6B4C738FBA2156E19415 /* Build configuration list for PBXNativeTarget "Aiyifan" */;
-			buildPhases = (
-				FEB9F083465BF0F41F42188E /* [CP] Check Pods Manifest.lock */,
-				E83AE0BF81EF656C39037909 /* Sources */,
-				795158F120BF652393BCD70D /* Frameworks */,
-				95F15ED03E73CA20EC00140E /* Resources */,
-				0523F270CBF003896F544295 /* [CP] Copy Pods Resources */,
+				E4EF3EC14D62E276DF98F836 /* [CP] Check Pods Manifest.lock */,
+				07F4FCE0161AC0A923B6B5F1 /* Sources */,
+				62775A1C0C81929A35E8C28A /* Frameworks */,
+				E3320C801F9C7DC9C6BBF48B /* Resources */,
+				E5312020E0598AED27679AA6 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
@@ -306,32 +280,70 @@
 			);
 			name = Aiyifan;
 			productName = Aiyifan;
-			productReference = F4292D7B2FE45C28D835BF86 /* Aiyifan.app */;
+			productReference = 01180C892BD9C715082A8852 /* Aiyifan.app */;
 			productType = "com.apple.product-type.application";
+		};
+		08BC976E3646FF11B34B0165 /* AiyifanTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = CE3D46FA927EB1D37177D6BF /* Build configuration list for PBXNativeTarget "AiyifanTests" */;
+			buildPhases = (
+				CDDC4F8B674940C274F2BC5C /* [CP] Check Pods Manifest.lock */,
+				FFA6503F7FE826D9D4266E57 /* Sources */,
+				2DCF3AFDACD8ABB1492A68A3 /* Frameworks */,
+				F53F6A52960BF4812B4E49A6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				CFEEF457580D7D8182FE78F2 /* PBXTargetDependency */,
+			);
+			name = AiyifanTests;
+			productName = AiyifanTests;
+			productReference = 35AB444C9001C1960A80578D /* AiyifanTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		3F32C23B393B6ACB469EBFD8 /* AiyifanUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A8ACBAA0BA4E938E0176D64C /* Build configuration list for PBXNativeTarget "AiyifanUITests" */;
+			buildPhases = (
+				A0F5DC1A7516F33DE41A8887 /* [CP] Check Pods Manifest.lock */,
+				834075FDC89A65A95330BAB8 /* Sources */,
+				B00F417374BEDEB8F0122E06 /* Frameworks */,
+				52741C0189B326DF33F1BA76 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6AE2D735EC6C372C29DCFE21 /* PBXTargetDependency */,
+			);
+			name = AiyifanUITests;
+			productName = AiyifanUITests;
+			productReference = D093A28D432080EC7A77BEF1 /* AiyifanUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		6EC858E341339BA325875EAB /* Project object */ = {
+		C9EB2942C0A73429E8DDBD82 /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
-					3CE61C72E8C1E2A25017EE5A = {
+					063183B8DFE866059F5CF9A7 = {
 						CreatedOnToolsVersion = 26.2;
-						TestTargetID = D07F3080DAED647266018822;
 					};
-					65A29DC0AD0B60C214414948 = {
+					08BC976E3646FF11B34B0165 = {
 						CreatedOnToolsVersion = 26.2;
-						TestTargetID = D07F3080DAED647266018822;
+						TestTargetID = 063183B8DFE866059F5CF9A7;
 					};
-					D07F3080DAED647266018822 = {
+					3F32C23B393B6ACB469EBFD8 = {
 						CreatedOnToolsVersion = 26.2;
+						TestTargetID = 063183B8DFE866059F5CF9A7;
 					};
 				};
 			};
-			buildConfigurationList = 921DC9F630ED58A3C5C05894 /* Build configuration list for PBXProject "Aiyifan" */;
+			buildConfigurationList = 968A4DAB2B888E4529ED8F28 /* Build configuration list for PBXProject "Aiyifan" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -339,36 +351,36 @@
 				en,
 				Base,
 			);
-			mainGroup = D588EF3DBEFEFF07D2D02620;
+			mainGroup = D7E4346272F4F0903CF84688;
 			minimizedProjectReferenceProxies = 0;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = C3482BA03F7466147A05E65B /* Products */;
+			productRefGroup = 1EE421EF6A87BE3BB1B7AAF2 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				D07F3080DAED647266018822 /* Aiyifan */,
-				3CE61C72E8C1E2A25017EE5A /* AiyifanTests */,
-				65A29DC0AD0B60C214414948 /* AiyifanUITests */,
+				063183B8DFE866059F5CF9A7 /* Aiyifan */,
+				08BC976E3646FF11B34B0165 /* AiyifanTests */,
+				3F32C23B393B6ACB469EBFD8 /* AiyifanUITests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		638B44F76A3ACAE4B64D2D2E /* Resources */ = {
+		52741C0189B326DF33F1BA76 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		95F15ED03E73CA20EC00140E /* Resources */ = {
+		E3320C801F9C7DC9C6BBF48B /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		FFC558B4FA6B4E83AB3B6EDC /* Resources */ = {
+		F53F6A52960BF4812B4E49A6 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -378,7 +390,73 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		0523F270CBF003896F544295 /* [CP] Copy Pods Resources */ = {
+		A0F5DC1A7516F33DE41A8887 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-AiyifanUITests-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		CDDC4F8B674940C274F2BC5C /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-AiyifanTests-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		E4EF3EC14D62E276DF98F836 /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-Aiyifan-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+		E5312020E0598AED27679AA6 /* [CP] Copy Pods Resources */ = {
 			isa = PBXShellScriptBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -414,241 +492,78 @@
 			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-Aiyifan/Pods-Aiyifan-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
-		79D49655419662AC0BDDFAC9 /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-AiyifanUITests-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-		F6DDC56A28F65FA49AD7B16A /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-AiyifanTests-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
-		FEB9F083465BF0F41F42188E /* [CP] Check Pods Manifest.lock */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
-				"${PODS_ROOT}/Manifest.lock",
-			);
-			name = "[CP] Check Pods Manifest.lock";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(DERIVED_FILE_DIR)/Pods-Aiyifan-checkManifestLockResult.txt",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
-			showEnvVarsInLog = 0;
-		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		D2009DEC1877E2259D3DCF57 /* Sources */ = {
+		07F4FCE0161AC0A923B6B5F1 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7F34F06E1A909C52D2396587 /* AiyifanLatestTapTests.swift in Sources */,
+				B4E34BAD3C7DB5D0DB89C6CA /* AiyifanApp.swift in Sources */,
+				C76762D5953540918D3295A9 /* AiyifanCategory.swift in Sources */,
+				20EF528F898C7C76F27751B5 /* AiyifanFeedService.swift in Sources */,
+				BA73B62A04B52849ABF91A2F /* AiyifanItem.swift in Sources */,
+				98E6FF4E27EE5FB84DFE95EF /* BrowserView.swift in Sources */,
+				A7673B45771FB7FA57174799 /* BrowserViewModel.swift in Sources */,
+				FDE8493017B6CAB7E66ABCFD /* Casting.swift in Sources */,
+				DEA72AD9067C78AEBBA0FE62 /* Episode.swift in Sources */,
+				70B808A688259C05C2D81DE8 /* EpisodeNavigator.swift in Sources */,
+				086854224DF46CFB4E1107D2 /* LibraryDiscovery.swift in Sources */,
+				AF3F05FA17EF73D0C9DB1B42 /* NativePlaybackResolver.swift in Sources */,
+				0090E33AFB389827DAF7B8B8 /* NativePlayerView.swift in Sources */,
+				8D4207E9B5C3F78D4604F96D /* PlayedItemsStore.swift in Sources */,
+				99348C33BF50D91C174EAED2 /* PlayedItemsView.swift in Sources */,
+				604C8F8247D05EF0EACDADA7 /* PosterImage.swift in Sources */,
+				20B8FB462FDAB241E426D484 /* SavedItemsStore.swift in Sources */,
+				5C850C3DEE978205E286AC4E /* WebView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E65CA1C6E2EA64413BF7A509 /* Sources */ = {
+		834075FDC89A65A95330BAB8 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				DDEE65873FDDD2456C4AF309 /* AiyifanItemURLTests.swift in Sources */,
-				49ACE1E72E534A8DB71F5843 /* CastingTests.swift in Sources */,
-				4BE3A7E20E6A8FD4BC87586D /* NativePlaybackResolverTests.swift in Sources */,
-				FEB306E4632D3A712F6A2056 /* NativePlayerViewModelTests.swift in Sources */,
-				60F9BE3D83A3B89AC2743848 /* PlayedItemsStoreTests.swift in Sources */,
-				9570B2BE54F2F95FA26E5A86 /* SavedItemsStoreTests.swift in Sources */,
-				656EFC6AA5DC6CA9709E325C /* WebViewLoadTrackerTests.swift in Sources */,
-				6EBA8E4928AE0661117ADBF5 /* WebViewPopupPolicyTests.swift in Sources */,
+				0F405922079ABAB262FA44F3 /* AiyifanLatestTapTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		E83AE0BF81EF656C39037909 /* Sources */ = {
+		FFA6503F7FE826D9D4266E57 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				A7CB357281380AAD3BF0642A /* AiyifanApp.swift in Sources */,
-				46867CD874DA7F1F1FB9ED4A /* AiyifanCategory.swift in Sources */,
-				FE9E3AB115CC3DD6E9A04C11 /* AiyifanFeedService.swift in Sources */,
-				6208B28B75FFB47D6767E4CA /* AiyifanItem.swift in Sources */,
-				AA919A5C88D8419118424A3A /* BrowserView.swift in Sources */,
-				5D979CF8A753653A33D35F4D /* BrowserViewModel.swift in Sources */,
-				E8E11CD84E52601432F9FE0F /* Casting.swift in Sources */,
-				DE1C35B91E6005E476CD4E4A /* Episode.swift in Sources */,
-				3B61A51E53A726010B0AE24B /* NativePlaybackResolver.swift in Sources */,
-				E98561F487B52B2A5D10CB6D /* NativePlayerView.swift in Sources */,
-				3BB1985A363A734518A4B2F5 /* PlayedItemsStore.swift in Sources */,
-				DF6205DDEC74B9652EE146C9 /* PlayedItemsView.swift in Sources */,
-				905E62B12551D36CFF6626DD /* SavedItemsStore.swift in Sources */,
-				7F17199552742C42E43B20F9 /* WebView.swift in Sources */,
+				300A0A10F11CD24704E91171 /* AiyifanItemURLTests.swift in Sources */,
+				B590778379B76AEE3FD2198F /* CastingTests.swift in Sources */,
+				0C5460E2B9DB64AF198EB7E9 /* LibraryFeaturesTests.swift in Sources */,
+				983370C69EB4EEDEC110F971 /* NativePlaybackResolverTests.swift in Sources */,
+				D79AF8695F70E56D7573AD22 /* NativePlayerViewModelTests.swift in Sources */,
+				413D5C500AD354F52C12A872 /* PlayedItemsStoreTests.swift in Sources */,
+				EAC94B94C131CFEDC6E0A0D1 /* SavedItemsStoreTests.swift in Sources */,
+				AC7F611101138CDCC4F1C118 /* WebViewLoadTrackerTests.swift in Sources */,
+				0498C62896EBB67F13ED77EC /* WebViewPopupPolicyTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		9346724904AC824813E374B8 /* PBXTargetDependency */ = {
+		6AE2D735EC6C372C29DCFE21 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = Aiyifan;
-			target = D07F3080DAED647266018822 /* Aiyifan */;
-			targetProxy = 5A474896F9170E8E7A1EE931 /* PBXContainerItemProxy */;
+			target = 063183B8DFE866059F5CF9A7 /* Aiyifan */;
+			targetProxy = 31EFAEF112DB9582E1F06960 /* PBXContainerItemProxy */;
 		};
-		F8ACF27CCD51C4036510D4BF /* PBXTargetDependency */ = {
+		CFEEF457580D7D8182FE78F2 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			name = Aiyifan;
-			target = D07F3080DAED647266018822 /* Aiyifan */;
-			targetProxy = 4687552617F450C99DDEA9B3 /* PBXContainerItemProxy */;
+			target = 063183B8DFE866059F5CF9A7 /* Aiyifan */;
+			targetProxy = D05F0DF4DAFCF867B9BB86AA /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
-		044A2A75104968BC4547FA60 /* Release */ = {
+		20F28290C0071742F53FA68C /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 00AB303B972F6C4AA8F92248 /* Pods-Aiyifan.release.xcconfig */;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = "";
-				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				CODE_SIGN_ENTITLEMENTS = Aiyifan/Aiyifan.entitlements;
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = VGGZ34H2PS;
-				GENERATE_INFOPLIST_FILE = NO;
-				INFOPLIST_FILE = Aiyifan/Resources/Info.plist;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.john.aiyifan;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SUPPORTS_MACCATALYST = NO;
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				VALIDATE_PRODUCT = YES;
-			};
-			name = Release;
-		};
-		3B554C4939BDB616D8BD6771 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = 50DBA97C01DB55471DD84BFD /* Pods-AiyifanUITests.debug.xcconfig */;
-			buildSettings = {
-				CLANG_ENABLE_OBJC_WEAK = NO;
-				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = VGGZ34H2PS;
-				GENERATE_INFOPLIST_FILE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.john.aiyifan.uitests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
-				SWIFT_VERSION = 6.0;
-				TARGETED_DEVICE_FAMILY = "1,2";
-				TEST_TARGET_NAME = Aiyifan;
-			};
-			name = Debug;
-		};
-		68DB13F39B7B6C62E51F7AA3 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MTL_ENABLE_DEBUG_INFO = NO;
-				MTL_FAST_MATH = YES;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				SWIFT_VERSION = 6.0;
-			};
-			name = Release;
-		};
-		715B12CFFC434B23167F51ED /* Debug */ = {
-			isa = XCBuildConfiguration;
-			baseConfigurationReference = BB3F1FF06858840FEFB530F2 /* Pods-AiyifanTests.debug.xcconfig */;
+			baseConfigurationReference = 36A395E8230725E5B7807C48 /* Pods-AiyifanTests.release.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CLANG_ENABLE_OBJC_WEAK = NO;
@@ -663,12 +578,13 @@
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Aiyifan.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Aiyifan";
+				VALIDATE_PRODUCT = YES;
 			};
-			name = Debug;
+			name = Release;
 		};
-		96C2157DF70D5A54A78DCF59 /* Release */ = {
+		2E92A602E2A1F715A10C6E17 /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 83C5E0DDC84D65FEA7108E78 /* Pods-AiyifanUITests.release.xcconfig */;
+			baseConfigurationReference = 4060FA53E8D8869178C2A21E /* Pods-AiyifanUITests.debug.xcconfig */;
 			buildSettings = {
 				CLANG_ENABLE_OBJC_WEAK = NO;
 				CODE_SIGN_STYLE = Automatic;
@@ -682,11 +598,10 @@
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_TARGET_NAME = Aiyifan;
-				VALIDATE_PRODUCT = YES;
 			};
-			name = Release;
+			name = Debug;
 		};
-		A570C31BBAC9B3F6C127D937 /* Debug */ = {
+		3497C398F0E090D01C61A43E /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -748,9 +663,111 @@
 			};
 			name = Debug;
 		};
-		E82B48337F7E0AC9DF998A5A /* Release */ = {
+		5874BD76B27DB3B3E66FCA89 /* Release */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 9FB531799CFF792409D73454 /* Pods-AiyifanTests.release.xcconfig */;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		5A46630CB7A4C43266A24F3B /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = D2462858B329B4739B85BB23 /* Pods-Aiyifan.release.xcconfig */;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = "";
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_ENTITLEMENTS = Aiyifan/Aiyifan.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = VGGZ34H2PS;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = Aiyifan/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.john.aiyifan;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SUPPORTS_MACCATALYST = NO;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		67B629D545794B0F4C935995 /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B7343D1BC2E80A3A683DFA5D /* Pods-AiyifanUITests.release.xcconfig */;
+			buildSettings = {
+				CLANG_ENABLE_OBJC_WEAK = NO;
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = VGGZ34H2PS;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.john.aiyifan.uitests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = Aiyifan;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		778843FAC04C0BA0C3676BBF /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = 7C8125F7D615ACC7E015FD12 /* Pods-AiyifanTests.debug.xcconfig */;
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CLANG_ENABLE_OBJC_WEAK = NO;
@@ -765,13 +782,12 @@
 				SWIFT_VERSION = 6.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Aiyifan.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Aiyifan";
-				VALIDATE_PRODUCT = YES;
 			};
-			name = Release;
+			name = Debug;
 		};
-		FFEC100765AACA1F684F6CEA /* Debug */ = {
+		E885667E7E26FBED0F9D9A0D /* Debug */ = {
 			isa = XCBuildConfiguration;
-			baseConfigurationReference = 3A8277A8A37C60E06ED05B27 /* Pods-Aiyifan.debug.xcconfig */;
+			baseConfigurationReference = CF6990B2C5E340B7EF499FE8 /* Pods-Aiyifan.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "";
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -798,43 +814,43 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		6B189139C195E350BB5CD23B /* Build configuration list for PBXNativeTarget "AiyifanTests" */ = {
+		968A4DAB2B888E4529ED8F28 /* Build configuration list for PBXProject "Aiyifan" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				E82B48337F7E0AC9DF998A5A /* Release */,
-				715B12CFFC434B23167F51ED /* Debug */,
+				3497C398F0E090D01C61A43E /* Debug */,
+				5874BD76B27DB3B3E66FCA89 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		921DC9F630ED58A3C5C05894 /* Build configuration list for PBXProject "Aiyifan" */ = {
+		A8ACBAA0BA4E938E0176D64C /* Build configuration list for PBXNativeTarget "AiyifanUITests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				A570C31BBAC9B3F6C127D937 /* Debug */,
-				68DB13F39B7B6C62E51F7AA3 /* Release */,
+				67B629D545794B0F4C935995 /* Release */,
+				2E92A602E2A1F715A10C6E17 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		EA1D6B4C738FBA2156E19415 /* Build configuration list for PBXNativeTarget "Aiyifan" */ = {
+		CE3D46FA927EB1D37177D6BF /* Build configuration list for PBXNativeTarget "AiyifanTests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				044A2A75104968BC4547FA60 /* Release */,
-				FFEC100765AACA1F684F6CEA /* Debug */,
+				20F28290C0071742F53FA68C /* Release */,
+				778843FAC04C0BA0C3676BBF /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		F1FEDB642A5EF8D66A6EAAD6 /* Build configuration list for PBXNativeTarget "AiyifanUITests" */ = {
+		FF71507B89911A4BA2B76CF2 /* Build configuration list for PBXNativeTarget "Aiyifan" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				96C2157DF70D5A54A78DCF59 /* Release */,
-				3B554C4939BDB616D8BD6771 /* Debug */,
+				5A46630CB7A4C43266A24F3B /* Release */,
+				E885667E7E26FBED0F9D9A0D /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = 6EC858E341339BA325875EAB /* Project object */;
+	rootObject = C9EB2942C0A73429E8DDBD82 /* Project object */;
 }
