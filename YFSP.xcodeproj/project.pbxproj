@@ -7,114 +7,120 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		0AC57AEADFC24AD5A5E23D9F /* YfspCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2756E4A10CDFB30FB0A2DE0F /* YfspCategory.swift */; };
-		17073710C44A48EF9E33BA50 /* BrowserViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0C173C6285DF9D611A2103E9 /* BrowserViewModel.swift */; };
-		1FE26FE103D69709585AB7FA /* BrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83ED29EFFC5A478AF4C2EEB3 /* BrowserView.swift */; };
-		392640DF04DA7B2587D65F53 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B55107C35AD2C86AB474E5BC /* WebView.swift */; };
-		49371B762FB4F6AD83EE5FA5 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6B02E2E63F1E5D2C3F59953F /* Foundation.framework */; };
-		BC1413AF2B16D3E20A256AB3 /* YfspApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5EE37D8C4433AEFE21DED74 /* YfspApp.swift */; };
+		0F40D661127596558E20A1F0 /* YfspCategory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A23C113E32E32935FE96A26D /* YfspCategory.swift */; };
+		1E5788BF0DBD575EBD3C1D8C /* BrowserViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 250782910B3C6E65371953DE /* BrowserViewModel.swift */; };
+		54847EEC7241F3C3BE9C5905 /* YfspFeedService.swift in Sources */ = {isa = PBXBuildFile; fileRef = BEFA03E531E76159C2F1A364 /* YfspFeedService.swift */; };
+		5A89995F8161E4C9AF1065F2 /* YfspItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0266218726A208C5258513C0 /* YfspItem.swift */; };
+		8B691A99E73703A57AEC9C10 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6351C9283BCECA2D6C4FC1DA /* WebView.swift */; };
+		9531747C44DD36517174991D /* YfspApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = FD93DD932EA6C17AAC521742 /* YfspApp.swift */; };
+		BEE882AF24FD8C8DA26A7792 /* BrowserView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB68B0D4DCD8774964332EE8 /* BrowserView.swift */; };
+		D5811D0D7F65CC99D1EC70ED /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 147C295598187C8A0C9AD227 /* Foundation.framework */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
-		0C173C6285DF9D611A2103E9 /* BrowserViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BrowserViewModel.swift; sourceTree = "<group>"; };
-		2756E4A10CDFB30FB0A2DE0F /* YfspCategory.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = YfspCategory.swift; sourceTree = "<group>"; };
-		4BEE665B58F171E9CF32112A /* YFSP.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = YFSP.entitlements; sourceTree = "<group>"; };
-		4E38CBDD9FAF4E124FBDB86B /* YFSP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YFSP.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		6B02E2E63F1E5D2C3F59953F /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
-		83ED29EFFC5A478AF4C2EEB3 /* BrowserView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BrowserView.swift; sourceTree = "<group>"; };
-		A5EE37D8C4433AEFE21DED74 /* YfspApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = YfspApp.swift; sourceTree = "<group>"; };
-		B55107C35AD2C86AB474E5BC /* WebView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
-		DA89136E4668982DA69505F0 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		0266218726A208C5258513C0 /* YfspItem.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = YfspItem.swift; sourceTree = "<group>"; };
+		147C295598187C8A0C9AD227 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS18.0.sdk/System/Library/Frameworks/Foundation.framework; sourceTree = DEVELOPER_DIR; };
+		250782910B3C6E65371953DE /* BrowserViewModel.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BrowserViewModel.swift; sourceTree = "<group>"; };
+		2D667F957C0CC6774A3A1C75 /* YFSP.entitlements */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.entitlements; path = YFSP.entitlements; sourceTree = "<group>"; };
+		6351C9283BCECA2D6C4FC1DA /* WebView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = WebView.swift; sourceTree = "<group>"; };
+		A23C113E32E32935FE96A26D /* YfspCategory.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = YfspCategory.swift; sourceTree = "<group>"; };
+		AB68B0D4DCD8774964332EE8 /* BrowserView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BrowserView.swift; sourceTree = "<group>"; };
+		BEBE5FD4EEAC0957BAA4FF43 /* YFSP.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = YFSP.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		BEFA03E531E76159C2F1A364 /* YfspFeedService.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = YfspFeedService.swift; sourceTree = "<group>"; };
+		E84A94534CF3106105EDFC42 /* Info.plist */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		FD93DD932EA6C17AAC521742 /* YfspApp.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = YfspApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
-		0966872E172837B879072C52 /* Frameworks */ = {
+		D4DB5D5C95DA3F66671AF157 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				49371B762FB4F6AD83EE5FA5 /* Foundation.framework in Frameworks */,
+				D5811D0D7F65CC99D1EC70ED /* Foundation.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		1EB5AC949ECC1FF2C8446B9C /* Resources */ = {
+		1BD15B98EB1E425CA28012F1 /* iOS */ = {
 			isa = PBXGroup;
 			children = (
-				DA89136E4668982DA69505F0 /* Info.plist */,
-			);
-			name = Resources;
-			path = Resources;
-			sourceTree = "<group>";
-		};
-		2D42B59CCBD6891DC66CFE8B = {
-			isa = PBXGroup;
-			children = (
-				A4C4E550932A3025AE7C79FB /* Products */,
-				6406D9431F52DC084BD1D595 /* Frameworks */,
-				B4289E45F0A0A9D7E2DFB379 /* YFSP */,
-			);
-			sourceTree = "<group>";
-		};
-		6406D9431F52DC084BD1D595 /* Frameworks */ = {
-			isa = PBXGroup;
-			children = (
-				A2E53839FCAAB88EB7291608 /* iOS */,
-			);
-			name = Frameworks;
-			sourceTree = "<group>";
-		};
-		7C19D9F3BDA7E4E7A3E2F98A /* App */ = {
-			isa = PBXGroup;
-			children = (
-				83ED29EFFC5A478AF4C2EEB3 /* BrowserView.swift */,
-				0C173C6285DF9D611A2103E9 /* BrowserViewModel.swift */,
-				B55107C35AD2C86AB474E5BC /* WebView.swift */,
-				A5EE37D8C4433AEFE21DED74 /* YfspApp.swift */,
-				2756E4A10CDFB30FB0A2DE0F /* YfspCategory.swift */,
-			);
-			name = App;
-			path = App;
-			sourceTree = "<group>";
-		};
-		A2E53839FCAAB88EB7291608 /* iOS */ = {
-			isa = PBXGroup;
-			children = (
-				6B02E2E63F1E5D2C3F59953F /* Foundation.framework */,
+				147C295598187C8A0C9AD227 /* Foundation.framework */,
 			);
 			name = iOS;
 			sourceTree = "<group>";
 		};
-		A4C4E550932A3025AE7C79FB /* Products */ = {
+		4B78C742A4419399AB769F43 /* YFSP */ = {
 			isa = PBXGroup;
 			children = (
-				4E38CBDD9FAF4E124FBDB86B /* YFSP.app */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
-		B4289E45F0A0A9D7E2DFB379 /* YFSP */ = {
-			isa = PBXGroup;
-			children = (
-				7C19D9F3BDA7E4E7A3E2F98A /* App */,
-				1EB5AC949ECC1FF2C8446B9C /* Resources */,
-				4BEE665B58F171E9CF32112A /* YFSP.entitlements */,
+				FDFEAC69B917A73182CA8A90 /* App */,
+				AE81981B0ACDC3EDB8063389 /* Resources */,
+				2D667F957C0CC6774A3A1C75 /* YFSP.entitlements */,
 			);
 			name = YFSP;
 			path = YFSP;
 			sourceTree = "<group>";
 		};
+		53EE84C668A6AE6366D1BCA4 = {
+			isa = PBXGroup;
+			children = (
+				DD57649E6F0C45FF96BB89E0 /* Products */,
+				746EDD3C2E14A4EE20B739A9 /* Frameworks */,
+				4B78C742A4419399AB769F43 /* YFSP */,
+			);
+			sourceTree = "<group>";
+		};
+		746EDD3C2E14A4EE20B739A9 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				1BD15B98EB1E425CA28012F1 /* iOS */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		AE81981B0ACDC3EDB8063389 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				E84A94534CF3106105EDFC42 /* Info.plist */,
+			);
+			name = Resources;
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		DD57649E6F0C45FF96BB89E0 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				BEBE5FD4EEAC0957BAA4FF43 /* YFSP.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		FDFEAC69B917A73182CA8A90 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				AB68B0D4DCD8774964332EE8 /* BrowserView.swift */,
+				250782910B3C6E65371953DE /* BrowserViewModel.swift */,
+				6351C9283BCECA2D6C4FC1DA /* WebView.swift */,
+				FD93DD932EA6C17AAC521742 /* YfspApp.swift */,
+				A23C113E32E32935FE96A26D /* YfspCategory.swift */,
+				BEFA03E531E76159C2F1A364 /* YfspFeedService.swift */,
+				0266218726A208C5258513C0 /* YfspItem.swift */,
+			);
+			name = App;
+			path = App;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		59BF939CFAF00BE46CA94BC5 /* YFSP */ = {
+		675FE4C4BB4669FDC60055E3 /* YFSP */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = D279342561C564BF1C4AD466 /* Build configuration list for PBXNativeTarget "YFSP" */;
+			buildConfigurationList = EFCF9AC1020310E995195014 /* Build configuration list for PBXNativeTarget "YFSP" */;
 			buildPhases = (
-				7A506E1D3C131EC630A0261D /* Sources */,
-				0966872E172837B879072C52 /* Frameworks */,
-				6A1DB94A47FC7F99D42FE90F /* Resources */,
+				C060F1A0FF2EEB45EEAC176A /* Sources */,
+				D4DB5D5C95DA3F66671AF157 /* Frameworks */,
+				325FB33101A74EABED0D025A /* Resources */,
 			);
 			buildRules = (
 			);
@@ -122,24 +128,24 @@
 			);
 			name = YFSP;
 			productName = YFSP;
-			productReference = 4E38CBDD9FAF4E124FBDB86B /* YFSP.app */;
+			productReference = BEBE5FD4EEAC0957BAA4FF43 /* YFSP.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
-		CCA15E5A8348040A51366D89 /* Project object */ = {
+		3C7D3D9E442EE7039CE8461F /* Project object */ = {
 			isa = PBXProject;
 			attributes = {
 				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
-					59BF939CFAF00BE46CA94BC5 = {
+					675FE4C4BB4669FDC60055E3 = {
 						CreatedOnToolsVersion = 26.2;
 					};
 				};
 			};
-			buildConfigurationList = E433A5F08B4C1D63EA86A3E5 /* Build configuration list for PBXProject "YFSP" */;
+			buildConfigurationList = E7345318652A426567675CDA /* Build configuration list for PBXProject "YFSP" */;
 			compatibilityVersion = "Xcode 3.2";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -147,20 +153,20 @@
 				en,
 				Base,
 			);
-			mainGroup = 2D42B59CCBD6891DC66CFE8B;
+			mainGroup = 53EE84C668A6AE6366D1BCA4;
 			minimizedProjectReferenceProxies = 0;
 			preferredProjectObjectVersion = 77;
-			productRefGroup = A4C4E550932A3025AE7C79FB /* Products */;
+			productRefGroup = DD57649E6F0C45FF96BB89E0 /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				59BF939CFAF00BE46CA94BC5 /* YFSP */,
+				675FE4C4BB4669FDC60055E3 /* YFSP */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		6A1DB94A47FC7F99D42FE90F /* Resources */ = {
+		325FB33101A74EABED0D025A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -170,22 +176,24 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		7A506E1D3C131EC630A0261D /* Sources */ = {
+		C060F1A0FF2EEB45EEAC176A /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				1FE26FE103D69709585AB7FA /* BrowserView.swift in Sources */,
-				17073710C44A48EF9E33BA50 /* BrowserViewModel.swift in Sources */,
-				392640DF04DA7B2587D65F53 /* WebView.swift in Sources */,
-				BC1413AF2B16D3E20A256AB3 /* YfspApp.swift in Sources */,
-				0AC57AEADFC24AD5A5E23D9F /* YfspCategory.swift in Sources */,
+				BEE882AF24FD8C8DA26A7792 /* BrowserView.swift in Sources */,
+				1E5788BF0DBD575EBD3C1D8C /* BrowserViewModel.swift in Sources */,
+				8B691A99E73703A57AEC9C10 /* WebView.swift in Sources */,
+				9531747C44DD36517174991D /* YfspApp.swift in Sources */,
+				0F40D661127596558E20A1F0 /* YfspCategory.swift in Sources */,
+				54847EEC7241F3C3BE9C5905 /* YfspFeedService.swift in Sources */,
+				5A89995F8161E4C9AF1065F2 /* YfspItem.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin XCBuildConfiguration section */
-		67F0A63227A2FA39E773DEBF /* Debug */ = {
+		307FDD141E06FE10D6B3E655 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -247,7 +255,7 @@
 			};
 			name = Debug;
 		};
-		6B0AC5D83EC72EB5AC69BD48 /* Release */ = {
+		3F442C6AD65BD13DCC9C74C9 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "";
@@ -273,7 +281,7 @@
 			};
 			name = Release;
 		};
-		8E7E089871E3C010E440F387 /* Debug */ = {
+		8E867CA1FCB0915A38EAFA06 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "";
@@ -298,7 +306,7 @@
 			};
 			name = Debug;
 		};
-		E383118A12C9967BA52D71E1 /* Release */ = {
+		D24ECD34E709E3A8820961AC /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
@@ -356,25 +364,25 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		D279342561C564BF1C4AD466 /* Build configuration list for PBXNativeTarget "YFSP" */ = {
+		E7345318652A426567675CDA /* Build configuration list for PBXProject "YFSP" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				6B0AC5D83EC72EB5AC69BD48 /* Release */,
-				8E7E089871E3C010E440F387 /* Debug */,
+				307FDD141E06FE10D6B3E655 /* Debug */,
+				D24ECD34E709E3A8820961AC /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		E433A5F08B4C1D63EA86A3E5 /* Build configuration list for PBXProject "YFSP" */ = {
+		EFCF9AC1020310E995195014 /* Build configuration list for PBXNativeTarget "YFSP" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				67F0A63227A2FA39E773DEBF /* Debug */,
-				E383118A12C9967BA52D71E1 /* Release */,
+				3F442C6AD65BD13DCC9C74C9 /* Release */,
+				8E867CA1FCB0915A38EAFA06 /* Debug */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
 	};
-	rootObject = CCA15E5A8348040A51366D89 /* Project object */;
+	rootObject = 3C7D3D9E442EE7039CE8461F /* Project object */;
 }

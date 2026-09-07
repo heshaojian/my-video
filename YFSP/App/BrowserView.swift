@@ -5,8 +5,8 @@ struct BrowserView: View {
     @StateObject private var viewModel = BrowserViewModel()
 
     var body: some View {
-        if viewModel.selectedCategory == nil {
-            CategoryLandingView(viewModel: viewModel)
+        if !viewModel.isBrowsing {
+            LatestHomeView(viewModel: viewModel)
         } else {
             VStack(spacing: 0) {
                 HeaderView(viewModel: viewModel)
@@ -49,7 +49,7 @@ private struct HeaderView: View {
 
             Spacer()
 
-            Text(viewModel.selectedCategory?.title ?? "m.yfsp.tv")
+            Text(viewModel.selectedTitle ?? "m.yfsp.tv")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -59,43 +59,144 @@ private struct HeaderView: View {
     }
 }
 
-private struct CategoryLandingView: View {
+private struct LatestHomeView: View {
     @ObservedObject var viewModel: BrowserViewModel
 
     var body: some View {
-        ZStack {
-            LinearGradient(
-                colors: [
-                    Color(red: 0.06, green: 0.055, blue: 0.085),
-                    Color(red: 0.12, green: 0.095, blue: 0.15)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+        NavigationStack {
+            ZStack {
+                Color(red: 0.055, green: 0.052, blue: 0.073)
+                    .ignoresSafeArea()
 
-            VStack(alignment: .leading, spacing: 34) {
-                ForEach(YfspCategory.allCases) { category in
-                    Button {
-                        viewModel.selectCategory(category)
-                    } label: {
-                        HStack(spacing: 18) {
-                            Text(category.title)
-                                .font(.system(size: 25, weight: .medium))
-                                .foregroundStyle(Color.white.opacity(0.5))
+                ScrollView {
+                    LazyVStack(alignment: .leading, spacing: 28) {
+                        VStack(alignment: .leading, spacing: 6) {
+                            Text("最新更新")
+                                .font(.system(size: 34, weight: .bold))
+                                .foregroundStyle(.white)
 
-                            Image(systemName: "chevron.right")
-                                .font(.system(size: 20, weight: .semibold))
-                                .foregroundStyle(Color.white.opacity(0.5))
+                            Text("中文 / English")
+                                .font(.subheadline)
+                                .foregroundStyle(.white.opacity(0.48))
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .contentShape(Rectangle())
+                        .padding(.horizontal, 18)
+                        .padding(.top, 18)
+
+                        if viewModel.isLoadingLatest {
+                            ProgressView()
+                                .tint(.white)
+                                .frame(maxWidth: .infinity)
+                                .padding(.top, 80)
+                        } else if let message = viewModel.latestErrorMessage {
+                            ContentUnavailableView("加载失败", systemImage: "wifi.exclamationmark", description: Text(message))
+                                .foregroundStyle(.white)
+                                .padding(.horizontal)
+                        } else {
+                            ForEach(YfspCategory.allCases) { category in
+                                LatestCategorySection(
+                                    category: category,
+                                    items: viewModel.latestItems[category] ?? [],
+                                    onSelectCategory: { viewModel.selectCategory(category) },
+                                    onSelectItem: { viewModel.selectItem($0) }
+                                )
+                            }
+                        }
                     }
-                    .buttonStyle(.plain)
+                    .padding(.bottom, 24)
                 }
             }
-            .padding(.horizontal, 62)
         }
+        .task {
+            await viewModel.loadLatestIfNeeded()
+        }
+    }
+}
+
+private struct LatestCategorySection: View {
+    let category: YfspCategory
+    let items: [YfspItem]
+    let onSelectCategory: () -> Void
+    let onSelectItem: (YfspItem) -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Text(category.latestTitle)
+                    .font(.title3.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.9))
+
+                Spacer()
+
+                Button(action: onSelectCategory) {
+                    HStack(spacing: 4) {
+                        Text("全部")
+                        Image(systemName: "chevron.right")
+                    }
+                }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.5))
+            }
+            .padding(.horizontal, 18)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(alignment: .top, spacing: 12) {
+                    ForEach(items) { item in
+                        LatestItemCard(item: item) {
+                            onSelectItem(item)
+                        }
+                    }
+                }
+                .padding(.horizontal, 18)
+            }
+        }
+    }
+}
+
+private struct LatestItemCard: View {
+    let item: YfspItem
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
+            VStack(alignment: .leading, spacing: 7) {
+                AsyncImage(url: item.thumbnailURL) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image
+                            .resizable()
+                            .scaledToFill()
+                    case .failure:
+                        Image(systemName: "photo")
+                            .font(.largeTitle)
+                            .foregroundStyle(.white.opacity(0.25))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Color.white.opacity(0.08))
+                    case .empty:
+                        ProgressView()
+                            .tint(.white.opacity(0.6))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Color.white.opacity(0.08))
+                    @unknown default:
+                        EmptyView()
+                    }
+                }
+                .frame(width: 132, height: 184)
+                .clipped()
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                Text(item.title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .lineLimit(2)
+                    .foregroundStyle(.white.opacity(0.92))
+
+                Text(item.updateLabel)
+                    .font(.caption)
+                    .lineLimit(1)
+                    .foregroundStyle(.white.opacity(0.48))
+            }
+            .frame(width: 132, alignment: .leading)
+        }
+        .buttonStyle(.plain)
     }
 }
 

@@ -4,16 +4,25 @@ import WebKit
 
 @MainActor
 final class BrowserViewModel: ObservableObject {
-    @Published var selectedCategory: YfspCategory?
+    @Published var selectedTitle: String?
+    @Published var selectedURL: URL?
+    @Published var latestItems: [YfspCategory: [YfspItem]] = [:]
+    @Published var isLoadingLatest = false
+    @Published var latestErrorMessage: String?
     @Published var canGoBack = false
     @Published var canGoForward = false
     @Published var estimatedProgress = 0.0
     @Published var errorMessage: String?
 
+    private let feedService = YfspFeedService()
     weak var webView: WKWebView?
 
     var currentURL: URL? {
-        selectedCategory?.url
+        selectedURL
+    }
+
+    var isBrowsing: Bool {
+        selectedURL != nil
     }
 
     func bind(webView: WKWebView) {
@@ -46,7 +55,8 @@ final class BrowserViewModel: ObservableObject {
     }
 
     func goHome() {
-        selectedCategory = nil
+        selectedTitle = nil
+        selectedURL = nil
         errorMessage = nil
         webView = nil
         canGoBack = false
@@ -55,7 +65,14 @@ final class BrowserViewModel: ObservableObject {
     }
 
     func selectCategory(_ category: YfspCategory) {
-        selectedCategory = category
+        selectedTitle = category.title
+        selectedURL = category.url
+        errorMessage = nil
+    }
+
+    func selectItem(_ item: YfspItem) {
+        selectedTitle = item.title
+        selectedURL = item.playURL
         errorMessage = nil
     }
 
@@ -75,5 +92,36 @@ final class BrowserViewModel: ObservableObject {
         }
 
         UIApplication.shared.open(url)
+    }
+
+    func loadLatestIfNeeded() async {
+        guard latestItems.isEmpty, !isLoadingLatest else {
+            return
+        }
+
+        isLoadingLatest = true
+        latestErrorMessage = nil
+
+        do {
+            let pairs = try await withThrowingTaskGroup(of: (YfspCategory, [YfspItem]).self) { group in
+                for category in YfspCategory.allCases {
+                    group.addTask { [feedService] in
+                        (category, try await feedService.fetchLatest(category: category))
+                    }
+                }
+
+                var result: [(YfspCategory, [YfspItem])] = []
+                for try await pair in group {
+                    result.append(pair)
+                }
+                return result
+            }
+
+            latestItems = Dictionary(uniqueKeysWithValues: pairs)
+        } catch {
+            latestErrorMessage = error.localizedDescription
+        }
+
+        isLoadingLatest = false
     }
 }

@@ -32,14 +32,21 @@ struct WebView: UIViewRepresentable {
         webView.addObserver(context.coordinator, forKeyPath: #keyPath(WKWebView.canGoForward), options: [.new], context: nil)
 
         viewModel.bind(webView: webView)
-        if let url = viewModel.currentURL {
-            webView.load(URLRequest(url: url))
-        }
+        loadCurrentURL(in: webView)
         return webView
     }
 
     func updateUIView(_ webView: WKWebView, context: Context) {
         viewModel.bind(webView: webView)
+        loadCurrentURL(in: webView)
+    }
+
+    private func loadCurrentURL(in webView: WKWebView) {
+        guard let url = viewModel.currentURL, webView.url != url else {
+            return
+        }
+
+        webView.load(URLRequest(url: url))
     }
 
     static func dismantleUIView(_ webView: WKWebView, coordinator: Coordinator) {

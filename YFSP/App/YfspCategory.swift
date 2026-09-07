@@ -23,6 +23,10 @@ enum YfspCategory: CaseIterable, Identifiable {
         }
     }
 
+    var latestTitle: String {
+        "最新\(title)"
+    }
+
     var url: URL {
         switch self {
         case .movie:
