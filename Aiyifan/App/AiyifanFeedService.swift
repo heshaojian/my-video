@@ -66,7 +66,11 @@ struct AiyifanFeedService: @unchecked Sendable, AiyifanFeedServing {
                 listPath: "fixture-\(category.id)",
                 title: "Fixture \(category.title)",
                 subTitle: "更新至 01 集",
-                url: fixtureURL
+                url: fixtureURL,
+                isSerial: category != .movie,
+                latestEpisodeKey: category == .movie ? nil : "episode-10",
+                latestEpisodeTitle: category == .movie ? nil : "10",
+                categoryPath: category.catalogCID
             )
         ]
     }

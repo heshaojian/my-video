@@ -11,6 +11,15 @@ struct AiyifanItem: Codable, Equatable, Identifiable, Sendable {
     let url: String?
     let year: String?
     let region: String?
+    let isSerial: Bool?
+    let latestEpisodeKey: String?
+    let latestEpisodeTitle: String?
+    let categoryPath: String?
+    let genre: String?
+    let language: String?
+    let quality: String?
+    let popularity: Int?
+    let rating: String?
 
     init(
         listPath: String,
@@ -22,7 +31,16 @@ struct AiyifanItem: Codable, Equatable, Identifiable, Sendable {
         addTime: String? = nil,
         url: String? = nil,
         year: String? = nil,
-        region: String? = nil
+        region: String? = nil,
+        isSerial: Bool? = nil,
+        latestEpisodeKey: String? = nil,
+        latestEpisodeTitle: String? = nil,
+        categoryPath: String? = nil,
+        genre: String? = nil,
+        language: String? = nil,
+        quality: String? = nil,
+        popularity: Int? = nil,
+        rating: String? = nil
     ) {
         self.listPath = listPath
         self.title = title
@@ -34,6 +52,15 @@ struct AiyifanItem: Codable, Equatable, Identifiable, Sendable {
         self.url = url
         self.year = year
         self.region = region
+        self.isSerial = isSerial
+        self.latestEpisodeKey = latestEpisodeKey
+        self.latestEpisodeTitle = latestEpisodeTitle
+        self.categoryPath = categoryPath
+        self.genre = genre
+        self.language = language
+        self.quality = quality
+        self.popularity = popularity
+        self.rating = rating
     }
 
     var id: String {
@@ -67,6 +94,15 @@ struct AiyifanItem: Codable, Equatable, Identifiable, Sendable {
         case url
         case year
         case region
+        case isSerial
+        case latestEpisodeKey
+        case latestEpisodeTitle
+        case categoryPath
+        case genre
+        case language
+        case quality
+        case popularity
+        case rating
     }
 
     private static func playURL(from rawPath: String) -> URL {

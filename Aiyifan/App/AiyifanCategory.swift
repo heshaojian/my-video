@@ -40,6 +40,15 @@ enum AiyifanCategory: String, CaseIterable, Codable, Hashable, Identifiable, Sen
         }
     }
 
+    var genreEndpointPath: String {
+        switch self {
+        case .movie: "/api/list/FilmType"
+        case .drama: "/api/list/TvType"
+        case .variety: "/api/list/VarietyType"
+        case .anime: "/api/list/AnimeType"
+        }
+    }
+
     var url: URL {
         switch self {
         case .movie:

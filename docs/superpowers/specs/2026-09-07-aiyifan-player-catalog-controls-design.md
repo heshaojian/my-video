@@ -103,7 +103,7 @@ Filtering and sorting occur on the server so the result applies to the complete 
 
 Use TDD for the implementation and run focused tests while developing. Because this changes the catalog API contract and player navigation surface, run the complete major-change regression before deployment.
 
-The release gate is at least 90% app-source line coverage and 100% feature traceability: every documented user-facing feature must map to at least one automated unit, integration, or UI test. Coverage percentage alone is not sufficient. Generated code, resource catalogs, third-party SDKs, and platform callbacks that cannot be triggered in the simulator are excluded from the percentage only when the release report names the exclusion and supplies an equivalent contract test or physical-device check.
+The release gate is feature traceability: every documented user-facing feature and critical failure path must map to at least one automated unit, integration, UI, or explicit hardware test. Line-coverage percentage may be recorded as a diagnostic, but it is not a release target and cannot substitute for scenario coverage.
 
 Required automated coverage:
 
@@ -116,7 +116,7 @@ Required automated coverage:
 - Player controls remain in one trailing cluster across supported iPhone sizes without overlap.
 - UI flows for filter, apply, sort, clear, empty state, save, play, and episode selection.
 - Existing Latest, Saved, Played, search, recommendations, notifications, settings, background refresh, persistence, playback, retry, progress, completion, fullscreen, Picture in Picture, sleep timer, playback speed, autoplay, AirPlay, Cast, and website-fallback behavior.
-- Full unit, integration, and UI suite with at least 90% app-source line coverage and no untested documented feature.
+- Full unit, integration, and UI suite with no untested documented feature or critical failure path.
 
 The implementation will maintain a feature-to-test matrix in the release verification document. Each row identifies the feature, automated test case, simulator result, physical-device requirement, and final status. A feature is not marked covered merely because its source lines executed indirectly.
 

@@ -1,3 +1,4 @@
+import CoreFoundation
 import Foundation
 
 struct PlaybackCertificate: Equatable, Sendable {
@@ -34,6 +35,27 @@ struct VideoPlaybackContext: Equatable, Sendable {
 struct EpisodeSelection: Equatable, Sendable {
     let mediaKey: String
     let title: String
+}
+
+enum EpisodeNumberParser {
+    static func number(in providerTitle: String) -> Int? {
+        let trimmed = providerTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let number = Int(trimmed) {
+            return number
+        }
+        if trimmed.hasPrefix("第"), trimmed.hasSuffix("集") {
+            let inner = trimmed.dropFirst().dropLast().trimmingCharacters(in: .whitespacesAndNewlines)
+            return Int(inner)
+        }
+        let components = trimmed.split(whereSeparator: \.isWhitespace)
+        guard
+            components.count == 2,
+            components[0].caseInsensitiveCompare("Episode") == .orderedSame
+        else {
+            return nil
+        }
+        return Int(components[1])
+    }
 }
 
 enum NativePlaybackError: Error, Equatable {
@@ -197,7 +219,14 @@ enum VideoDetailResponseDecoder {
 enum EpisodePlaylistResponseDecoder {
     static func decodeEpisodes(_ data: Data) throws -> [Episode] {
         let info = try APIResponseParser.firstInfo(from: data)
-        guard let episodes = info["playList"] as? [[String: Any]], !episodes.isEmpty else {
+        guard
+            let episodes = info["playList"] as? [[String: Any]],
+            !episodes.isEmpty,
+            episodes.count <= 2_000
+        else {
+            if let episodes = info["playList"] as? [[String: Any]], episodes.count > 2_000 {
+                throw NativePlaybackError.invalidResponse
+            }
             throw NativePlaybackError.unsupportedMedia
         }
 
@@ -205,12 +234,17 @@ enum EpisodePlaylistResponseDecoder {
             guard
                 let mediaKey = raw["key"] as? String,
                 let title = raw["name"] as? String,
-                !mediaKey.isEmpty,
-                !title.isEmpty
+                mediaKey.range(of: #"^[A-Za-z0-9_-]{1,128}$"#, options: .regularExpression) != nil,
+                !title.isEmpty,
+                title.count <= 200,
+                title.unicodeScalars.allSatisfy({ !CharacterSet.controlCharacters.contains($0) })
             else {
                 return nil
             }
             let rawDate = raw["updateDate"] as? String
+            guard rawDate?.count ?? 0 <= 64 else {
+                return nil
+            }
             return Episode(
                 mediaKey: mediaKey,
                 title: title,
@@ -221,25 +255,41 @@ enum EpisodePlaylistResponseDecoder {
             throw NativePlaybackError.unsupportedMedia
         }
 
-        return decoded.enumerated().sorted { left, right in
+        let firstIndexes = Dictionary(
+            decoded.enumerated().map { ($0.element.mediaKey, $0.offset) },
+            uniquingKeysWith: min
+        )
+        let sortableEpisodes: [(index: Int, episode: Episode, date: Date?, number: Int?)] = decoded.enumerated().compactMap { index, episode in
+            guard firstIndexes[episode.mediaKey] == index else {
+                return nil
+            }
+            return (
+                index: index,
+                episode: episode,
+                date: parsedDate(episode.updateDate),
+                number: episodeNumber(episode.title)
+            )
+        }
+
+        return sortableEpisodes.sorted { left, right in
             if
-                let leftDate = parsedDate(left.element.updateDate),
-                let rightDate = parsedDate(right.element.updateDate),
+                let leftDate = left.date,
+                let rightDate = right.date,
                 leftDate != rightDate
             {
                 return leftDate > rightDate
             }
-            let leftNumber = episodeNumber(left.element.title)
-            let rightNumber = episodeNumber(right.element.title)
+            let leftNumber = left.number
+            let rightNumber = right.number
             if let leftNumber, let rightNumber, leftNumber != rightNumber {
                 return leftNumber > rightNumber
             }
             if (leftNumber != nil) != (rightNumber != nil) {
                 return leftNumber != nil
             }
-            return left.offset < right.offset
+            return left.index < right.index
         }
-        .map(\.element)
+        .map { $0.episode }
     }
 
     static func selectEpisode(from episodes: [Episode], preferredKey: String?) -> Episode? {
@@ -257,7 +307,7 @@ enum EpisodePlaylistResponseDecoder {
     }
 
     private static func episodeNumber(_ title: String) -> Int? {
-        title.split(whereSeparator: { !$0.isNumber }).compactMap { Int($0) }.last
+        EpisodeNumberParser.number(in: title)
     }
 
     private static func parsedDate(_ rawValue: String?) -> Date? {
@@ -267,7 +317,7 @@ enum EpisodePlaylistResponseDecoder {
         if let date = ISO8601DateFormatter().date(from: rawValue) {
             return date
         }
-        for format in ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd"] {
+        for format in ["yyyy-MM-dd'T'HH:mm:ss", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd"] {
             let formatter = DateFormatter()
             formatter.locale = Locale(identifier: "en_US_POSIX")
             formatter.timeZone = TimeZone(secondsFromGMT: 0)
@@ -304,11 +354,15 @@ private enum APIResponseParser {
     }
 
     static func integer(_ value: Any?) -> Int? {
-        if let value = value as? Int {
-            return value
-        }
         if let value = value as? NSNumber {
-            return value.intValue
+            guard CFGetTypeID(value) != CFBooleanGetTypeID() else {
+                return nil
+            }
+            let exactValue = value.doubleValue
+            guard exactValue.isFinite, exactValue.rounded(.towardZero) == exactValue else {
+                return nil
+            }
+            return Int(exactly: exactValue)
         }
         if let value = value as? String {
             return Int(value)
@@ -321,10 +375,18 @@ private enum APIResponseParser {
             return value
         }
         if let value = value as? NSNumber {
-            return value.boolValue
+            switch value.doubleValue {
+            case 0: return false
+            case 1: return true
+            default: return nil
+            }
         }
         if let value = value as? String {
-            return ["true", "1"].contains(value.lowercased())
+            switch value.lowercased() {
+            case "true", "1": return true
+            case "false", "0": return false
+            default: return nil
+            }
         }
         return nil
     }
@@ -352,38 +414,13 @@ enum NativePlaybackResponseDecoder {
                 let url = URL(string: rawURL),
                 url.scheme?.lowercased() == "https",
                 let host = url.host,
-                isPublicMediaHost(host)
+                url.user == nil,
+                url.password == nil,
+                RemoteResourceHostValidator.isAllowedMediaHost(host)
             else {
                 return nil
             }
             return url
-        }
-
-        private func isPublicMediaHost(_ host: String) -> Bool {
-            let normalized = host.lowercased()
-            guard
-                normalized != "localhost",
-                normalized != "::1",
-                !normalized.hasSuffix(".local"),
-                !normalized.hasSuffix(".internal"),
-                !normalized.contains(":")
-            else {
-                return false
-            }
-
-            let octets = normalized.split(separator: ".").compactMap { Int($0) }
-            guard octets.count == 4 else {
-                return true
-            }
-            guard octets.allSatisfy({ (0...255).contains($0) }) else {
-                return false
-            }
-            return octets[0] != 0
-                && octets[0] != 10
-                && octets[0] != 127
-                && !(octets[0] == 169 && octets[1] == 254)
-                && !(octets[0] == 172 && (16...31).contains(octets[1]))
-                && !(octets[0] == 192 && octets[1] == 168)
         }
     }
 
@@ -398,7 +435,10 @@ enum NativePlaybackResponseDecoder {
         guard APIResponseParser.integer(info["needLogin"]) == 0 else {
             throw NativePlaybackError.loginRequired
         }
-        guard APIResponseParser.boolean(info["isPreView"]) != true else {
+        guard let isPreview = APIResponseParser.boolean(info["isPreView"]) else {
+            throw NativePlaybackError.invalidResponse
+        }
+        guard !isPreview else {
             throw NativePlaybackError.previewOnly
         }
         let media = rawMedia.map(Media.init(raw:))
@@ -427,8 +467,8 @@ extension NativePlaybackResolving {
 struct NativePlaybackResolver: NativePlaybackResolving {
     private let session: URLSession
 
-    init(session: URLSession = .shared) {
-        self.session = session
+    init(session: URLSession? = nil) {
+        self.session = session ?? ProviderSessionFactory.make()
     }
 
     static func validatePage(_ item: AiyifanItem) throws -> String {
@@ -521,21 +561,29 @@ struct NativePlaybackResolver: NativePlaybackResolving {
         else {
             throw NativePlaybackError.invalidResponse
         }
+        guard
+            httpResponse.url?.scheme?.lowercased() == "https",
+            let finalHost = httpResponse.url?.host,
+            RemoteResourceHostValidator.matchingProviderDomain(for: finalHost) != nil
+        else {
+            throw NativePlaybackError.unsupportedSite
+        }
     }
 }
 
 struct FixtureNativePlaybackResolver: NativePlaybackResolving {
     func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
+        let isSerial = item.isSerial == true || item.latestEpisodeKey != nil || preferredEpisodeKey != nil
         let episodes = [
             Episode(mediaKey: "episode-10", title: "10", updateDate: "2026-09-07T10:00:00Z"),
             Episode(mediaKey: "episode-4", title: "04", updateDate: "2026-09-06T15:00:00Z"),
             Episode(mediaKey: "episode-2", title: "02", updateDate: "2026-09-06T10:00:00Z")
         ]
-        let selected = episodes.first { $0.mediaKey == preferredEpisodeKey } ?? episodes[0]
+        let selected = isSerial ? (episodes.first { $0.mediaKey == preferredEpisodeKey } ?? episodes[0]) : nil
         let usesPlayableMedia = ProcessInfo.processInfo.arguments.contains("-AiyifanUsePlayableFixtureMedia")
         let programURL = usesPlayableMedia
             ? URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8")!
-            : URL(string: "https://media.example.com/\(selected.mediaKey).m3u8")!
+            : URL(string: "https://media.example.com/\(selected?.mediaKey ?? item.listPath).m3u8")!
         return NativePlayback(
             entries: [
                 NativePlaybackEntry(
@@ -547,7 +595,7 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving {
                     isAdvertisement: false
                 )
             ],
-            episodes: episodes,
+            episodes: isSerial ? episodes : [],
             selectedEpisode: selected
         )
     }

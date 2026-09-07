@@ -46,6 +46,7 @@ final class NativePlayerViewModel: ObservableObject {
     @Published private(set) var episodeTitle: String?
     @Published private(set) var episodes: [Episode] = []
     @Published private(set) var selectedEpisode: Episode?
+    @Published private(set) var expectsEpisodes: Bool
     @Published private(set) var pendingResumePosition = 0.0
     @Published private(set) var preparedEntryCount = 0
     @Published private(set) var hasAppliedResume = false
@@ -78,6 +79,28 @@ final class NativePlayerViewModel: ObservableObject {
         EpisodeNavigator.previous(in: episodes, current: selectedEpisode)
     }
 
+    var shouldShowEpisodeControl: Bool {
+        expectsEpisodes || !episodes.isEmpty
+    }
+
+    var episodeControlTitle: String? {
+        guard shouldShowEpisodeControl else {
+            return nil
+        }
+        guard let selectedEpisode, !episodes.isEmpty else {
+            return isLoading ? "剧集加载中" : "选择剧集"
+        }
+        let selectedNumber = episodeNumber(in: selectedEpisode.title)
+        let numericTotal = episodes.compactMap { episodeNumber(in: $0.title) }.max()
+        let current = selectedNumber.map(String.init) ?? selectedEpisode.title
+        let total = max(numericTotal ?? 0, episodes.count)
+        return "第 \(current)/\(total) 集"
+    }
+
+    private func episodeNumber(in title: String) -> Int? {
+        EpisodeNumberParser.number(in: title)
+    }
+
     init(
         item: AiyifanItem,
         initialEpisodeKey: String? = nil,
@@ -87,6 +110,7 @@ final class NativePlayerViewModel: ObservableObject {
         preferences: PlaybackPreferencesStore = PlaybackPreferencesStore()
     ) {
         self.item = item
+        expectsEpisodes = item.isSerial == true || item.latestEpisodeKey != nil || initialEpisodeKey != nil
         requestedEpisodeKey = initialEpisodeKey
         self.resolver = resolver
         self.playedItemsStore = playedItemsStore
@@ -215,6 +239,11 @@ final class NativePlayerViewModel: ObservableObject {
         presentationState.setPictureInPictureActive(active)
     }
 
+    func handleScreenDisappear() {
+        guard shouldStopOnDisappear else { return }
+        stop()
+    }
+
     func persistProgress() {
         guard
             let currentItem = player.currentItem,
@@ -265,6 +294,7 @@ final class NativePlayerViewModel: ObservableObject {
             let playback = try await resolveWithRecovery()
             try Task.checkCancellation()
             episodes = playback.episodes
+            expectsEpisodes = expectsEpisodes || !playback.episodes.isEmpty
             selectedEpisode = playback.selectedEpisode
             episodeTitle = playback.episodeTitle
             pendingResumePosition = playedItemsStore?
@@ -494,123 +524,49 @@ struct NativePlayerScreen: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
+            HStack(spacing: 8) {
                 Button(action: closePlayer) {
                     Image(systemName: "chevron.backward")
-                        .frame(width: 36, height: 36)
+                        .frame(width: 44, height: 44)
                 }
                 .accessibilityLabel("Back to Library")
                 .accessibilityIdentifier("closeNativePlayer")
 
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(item.title)
-                        .font(.headline)
-                        .lineLimit(1)
+                Text(item.title)
+                    .font(.headline)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .layoutPriority(0)
 
-                    if let episodeTitle = viewModel.episodeTitle {
-                        Text("Episode \(episodeTitle)")
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.65))
-                            .accessibilityIdentifier("currentEpisodeLabel")
-                    }
-                }
-
-                Spacer()
-
-                AirPlayRouteButton()
-                    .frame(width: 36, height: 36)
-
-                GoogleCastRouteButton()
-                    .frame(width: 36, height: 36)
-
-                Button(action: openWebsite) {
-                    Image(systemName: "safari")
-                        .frame(width: 36, height: 36)
-                }
-                .accessibilityLabel("Open Website")
-                .accessibilityIdentifier("openWebsiteFallback")
-                .help("Open Website")
-            }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 6)
-            .foregroundStyle(.white)
-            .background(Color.black)
-
-            HStack(spacing: 8) {
-                if !viewModel.episodes.isEmpty {
-                    Button(action: viewModel.playPreviousEpisode) {
-                        Image(systemName: "backward.end.fill")
-                            .frame(width: 36, height: 36)
-                    }
-                    .disabled(viewModel.previousEpisode == nil)
-                    .accessibilityLabel("Previous Episode")
-                    .accessibilityIdentifier("previousEpisode")
-
-                    Button {
-                        isShowingEpisodes = true
-                    } label: {
-                        Image(systemName: "list.number")
-                            .frame(width: 36, height: 36)
-                    }
-                    .accessibilityLabel("Episodes")
-                    .accessibilityIdentifier("showEpisodes")
-
-                    Button(action: viewModel.playNextEpisode) {
-                        Image(systemName: "forward.end.fill")
-                            .frame(width: 36, height: 36)
-                    }
-                    .disabled(viewModel.nextEpisode == nil)
-                    .accessibilityLabel("Next Episode")
-                    .accessibilityIdentifier("nextEpisode")
-                }
-
-                Spacer()
-
-                if let timerLabel = viewModel.sleepTimer.remainingLabel() {
-                    Label(timerLabel, systemImage: "moon.zzz")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(.white.opacity(0.7))
-                }
-
-                Menu {
-                    Menu("Speed") {
-                        ForEach(PlaybackPreferencesStore.supportedRates, id: \.self) { rate in
-                            Button {
-                                viewModel.setPlaybackRate(rate)
-                            } label: {
-                                if rate == viewModel.playbackRate {
-                                    Label("\(rate.formatted())x", systemImage: "checkmark")
-                                } else {
-                                    Text("\(rate.formatted())x")
-                                }
-                            }
-                        }
-                    }
-
-                    Menu("Sleep Timer") {
-                        ForEach(Array(SleepTimerOption.choices.enumerated()), id: \.offset) { _, option in
-                            Button(option.title) { viewModel.setSleepTimer(option) }
-                        }
-                    }
-
-                    if !viewModel.episodes.isEmpty {
+                HStack(spacing: 2) {
+                    if let episodeTitle = viewModel.episodeControlTitle {
                         Button {
-                            viewModel.setAutoplayNext(!viewModel.autoplayNext)
+                            isShowingEpisodes = true
                         } label: {
-                            Label(
-                                viewModel.autoplayNext ? "Disable Autoplay Next" : "Enable Autoplay Next",
-                                systemImage: viewModel.autoplayNext ? "autostartstop.slash" : "autostartstop"
-                            )
+                            Text(episodeTitle)
+                                .font(.caption.weight(.semibold))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.8)
+                                .frame(minHeight: 44)
                         }
+                        .disabled(viewModel.episodes.isEmpty)
+                        .accessibilityLabel("Episodes, \(episodeTitle)")
+                        .accessibilityIdentifier("showEpisodes")
+
                     }
-                } label: {
-                    Image(systemName: "slider.horizontal.3")
-                        .frame(width: 36, height: 36)
+
+                    AirPlayRouteButton()
+                        .frame(width: 44, height: 44)
+
+                    GoogleCastRouteButton()
+                        .frame(width: 44, height: 44)
+
+                    playbackMenu
                 }
-                .accessibilityLabel("Playback Settings")
-                .accessibilityIdentifier("playbackSettings")
+                .layoutPriority(1)
             }
-            .padding(.horizontal, 10)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 2)
             .foregroundStyle(.white)
             .background(Color.black)
 
@@ -657,7 +613,7 @@ struct NativePlayerScreen: View {
                                 .buttonStyle(.borderedProminent)
                                 .accessibilityIdentifier("retryNativePlayback")
 
-                            Button("Open Website", action: onOpenWebsite)
+                            Button("Open Website", action: openWebsite)
                                 .buttonStyle(.bordered)
                                 .accessibilityIdentifier("openWebsiteFallbackError")
                         }
@@ -680,9 +636,7 @@ struct NativePlayerScreen: View {
             viewModel.start(monitorPlayback: monitorsPlayback)
         }
         .onDisappear {
-            if viewModel.shouldStopOnDisappear {
-                viewModel.stop()
-            }
+            viewModel.handleScreenDisappear()
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
@@ -703,7 +657,7 @@ struct NativePlayerScreen: View {
                         isShowingEpisodes = false
                     } label: {
                         HStack {
-                            Text("Episode \(episode.title)")
+                            Text(EpisodeDisplayFormatter.title(for: episode.title))
                             Spacer()
                             if episode.id == viewModel.selectedEpisode?.id {
                                 Image(systemName: "checkmark")
@@ -714,7 +668,7 @@ struct NativePlayerScreen: View {
                     .foregroundStyle(.primary)
                     .accessibilityIdentifier("episodeRow-\(episode.id)")
                 }
-                .navigationTitle("Episodes")
+                .navigationTitle("剧集")
                 .navigationBarTitleDisplayMode(.inline)
             }
             .presentationDetents([.medium, .large])
@@ -729,6 +683,83 @@ struct NativePlayerScreen: View {
     private func openWebsite() {
         viewModel.stop()
         onOpenWebsite()
+    }
+
+    private var playbackMenu: some View {
+        Menu {
+            if viewModel.shouldShowEpisodeControl {
+                Button(action: viewModel.playPreviousEpisode) {
+                    Label("Previous Episode", systemImage: "backward.end.fill")
+                }
+                .disabled(viewModel.previousEpisode == nil)
+                .accessibilityIdentifier("previousEpisode")
+
+                Button(action: viewModel.playNextEpisode) {
+                    Label("Next Episode", systemImage: "forward.end.fill")
+                }
+                .disabled(viewModel.nextEpisode == nil)
+                .accessibilityIdentifier("nextEpisode")
+
+                Divider()
+            }
+
+            Menu("Speed") {
+                ForEach(PlaybackPreferencesStore.supportedRates, id: \.self) { rate in
+                    Button {
+                        viewModel.setPlaybackRate(rate)
+                    } label: {
+                        if rate == viewModel.playbackRate {
+                            Label("\(rate.formatted())x", systemImage: "checkmark")
+                        } else {
+                            Text("\(rate.formatted())x")
+                        }
+                    }
+                }
+            }
+
+            Menu("Sleep Timer") {
+                ForEach(Array(SleepTimerOption.choices.enumerated()), id: \.offset) { _, option in
+                    Button(option.title) { viewModel.setSleepTimer(option) }
+                }
+            }
+
+            if let timerLabel = viewModel.sleepTimer.remainingLabel() {
+                Label(timerLabel, systemImage: "moon.zzz")
+            }
+
+            if viewModel.shouldShowEpisodeControl {
+                Button {
+                    viewModel.setAutoplayNext(!viewModel.autoplayNext)
+                } label: {
+                    Label(
+                        viewModel.autoplayNext ? "Disable Autoplay Next" : "Enable Autoplay Next",
+                        systemImage: viewModel.autoplayNext ? "autostartstop.slash" : "autostartstop"
+                    )
+                }
+            }
+
+            Divider()
+
+            Button(action: openWebsite) {
+                Label("Open Website", systemImage: "safari")
+            }
+            .accessibilityIdentifier("openWebsiteFallback")
+        } label: {
+            Image(systemName: "ellipsis.circle")
+                .frame(width: 44, height: 44)
+        }
+        .accessibilityLabel("More")
+        .accessibilityIdentifier("playbackSettings")
+    }
+}
+
+enum EpisodeDisplayFormatter {
+    static func title(for providerTitle: String) -> String {
+        let trimmed = providerTitle.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let number = EpisodeNumberParser.number(in: trimmed) {
+            return "第 \(number) 集"
+        }
+        return trimmed
     }
 }
 
@@ -785,7 +816,9 @@ private struct NativePlayerController: UIViewControllerRepresentable {
             willEndFullScreenPresentationWithAnimationCoordinator coordinator: any UIViewControllerTransitionCoordinator
         ) {
             coordinator.animate(alongsideTransition: nil) { [onFullScreenChanged] _ in
-                onFullScreenChanged(false)
+                if !coordinator.isCancelled {
+                    onFullScreenChanged(false)
+                }
             }
         }
 
@@ -794,6 +827,13 @@ private struct NativePlayerController: UIViewControllerRepresentable {
         }
 
         @MainActor func playerViewControllerDidStopPictureInPicture(_ playerViewController: AVPlayerViewController) {
+            onPictureInPictureChanged(false)
+        }
+
+        @MainActor func playerViewController(
+            _ playerViewController: AVPlayerViewController,
+            failedToStartPictureInPictureWithError error: any Error
+        ) {
             onPictureInPictureChanged(false)
         }
     }

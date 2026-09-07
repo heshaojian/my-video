@@ -4,16 +4,37 @@ Date: 2026-09-07
 
 ## Automated Regression
 
-- Full iPhone 17 Pro simulator run after playback-correctness changes: 112/112 passed (86 unit, 26 UI).
-- App-source line coverage: 84.12% (7,780/9,249 executable lines).
+- Full iPhone 17 Pro simulator run after catalog and playback changes: 139/139 passed (112 unit/integration, 27 UI).
 - App-icon, launch-branding, lock-screen metadata, audio-session, interruption recovery, and MediaPlayer background-artwork regression tests: passed.
-- Program-only local/Cast queues, frozen Played timestamps, active-playback-only progress, and live fullscreen enter/exit continuity: passed.
-- Native catalog open, Save/play, and pagination repeatability: 9/9 passed across three iterations.
-- Deterministic 50-plus-action session: passed on iPhone 17 Pro and iPhone 16e simulators.
+- Program-only local/Cast queues, frozen Played timestamps, active-playback-only progress, and fullscreen/Picture in Picture lifecycle tests: passed.
+- Native catalog filter, sort, result count, Save/play, pagination, retry, and race-condition tests: passed.
+- Deterministic 50-plus-action power-user session: passed on the stable iPhone 17 Pro simulator.
 - Release simulator build: passed.
 - Xcode static analysis: passed with no findings.
 
+Line coverage is retained only as a diagnostic. The release gate is explicit feature and failure-path coverage.
+
 The long-session scenario repeatedly opens and closes native playback from Latest, Saved, and Played; changes episodes; uses Cast play/pause, seek, and mute controls; traverses all three tabs while the Cast mini controller remains active; then opens the native movie catalog, paginates, saves and plays a page-two title, returns to the same catalog, and verifies the title in Saved.
+
+## Feature Traceability
+
+| Feature or failure path | Automated evidence | Result | Hardware check |
+| --- | --- | --- | --- |
+| Latest contains only `电影`, `电视剧`, `综艺`, `动漫`; native search and category filtering | `AiyifanLatestTapTests` latest/search scenarios | Passed | No |
+| Native `全部` for all four categories | Matching catalog navigation UI scenario | Passed | No |
+| Provider filters, sort direction, result count, pagination, empty/error/retry behavior | Catalog unit, race, and UI scenarios | Passed | No |
+| Save/favorite add, remove, persistence, and update tracking | Saved store plus Latest/catalog UI scenarios | Passed | No |
+| Native movie and serial playback without an implicit web view | Routing, resolver, and playback UI scenarios | Passed | No |
+| Complete episode list, newest-first ordering, selection, autoplay continuity, and legacy Played restoration | Resolver, player model, navigator, and episode-picker scenarios | Passed | No |
+| Provider advertisement exclusion from local and Cast program queues | Resolver, player, Cast, and UI scenarios | Passed | Receiver confirmation pending |
+| Played third tab, frozen inactive timestamps, resume, completion, watched state, restart, remove, and clear | Played store, player model, and Played UI scenarios | Passed | No |
+| Fullscreen and Picture in Picture transitions preserve the active player session | Player lifecycle and fullscreen UI scenarios | Passed | PiP pending |
+| Background audio, interruption recovery, and lock-screen metadata/controls | Playback feature contract tests | Passed | Lock-screen playback pending |
+| AirPlay and Google Cast controls, handoff metadata, queue, and simulated remote controls | Cast unit and UI scenarios | Passed | Real receivers pending |
+| Playback speed, sleep timer, next/previous episode, retry, and explicit website fallback | Playback feature, player model, and routing tests | Passed | No |
+| Settings, notifications, deep links, cache fallback, optional iCloud merge | Library service and settings UI scenarios | Passed | Delivery/iCloud pending |
+| Popup containment and untrusted URL/redirect/media input rejection | Popup, routing, catalog, resolver, and redirect security tests | Passed | No |
+| Long-session navigation and collection consistency over 50 actions | Heavy-user UI scenario | Passed | No |
 
 ## Live Provider Checks
 

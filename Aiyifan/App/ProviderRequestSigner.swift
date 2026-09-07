@@ -1,13 +1,78 @@
 import CryptoKit
 import Foundation
 
-enum ProviderRequestSigner {
-    private static let supportedDomains = [
+final class ProviderSessionDelegate: NSObject, URLSessionTaskDelegate, @unchecked Sendable {
+    func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        willPerformHTTPRedirection response: HTTPURLResponse,
+        newRequest request: URLRequest,
+        completionHandler: @escaping (URLRequest?) -> Void
+    ) {
+        guard
+            request.url?.scheme?.lowercased() == "https",
+            let host = request.url?.host,
+            request.url?.user == nil,
+            request.url?.password == nil,
+            RemoteResourceHostValidator.matchingProviderDomain(for: host) != nil
+        else {
+            completionHandler(nil)
+            return
+        }
+        completionHandler(request)
+    }
+}
+
+enum ProviderSessionFactory {
+    static func make() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        configuration.urlCache = nil
+        return URLSession(
+            configuration: configuration,
+            delegate: ProviderSessionDelegate(),
+            delegateQueue: nil
+        )
+    }
+}
+
+enum RemoteResourceHostValidator {
+    static let providerDomains = [
         "yfsp.tv", "yifan.tv", "yfsp.me", "ayf.tv", "aiyifan.tv",
         "wyav.tv", "flyv.tv", "jssp.tv", "iyf.tv", "lgsp.tv",
         "tripdata.app", "kubb.tv"
     ]
 
+    static func matchingProviderDomain(for host: String) -> String? {
+        matchingDomain(for: host, allowedDomains: providerDomains)
+    }
+
+    static func isAllowedArtworkHost(_ host: String) -> Bool {
+        matchingProviderDomain(for: host) != nil || isDebugFixtureHost(host, expected: "images.example.com")
+    }
+
+    static func isAllowedMediaHost(_ host: String) -> Bool {
+        matchingDomain(for: host, allowedDomains: providerDomains + ["pipecdn.vip"]) != nil
+            || isDebugFixtureHost(host, expected: "media.example.com")
+    }
+
+    private static func matchingDomain(for host: String, allowedDomains: [String]) -> String? {
+        let normalized = host.lowercased()
+        return allowedDomains.first { domain in
+            normalized == domain || normalized.hasSuffix(".\(domain)")
+        }
+    }
+
+    private static func isDebugFixtureHost(_ host: String, expected: String) -> Bool {
+#if DEBUG
+        host.caseInsensitiveCompare(expected) == .orderedSame
+#else
+        false
+#endif
+    }
+}
+
+enum ProviderRequestSigner {
     static func makeSignedURL(
         path: String,
         parameters: [URLQueryItem],
@@ -26,9 +91,7 @@ enum ProviderRequestSigner {
         }
 
         let normalizedHost = siteHost.lowercased()
-        guard let domain = supportedDomains.first(where: {
-            normalizedHost == $0 || normalizedHost.hasSuffix(".\($0)")
-        }) else {
+        guard let domain = RemoteResourceHostValidator.matchingProviderDomain(for: normalizedHost) else {
             throw NativePlaybackError.unsupportedSite
         }
 

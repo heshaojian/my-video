@@ -1,9 +1,102 @@
+import AVFoundation
 import Foundation
 import XCTest
 @testable import Aiyifan
 
 @MainActor
 final class NativePlayerViewModelTests: XCTestCase {
+    func testSerialCatalogItemExposesEpisodeControlBeforeAndAfterResolution() async throws {
+        let episodes = (1...10).reversed().map {
+            Episode(mediaKey: "episode-\($0)", title: String(format: "%02d", $0), updateDate: nil)
+        }
+        let playback = NativePlayback(
+            entries: [NativePlaybackEntry(
+                url: URL(string: "https://media.example.com/episode-10.m3u8")!,
+                isAdvertisement: false
+            )],
+            episodes: episodes,
+            selectedEpisode: episodes[0]
+        )
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(
+                listPath: "series",
+                title: "Series",
+                isSerial: true,
+                latestEpisodeKey: "episode-10",
+                latestEpisodeTitle: "10",
+                categoryPath: "0,1,4,152"
+            ),
+            resolver: StubPlaybackResolver(playback: playback)
+        )
+
+        XCTAssertTrue(viewModel.shouldShowEpisodeControl)
+        XCTAssertEqual(viewModel.episodeControlTitle, "剧集加载中")
+
+        viewModel.start()
+        try await waitUntil { viewModel.episodes.count == 10 }
+
+        XCTAssertEqual(viewModel.episodeControlTitle, "第 10/10 集")
+        XCTAssertEqual(viewModel.episodes.map(\.mediaKey), (1...10).reversed().map { "episode-\($0)" })
+        viewModel.stop()
+    }
+
+    func testMovieWithoutEpisodesDoesNotExposeEpisodeControl() {
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "movie", title: "Movie", isSerial: false),
+            resolver: StubPlaybackResolver(playback: NativePlayback(entries: []))
+        )
+
+        XCTAssertFalse(viewModel.shouldShowEpisodeControl)
+        XCTAssertNil(viewModel.episodeControlTitle)
+    }
+
+    func testPlayedEpisodeKeyRestoresEpisodeControlForLegacyItem() async throws {
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "legacy-series", title: "Legacy Series"),
+            initialEpisodeKey: "episode-4",
+            resolver: FixtureNativePlaybackResolver()
+        )
+
+        XCTAssertTrue(viewModel.shouldShowEpisodeControl)
+        XCTAssertEqual(viewModel.episodeControlTitle, "剧集加载中")
+
+        viewModel.start()
+        try await waitUntil { viewModel.selectedEpisode?.mediaKey == "episode-4" }
+
+        XCTAssertEqual(viewModel.episodes.count, 3)
+        XCTAssertEqual(viewModel.episodeControlTitle, "第 4/10 集")
+        viewModel.stop()
+    }
+
+    func testEpisodeDisplayFormatterNormalizesNumericAndSpecialTitles() {
+        XCTAssertEqual(EpisodeDisplayFormatter.title(for: "第10集"), "第 10 集")
+        XCTAssertEqual(EpisodeDisplayFormatter.title(for: "Episode 04"), "第 4 集")
+        XCTAssertEqual(EpisodeDisplayFormatter.title(for: " Special "), "Special")
+        XCTAssertEqual(EpisodeDisplayFormatter.title(for: "2026 特别篇"), "2026 特别篇")
+        XCTAssertEqual(EpisodeDisplayFormatter.title(for: "SP 2"), "SP 2")
+    }
+
+    func testPresentationTransitionDoesNotStopUntilScreenActuallyDisappears() {
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            resolver: StubPlaybackResolver(playback: NativePlayback(entries: []))
+        )
+        viewModel.player.insert(
+            AVPlayerItem(url: URL(string: "https://media.example.com/full.m3u8")!),
+            after: nil
+        )
+
+        viewModel.setFullScreenPresentationActive(true)
+        viewModel.handleScreenDisappear()
+        XCTAssertEqual(viewModel.player.items().count, 1)
+
+        viewModel.setFullScreenPresentationActive(false)
+        XCTAssertEqual(viewModel.player.items().count, 1)
+
+        viewModel.handleScreenDisappear()
+        XCTAssertTrue(viewModel.player.items().isEmpty)
+    }
+
     func testStartQueuesOnlyProgramAndRepeatedStartIsIdempotent() async throws {
         let episode = Episode(mediaKey: "episode-4", title: "04", updateDate: nil)
         let playback = NativePlayback(entries: [

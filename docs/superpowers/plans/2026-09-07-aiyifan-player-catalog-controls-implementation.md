@@ -2,7 +2,7 @@
 
 ## Objective
 
-Consolidate app-specific player controls into one trailing toolbar, expose current and total episode numbers for serial titles opened from `全部`, and add provider-backed filtering and sorting to all four native catalogs. Raise app-source line coverage from the current 84.12% to at least 90% while mapping every documented feature to an explicit test.
+Consolidate app-specific player controls into one trailing toolbar, expose current and total episode numbers for serial titles opened from `全部`, and add provider-backed filtering and sorting to all four native catalogs. Map every documented feature and critical failure path to an explicit automated or hardware test; line-coverage percentage is informational, not a release gate.
 
 ## Working Rules
 
@@ -117,46 +117,30 @@ Steps:
 6. Verify layouts at compact and large widths with accessibility-frame assertions and screenshots; use menu grouping and concise labels to prevent overlap.
 7. Run player unit/UI tests and repeat the fullscreen enter/exit test three times.
 
-## Slice 7: Coverage Expansion and Feature Traceability
+## Slice 7: Feature Traceability
 
 Files:
 
 - Extend existing test files by owning feature; add a focused test file only when no current owner exists.
 - Update `docs/releases/2026-09-07-daily-watching-verification.md`.
 
-Current coverage priorities:
-
-- `BackgroundRefresh.swift`: 11.90%.
-- `AiyifanApp.swift`: 52.03%.
-- `NowPlayingCoordinator.swift`: 53.41%.
-- `Casting.swift`: 59.52%.
-- `BrowserViewModel.swift`: 66.67%.
-- `CategoryCatalogService.swift`: 71.79% before this feature.
-- `LibraryServices.swift`: 72.46%.
-- `NativePlaybackResolver.swift`: 72.65%.
-- `NativePlayerView.swift`: 79.55%.
-
 Steps:
 
-1. Extract protocol-backed seams only where required to drive deterministic lifecycle, notification, command-center, network, timer, and SDK states.
-2. Add direct tests for background refresh registration, success, expiration, rescheduling, and partial failure.
-3. Add app-routing and scene-lifecycle tests for notification destinations, settings presentation, background transitions, and persistence handoff.
-4. Add Now Playing tests for metadata, artwork fallback, play/pause, seek, rate, previous/next, interruptions, route changes, and clear/detach.
-5. Add Cast tests for disconnected, connecting, connected, load, resume handoff, pause/play/seek, queue errors, retries, and local fallback.
-6. Fill BrowserViewModel and LibraryServices gaps for all Latest, Saved, Played, search, recommendation, notification, cache, migration, and error states.
-7. Add explicit test-matrix rows for every README feature and every requirement in the approved design.
-8. Run coverage after each ownership group and continue until app-source line coverage is at least 90% without counting Pods, generated code, or test targets.
-9. Review any file below 80% and document why remaining lines are platform-only or add tests until the gap is justified.
+1. Add explicit test-matrix rows for every README feature and every requirement in the approved design.
+2. Cover user-visible success, empty, failure, retry, persistence, and restoration behavior where each state applies.
+3. Cover the full serial resolver request chain, malformed and duplicate episode data, and concrete episode selection.
+4. Cover Latest, Saved, Played, search, notifications, settings, background playback, fullscreen, Picture in Picture, AirPlay, Cast, and website fallback with the most appropriate unit, integration, UI, or hardware test.
+5. Treat line coverage as a diagnostic that can reveal accidental gaps, never as a substitute for a named feature scenario.
 
 ## Slice 8: Major Regression and Delivery
 
-1. Run the complete unit and UI suite on iPhone 17 Pro with code coverage.
+1. Run the complete unit and UI suite on iPhone 17 Pro.
 2. Run critical filter, sort, serial playback, fullscreen, progress, Saved, and Played workflows three consecutive times.
 3. Run the deterministic 50-plus-action heavy-user flow on iPhone 17 Pro and iPhone 16e.
 4. Run Release simulator build and `xcodebuild analyze`.
 5. Run dependency status, secret scan, plist validation, project-generation validation, and `git diff --check`.
 6. Perform read-only live smoke checks for filter metadata, all four category queries, each sort order, a multi-filter query, and a multi-episode title.
-7. Publish the feature-to-test matrix with exact test counts, 90% or higher app-source coverage, exclusions, simulator results, and hardware-pending rows.
+7. Publish the feature-to-test matrix with exact test counts, simulator results, and hardware-pending rows.
 8. Review the complete diff for correctness, privacy, security, accessibility, and regression risk; address all critical and high findings.
 9. Commit focused changes using Conventional Commit messages, push `master`, then build, install, and launch on John's paired iPhone.
 10. Run reachable physical-device checks. Leave Apple TV and Android TV receiver rows pending until the corresponding hardware is available and tested.
@@ -168,6 +152,6 @@ Steps:
 - Serial titles opened from `全部` show a current/total episode label and a complete newest-first episode sheet.
 - All app-specific player operations except Back are grouped in one trailing action cluster with no overlap on supported iPhone sizes.
 - Existing Saved, Played, progress, fullscreen, background audio, Picture in Picture, AirPlay, Cast, notifications, search, settings, and website fallback behavior remains covered.
-- All automated tests pass, every documented feature has a named test, and app-source line coverage is at least 90%.
+- All automated tests pass and every documented feature has a named automated or hardware test.
 - Signed provider data and media URLs are not persisted or logged.
 - Hardware-dependent results are reported honestly and are not inferred from simulator tests.

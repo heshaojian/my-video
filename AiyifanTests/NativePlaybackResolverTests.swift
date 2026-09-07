@@ -3,6 +3,11 @@ import XCTest
 @testable import Aiyifan
 
 final class NativePlaybackResolverTests: XCTestCase {
+    override func tearDown() {
+        ResolverURLProtocol.reset()
+        super.tearDown()
+    }
+
     func testCertificateParserReadsCurrentPageConfiguration() throws {
         let html = """
         <script>
@@ -120,6 +125,34 @@ final class NativePlaybackResolverTests: XCTestCase {
         XCTAssertEqual(episodes.map(\.mediaKey), ["episode-10", "episode-2", "special-a", "special-b"])
     }
 
+    func testEpisodeDecoderUnderstandsProviderTimestampWithoutTimezone() throws {
+        let playlist = Data("""
+        {"ret":200,"data":{"code":0,"info":[{"playList":[
+          {"key":"episode-99","name":"99","updateDate":"2026-09-06T13:34:00"},
+          {"key":"special-new","name":"Special","updateDate":"2026-09-07T13:34:00"}
+        ]}]}}
+        """.utf8)
+
+        let episodes = try EpisodePlaylistResponseDecoder.decodeEpisodes(playlist)
+
+        XCTAssertEqual(episodes.map(\.mediaKey), ["special-new", "episode-99"])
+    }
+
+    func testEpisodeDecoderDropsInvalidAndDuplicateEpisodeKeys() throws {
+        let playlist = Data("""
+        {"ret":200,"data":{"code":0,"info":[{"playList":[
+          {"key":"episode-10","name":"10"},
+          {"key":"episode-10","name":"Duplicate 10"},
+          {"key":"bad/key","name":"Bad"},
+          {"key":"episode-2","name":"02"}
+        ]}]}}
+        """.utf8)
+
+        let episodes = try EpisodePlaylistResponseDecoder.decodeEpisodes(playlist)
+
+        XCTAssertEqual(episodes.map(\.mediaKey), ["episode-10", "episode-2"])
+    }
+
     func testEpisodeSelectionUsesPreferredEpisodeOrFallsBackToNewest() throws {
         let episodes = [
             Episode(mediaKey: "episode-4", title: "04", updateDate: nil),
@@ -151,8 +184,131 @@ final class NativePlaybackResolverTests: XCTestCase {
         }
     }
 
+    func testPlaylistDecoderRejectsUnboundedEpisodeList() throws {
+        let rows = (1...2_001).map { episode in
+            ["key": "episode-\(episode)", "name": String(episode)]
+        }
+        let playlist = try JSONSerialization.data(withJSONObject: [
+            "ret": 200,
+            "data": ["code": 0, "info": [["playList": rows]]]
+        ])
+
+        XCTAssertThrowsError(try EpisodePlaylistResponseDecoder.decodeEpisodes(playlist)) { error in
+            XCTAssertEqual(error as? NativePlaybackError, .invalidResponse)
+        }
+    }
+
+    func testResolverTraversesFullSerialFlowAndRequestsSelectedEpisode() async throws {
+        let requests = LockedRequests()
+        ResolverURLProtocol.setHandler { request in
+            requests.append(request)
+            let url = try XCTUnwrap(request.url)
+            let data: Data
+
+            switch url.path {
+            case "/play/series-key":
+                data = Data("""
+                <script>var injectJson = {"config":[{"pConfig":{"publicKey":"public-test","privateKey":["private-test"]}}]};</script>
+                """.utf8)
+            case "/v3/video/detail":
+                data = Data(#"{"ret":200,"data":{"code":0,"info":[{"cid":"0,1,4,152","isSerial":true}]}}"#.utf8)
+            case "/v3/video/languagesplaylist":
+                let rows = (1...10).map { episode in
+                    ["key": "episode-\(episode)", "name": String(episode)]
+                }
+                data = try JSONSerialization.data(withJSONObject: [
+                    "ret": 200,
+                    "data": ["code": 0, "info": [["playList": rows]]]
+                ])
+            case "/v3/video/play":
+                let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+                XCTAssertEqual(query.first { $0.name == "id" }?.value, "episode-2")
+                XCTAssertEqual(query.first { $0.name == "a" }?.value, "0")
+                data = Self.responseData(info: """
+                {"isPreView":false,"needLogin":0,"flvPathList":[
+                  {"result":"https://media.example.com/episode-2.m3u8","isHls":true,"bitrate":576}
+                ]}
+                """)
+            default:
+                XCTFail("Unexpected resolver request: \(url.absoluteString)")
+                data = Data()
+            }
+
+            return (HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]
+            )!, data)
+        }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ResolverURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let item = AiyifanItem(
+            listPath: "series-key",
+            title: "Ten Episode Series",
+            url: "https://m.yfsp.tv/play/series-key",
+            isSerial: true,
+            latestEpisodeKey: "episode-10",
+            latestEpisodeTitle: "10"
+        )
+
+        let playback = try await NativePlaybackResolver(session: session).resolve(
+            item: item,
+            preferredEpisodeKey: "episode-2"
+        )
+
+        XCTAssertEqual(playback.episodes.count, 10)
+        XCTAssertEqual(playback.episodes.first?.mediaKey, "episode-10")
+        XCTAssertEqual(playback.selectedEpisode?.mediaKey, "episode-2")
+        XCTAssertEqual(playback.entries.map(\.url.absoluteString), ["https://media.example.com/episode-2.m3u8"])
+        let captured = requests.values
+        XCTAssertEqual(captured.map { $0.url?.path }, [
+            "/play/series-key",
+            "/v3/video/detail",
+            "/v3/video/languagesplaylist",
+            "/v3/video/play"
+        ])
+        for request in captured.dropFirst() {
+            XCTAssertEqual(request.value(forHTTPHeaderField: "Referer"), item.playURL.absoluteString)
+        }
+    }
+
+    func testResolverRejectsProviderResponseFromUnsupportedFinalHost() async throws {
+        ResolverURLProtocol.setHandler { request in
+            let finalURL = URL(string: "https://attacker.invalid/redirected")!
+            let response = HTTPURLResponse(
+                url: finalURL,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "text/html"]
+            )!
+            let page = Data("""
+            <script>var injectJson = {"config":[{"pConfig":{"publicKey":"public-test","privateKey":["private-test"]}}]};</script>
+            """.utf8)
+            return (response, page)
+        }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ResolverURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let item = AiyifanItem(
+            listPath: "series-key",
+            title: "Redirected",
+            url: "https://m.yfsp.tv/play/series-key"
+        )
+
+        do {
+            _ = try await NativePlaybackResolver(session: session).resolve(item: item)
+            XCTFail("Expected an unsupported final response host")
+        } catch {
+            XCTAssertEqual(error as? NativePlaybackError, .unsupportedSite)
+        }
+    }
+
     func testResponseDecoderDiscardsFrontAdAndReturnsOnlyFullProgram() throws {
-        let data = responseData(info: """
+        let data = Self.responseData(info: """
         {
           "isPreView": false,
           "needLogin": 0,
@@ -171,10 +327,10 @@ final class NativePlaybackResolverTests: XCTestCase {
     }
 
     func testResponseDecoderRejectsPreviewAndLoginOnlyPlayback() {
-        let preview = responseData(info: """
+        let preview = Self.responseData(info: """
         {"isPreView":true,"needLogin":0,"flvPathList":[{"result":"https://media.example.com/preview.m3u8","isHls":true,"bitrate":576}]}
         """)
-        let loginOnly = responseData(info: """
+        let loginOnly = Self.responseData(info: """
         {"isPreView":false,"needLogin":1,"flvPathList":[{"result":"https://media.example.com/full.m3u8","isHls":true,"bitrate":576}]}
         """)
 
@@ -186,8 +342,73 @@ final class NativePlaybackResolverTests: XCTestCase {
         }
     }
 
+    func testResponseDecoderRejectsMalformedPreviewFlagAndUnsupportedMediaHost() {
+        let malformedPreview = Self.responseData(info: """
+        {"isPreView":"unexpected","needLogin":0,"flvPathList":[{"result":"https://hss100.pipecdn.vip/full.m3u8","isHls":true,"bitrate":576}]}
+        """)
+        let unsupportedHost = Self.responseData(info: """
+        {"isPreView":false,"needLogin":0,"flvPathList":[{"result":"https://attacker.invalid/full.m3u8","isHls":true,"bitrate":576}]}
+        """)
+
+        XCTAssertThrowsError(try NativePlaybackResponseDecoder.decode(malformedPreview)) { error in
+            XCTAssertEqual(error as? NativePlaybackError, .invalidResponse)
+        }
+        XCTAssertThrowsError(try NativePlaybackResponseDecoder.decode(unsupportedHost)) { error in
+            XCTAssertEqual(error as? NativePlaybackError, .unsupportedMedia)
+        }
+    }
+
+    func testResponseDecoderRejectsFractionalLoginAndEnvelopeFlags() {
+        let fractionalLogin = Self.responseData(info: """
+        {"isPreView":false,"needLogin":0.5,"flvPathList":[{"result":"https://hss100.pipecdn.vip/full.m3u8","isHls":true,"bitrate":576}]}
+        """)
+        let fractionalEnvelope = Data("""
+        {"ret":200.5,"data":{"code":0,"info":[{"isSerial":true,"cid":"0,1,4,137"}]}}
+        """.utf8)
+
+        XCTAssertThrowsError(try NativePlaybackResponseDecoder.decode(fractionalLogin)) { error in
+            XCTAssertEqual(error as? NativePlaybackError, .loginRequired)
+        }
+        XCTAssertThrowsError(try VideoDetailResponseDecoder.decode(fractionalEnvelope)) { error in
+            XCTAssertEqual(error as? NativePlaybackError, .invalidResponse)
+        }
+    }
+
+    func testProviderSessionDelegateAllowsOnlyHTTPSProviderRedirects() throws {
+        let delegate = ProviderSessionDelegate()
+        let originalURL = try XCTUnwrap(URL(string: "https://m.yfsp.tv/v3/video/detail"))
+        let allowedURL = try XCTUnwrap(URL(string: "https://www.yfsp.tv/v3/video/detail"))
+        let blockedURL = try XCTUnwrap(URL(string: "https://attacker.invalid/redirected"))
+        let response = try XCTUnwrap(HTTPURLResponse(
+            url: originalURL,
+            statusCode: 302,
+            httpVersion: nil,
+            headerFields: ["Location": allowedURL.absoluteString]
+        ))
+        let task = URLSession.shared.dataTask(with: originalURL)
+        var allowedRequest: URLRequest?
+        var blockedRequest: URLRequest?
+
+        delegate.urlSession(
+            URLSession.shared,
+            task: task,
+            willPerformHTTPRedirection: response,
+            newRequest: URLRequest(url: allowedURL)
+        ) { allowedRequest = $0 }
+        delegate.urlSession(
+            URLSession.shared,
+            task: task,
+            willPerformHTTPRedirection: response,
+            newRequest: URLRequest(url: blockedURL)
+        ) { blockedRequest = $0 }
+
+        XCTAssertEqual(allowedRequest?.url, allowedURL)
+        XCTAssertNil(blockedRequest)
+        task.cancel()
+    }
+
     func testResponseDecoderRejectsInsecureOrMissingProgramURL() {
-        let data = responseData(info: """
+        let data = Self.responseData(info: """
         {
           "isPreView":false,
           "needLogin":0,
@@ -204,7 +425,7 @@ final class NativePlaybackResolverTests: XCTestCase {
     }
 
     func testResponseDecoderRejectsPrivateNetworkProgramURL() {
-        let data = responseData(info: """
+        let data = Self.responseData(info: """
         {
           "isPreView":false,
           "needLogin":0,
@@ -220,7 +441,7 @@ final class NativePlaybackResolverTests: XCTestCase {
     }
 
     func testResponseDecoderIgnoresInvalidFrontAdAndKeepsSecureProgram() throws {
-        let data = responseData(info: """
+        let data = Self.responseData(info: """
         {
           "isPreView":false,
           "needLogin":0,
@@ -242,9 +463,62 @@ final class NativePlaybackResolverTests: XCTestCase {
         }
     }
 
-    private func responseData(info: String) -> Data {
+    private static func responseData(info: String) -> Data {
         Data("""
         {"ret":200,"data":{"code":0,"msg":"","info":[\(info)]},"msg":""}
         """.utf8)
     }
+}
+
+private final class LockedRequests: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storage: [URLRequest] = []
+
+    var values: [URLRequest] {
+        lock.withLock { storage }
+    }
+
+    func append(_ request: URLRequest) {
+        lock.withLock {
+            storage = storage + [request]
+        }
+    }
+}
+
+private final class ResolverURLProtocol: URLProtocol, @unchecked Sendable {
+    typealias Handler = @Sendable (URLRequest) throws -> (HTTPURLResponse, Data)
+
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var handler: Handler?
+
+    static func setHandler(_ newHandler: @escaping Handler) {
+        lock.withLock {
+            handler = newHandler
+        }
+    }
+
+    static func reset() {
+        lock.withLock {
+            handler = nil
+        }
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool { true }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        do {
+            let currentHandler = Self.lock.withLock { Self.handler }
+            let handler = try XCTUnwrap(currentHandler)
+            let (response, data) = try handler(request)
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        } catch {
+            client?.urlProtocol(self, didFailWithError: error)
+        }
+    }
+
+    override func stopLoading() {}
 }

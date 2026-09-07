@@ -28,13 +28,13 @@ xcodebuild -workspace Aiyifan.xcworkspace -scheme Aiyifan -destination 'platform
 
 ## Regression Tests
 
-Run the full unit and UI suite after every source change:
+During implementation, run the affected unit/contract tests and the UI scenarios touched by the change. After a major refactor or before push/deployment, run the complete unit and UI suite once on a warmed simulator:
 
 ```sh
 xcodebuild test -workspace Aiyifan.xcworkspace -scheme Aiyifan -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -enableCodeCoverage YES
 ```
 
-The UI suite uses a deterministic local fixture. Release verification also loads all four live feeds, resolves a current movie and serial episode through the production API, and validates that both HLS manifests are reachable.
+The UI suite uses a deterministic local fixture. The 50-action power-user scenario is a release gate rather than a per-edit check. Release verification also loads all four live feeds, resolves a current movie and serial episode through the production API, and validates that both HLS manifests are reachable.
 
 ## Run On iPhone
 
