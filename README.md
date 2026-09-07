@@ -6,6 +6,7 @@ Personal iOS client for Aiyifan (`https://m.yfsp.tv/`).
 
 - Starts on a native latest-updates page for `电影`, `电视剧`, `综艺`, and `动漫`.
 - Fetches the latest embedded Aiyifan category feeds and shows poster rows for quick browsing.
+- Opens `全部` as a native, pull-to-refresh catalog with 24-item pagination, Save/Favorite controls, and direct native playback.
 - Searches and filters the native library, with Continue Watching and New for You sections.
 - Saves titles for later, detects new episodes, and supports per-title update alerts.
 - Resolves supported streams into native `AVPlayer` playback with Picture in Picture and background audio.
@@ -15,7 +16,7 @@ Personal iOS client for Aiyifan (`https://m.yfsp.tv/`).
 - Provides a third Played tab with resume, watched/unwatched, restart, remove, filter, and clear controls.
 - Supports AirPlay plus Google Cast with persistent and expanded TV playback controls.
 - Caches each feed independently, refreshes in the background, and optionally syncs Saved and Played through iCloud.
-- Uses `WKWebView` only for explicit category browsing or the website fallback.
+- Uses `WKWebView` only for the explicit website playback fallback.
 
 ## Build
 
@@ -43,6 +44,7 @@ The UI suite uses a deterministic local fixture. Release verification also loads
 5. Press Run.
 
 If Xcode says it cannot create a provisioning profile, keep the bundle id `com.john.aiyifan` or change it to a unique personal bundle id, then let Xcode manage signing automatically.
+The installed Xcode version must also support the iOS version currently running on the phone so its developer disk image can mount.
 
 ## Notes
 
