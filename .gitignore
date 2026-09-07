@@ -3,5 +3,6 @@ build/
 artifacts/
 Pods/
 *.xcuserdata/
+xcuserdata/
 *.xcuserstate
 .DS_Store

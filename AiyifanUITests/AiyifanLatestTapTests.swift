@@ -44,6 +44,8 @@ final class AiyifanLatestTapTests: XCTestCase {
     func testLatestPageContainsOnlyTheFourRequestedSections() {
         let app = launchFixtureApp()
 
+        XCTAssertTrue(app.images["aiyifanBrandMark"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Aiyifan"].exists)
         XCTAssertTrue(app.staticTexts["最新电影"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["最新电视剧"].exists)
 

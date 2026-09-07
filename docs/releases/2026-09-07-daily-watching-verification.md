@@ -4,8 +4,9 @@ Date: 2026-09-07
 
 ## Automated Regression
 
-- Full iPhone 17 Pro simulator run: 103/103 passed (78 unit, 25 UI).
-- App-source line coverage: 84.33% (7,463/8,850 executable lines).
+- Full iPhone 17 Pro simulator run after branding and locked-playback changes: 109/109 passed (84 unit, 25 UI).
+- App-source line coverage: 83.83% (7,678/9,159 executable lines).
+- App-icon, launch-branding, lock-screen metadata, audio-session, interruption recovery, and MediaPlayer background-artwork regression tests: passed.
 - Native catalog open, Save/play, and pagination repeatability: 9/9 passed across three iterations.
 - Deterministic 50-plus-action session: passed on iPhone 17 Pro and iPhone 16e simulators.
 - Release simulator build: passed.
@@ -43,9 +44,10 @@ The simulator cannot prove the following hardware and account-dependent behavior
 
 These checks require a signed iPhone build plus reachable receivers on the same network. The app uses Apple's native route picker and Google's Default Media Receiver; it does not use a custom receiver, proxy, download path, DRM bypass, or provider-control bypass.
 
-## Device Deployment Attempt
+## Device Deployment
 
 - John's paired iPhone 17 Pro Max is connected by cable and Developer Mode is enabled.
-- The phone runs iOS 26.6.1 with Xcode 26.2. On the latest retry, developer disk image services were available and the wired device connection was ready.
-- The Apple Development certificate for team `VGGZ34H2PS` is valid, but Xcode currently has no signed-in account and no provisioning profile for `com.john.aiyifan`.
-- Installation therefore remains blocked only until the existing Apple developer account is added in Xcode so it can create the development profile.
+- The phone runs iOS 26.6.1 with Xcode 26.2. Developer disk image services and the wired device connection are available.
+- Xcode created a Personal Team provisioning profile for `com.john.aiyifan`; the signed Debug build installed and launched successfully on the phone.
+- The running process was verified from the Mac after the developer profile was trusted on the phone.
+- This Personal Team build keeps the library locally and reports iCloud sync as unavailable. A paid-team build can opt into the iCloud entitlement with the documented project-generation environment variables.

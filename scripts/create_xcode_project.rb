@@ -7,7 +7,8 @@ project = Xcodeproj::Project.new(project_path)
 
 deployment_target = "17.0"
 bundle_id = "com.john.aiyifan"
-team_id = "VGGZ34H2PS"
+team_id = ENV.fetch("AIYIFAN_DEVELOPMENT_TEAM", "GM4SSCNNUK")
+icloud_enabled = ENV["AIYIFAN_ICLOUD_ENABLED"] == "1"
 
 project.root_object.attributes["LastSwiftUpdateCheck"] = "2620"
 project.root_object.attributes["LastUpgradeCheck"] = "2620"
@@ -52,6 +53,8 @@ Dir["AiyifanUITests/*.swift"].sort.each do |path|
 end
 
 info_ref = resource_group.new_file("Info.plist")
+assets_ref = resource_group.new_file("Assets.xcassets")
+app_target.add_resources([assets_ref])
 entitlements_ref = app_group.new_file("Aiyifan.entitlements")
 
 project.build_configurations.each do |config|
@@ -61,8 +64,11 @@ end
 
 app_target.build_configurations.each do |config|
   settings = config.build_settings
-  settings["ASSETCATALOG_COMPILER_APPICON_NAME"] = ""
-  settings["CODE_SIGN_ENTITLEMENTS"] = "Aiyifan/Aiyifan.entitlements"
+  settings["ASSETCATALOG_COMPILER_APPICON_NAME"] = "AppIcon"
+  if icloud_enabled
+    settings["CODE_SIGN_ENTITLEMENTS"] = "Aiyifan/Aiyifan.entitlements"
+    settings["SWIFT_ACTIVE_COMPILATION_CONDITIONS"] = "$(inherited) AIYIFAN_ICLOUD"
+  end
   settings["CODE_SIGN_STYLE"] = "Automatic"
   settings["CURRENT_PROJECT_VERSION"] = "1"
   settings["DEVELOPMENT_TEAM"] = team_id

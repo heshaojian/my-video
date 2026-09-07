@@ -15,7 +15,7 @@ final class LibraryServicesTests: XCTestCase {
 
         let restored = AppSettingsStore(defaults: defaults)
         XCTAssertTrue(restored.updateAlertsEnabled)
-        XCTAssertTrue(restored.cloudSyncEnabled)
+        XCTAssertEqual(restored.cloudSyncEnabled, AppCapabilities.iCloudSyncAvailable)
     }
 
     func testDeepLinkRoundTripAndRejectsUntrustedScheme() throws {
@@ -45,6 +45,20 @@ final class LibraryServicesTests: XCTestCase {
 
         XCTAssertEqual(merged.savedItems, [item])
         XCTAssertEqual(merged.playedItems, [new])
+    }
+
+    func testCloudSyncReportsUnavailableWhenBuildHasNoICloudEntitlement() {
+        let item = AiyifanItem(listPath: "saved", title: "Saved")
+
+        let result = CloudLibrarySync.shared.synchronize(
+            savedItems: [item],
+            playedItems: [],
+            enabled: true
+        )
+
+        XCTAssertFalse(AppCapabilities.iCloudSyncAvailable)
+        XCTAssertEqual(CloudLibrarySync.shared.status, "Unavailable")
+        XCTAssertEqual(result.savedItems, [item])
     }
 
     func testNotificationBatchIncludesOnlyEnabledNewItems() throws {

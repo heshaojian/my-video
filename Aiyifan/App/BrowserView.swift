@@ -177,10 +177,24 @@ private struct LatestHomeView: View {
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 28) {
                         VStack(alignment: .leading, spacing: 6) {
-                            HStack {
-                                Text("最新更新")
-                                    .font(.system(size: 34, weight: .bold))
-                                    .foregroundStyle(.white)
+                            HStack(spacing: 12) {
+                                Image("BrandMark")
+                                    .resizable()
+                                    .scaledToFit()
+                                    .frame(width: 44, height: 44)
+                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                    .accessibilityLabel("Aiyifan logo")
+                                    .accessibilityIdentifier("aiyifanBrandMark")
+
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text("Aiyifan")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.cyan)
+
+                                    Text("最新更新")
+                                        .font(.system(size: 30, weight: .bold))
+                                        .foregroundStyle(.white)
+                                }
 
                                 Spacer()
 

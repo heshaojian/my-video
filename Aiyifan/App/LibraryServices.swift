@@ -2,6 +2,14 @@ import Foundation
 import UIKit
 import UserNotifications
 
+enum AppCapabilities {
+    #if AIYIFAN_ICLOUD
+    static let iCloudSyncAvailable = true
+    #else
+    static let iCloudSyncAvailable = false
+    #endif
+}
+
 @MainActor
 final class AppSettingsStore: ObservableObject {
     @Published private(set) var updateAlertsEnabled: Bool
@@ -14,7 +22,7 @@ final class AppSettingsStore: ObservableObject {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         updateAlertsEnabled = defaults.bool(forKey: Self.alertsKey)
-        cloudSyncEnabled = defaults.bool(forKey: Self.cloudKey)
+        cloudSyncEnabled = AppCapabilities.iCloudSyncAvailable && defaults.bool(forKey: Self.cloudKey)
     }
 
     func setUpdateAlertsEnabled(_ enabled: Bool) {
@@ -23,8 +31,9 @@ final class AppSettingsStore: ObservableObject {
     }
 
     func setCloudSyncEnabled(_ enabled: Bool) {
-        cloudSyncEnabled = enabled
-        defaults.set(enabled, forKey: Self.cloudKey)
+        let supportedValue = AppCapabilities.iCloudSyncAvailable && enabled
+        cloudSyncEnabled = supportedValue
+        defaults.set(supportedValue, forKey: Self.cloudKey)
     }
 }
 
@@ -197,8 +206,10 @@ final class CloudLibrarySync: ObservableObject {
     static let shared = CloudLibrarySync()
 
     @Published private(set) var status = "Off"
-    private let store = NSUbiquitousKeyValueStore.default
     private let key = "aiyifanLibraryPayloadV1"
+    #if AIYIFAN_ICLOUD
+    private let store = NSUbiquitousKeyValueStore.default
+    #endif
 
     private init() {}
 
@@ -208,6 +219,11 @@ final class CloudLibrarySync: ObservableObject {
             status = "Off"
             return local
         }
+        guard AppCapabilities.iCloudSyncAvailable else {
+            status = "Unavailable"
+            return local
+        }
+        #if AIYIFAN_ICLOUD
         let cloud = store.data(forKey: key).flatMap { try? JSONDecoder().decode(CloudLibraryPayload.self, from: $0) }
         let merged = cloud.map { CloudLibraryMerger.merge(local: local, cloud: $0) } ?? local
         if let data = try? JSONEncoder().encode(merged) {
@@ -218,5 +234,8 @@ final class CloudLibrarySync: ObservableObject {
             status = "Unavailable"
         }
         return merged
+        #else
+        return local
+        #endif
     }
 }

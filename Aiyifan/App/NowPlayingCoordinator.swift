@@ -1,11 +1,38 @@
 import AVFoundation
 import MediaPlayer
+import UIKit
+
+enum NowPlayingMetadataBuilder {
+    static func values(for snapshot: NowPlayingSnapshot) -> [String: Any] {
+        [
+            MPMediaItemPropertyTitle: snapshot.title,
+            MPMediaItemPropertyAlbumTitle: snapshot.subtitle ?? "Aiyifan",
+            MPMediaItemPropertyPlaybackDuration: snapshot.duration,
+            MPNowPlayingInfoPropertyElapsedPlaybackTime: snapshot.elapsed,
+            MPNowPlayingInfoPropertyPlaybackRate: snapshot.isPlaying ? snapshot.rate : 0,
+            MPNowPlayingInfoPropertyDefaultPlaybackRate: snapshot.rate,
+            MPNowPlayingInfoPropertyMediaType: MPNowPlayingInfoMediaType.video.rawValue
+        ]
+    }
+}
+
+enum NowPlayingArtworkBuilder {
+    static func make(from image: UIImage?) -> MPMediaItemArtwork? {
+        guard let image else {
+            return nil
+        }
+        return MPMediaItemArtwork(boundsSize: image.size) { _ in image }
+    }
+}
 
 @MainActor
 final class NowPlayingCoordinator {
     static let shared = NowPlayingCoordinator()
 
     private var commandTargets: [(MPRemoteCommand, Any)] = []
+    private var artworkTask: Task<Void, Never>?
+    private var artworkURL: URL?
+    private var artwork: MPMediaItemArtwork?
 
     private init() {}
 
@@ -54,19 +81,26 @@ final class NowPlayingCoordinator {
         let center = MPRemoteCommandCenter.shared()
         center.previousTrackCommand.isEnabled = hasPrevious
         center.nextTrackCommand.isEnabled = hasNext
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = [
-            MPMediaItemPropertyTitle: snapshot.title,
-            MPMediaItemPropertyAlbumTitle: snapshot.subtitle ?? "Aiyifan",
-            MPMediaItemPropertyPlaybackDuration: snapshot.duration,
-            MPNowPlayingInfoPropertyElapsedPlaybackTime: snapshot.elapsed,
-            MPNowPlayingInfoPropertyPlaybackRate: snapshot.isPlaying ? snapshot.rate : 0,
-            MPNowPlayingInfoPropertyDefaultPlaybackRate: snapshot.rate
-        ]
+        var values = NowPlayingMetadataBuilder.values(for: snapshot)
+        let fallbackArtwork = artwork ?? NowPlayingArtworkBuilder.make(from: UIImage(named: "BrandMark"))
+        if let fallbackArtwork {
+            values[MPMediaItemPropertyArtwork] = fallbackArtwork
+        }
+        let infoCenter = MPNowPlayingInfoCenter.default()
+        infoCenter.nowPlayingInfo = values
+        infoCenter.playbackState = snapshot.isPlaying ? .playing : .paused
+        loadArtworkIfNeeded(from: snapshot.artworkURL)
     }
 
     func clear() {
+        artworkTask?.cancel()
+        artworkTask = nil
+        artworkURL = nil
+        artwork = nil
         removeTargets()
-        MPNowPlayingInfoCenter.default().nowPlayingInfo = nil
+        let infoCenter = MPNowPlayingInfoCenter.default()
+        infoCenter.nowPlayingInfo = nil
+        infoCenter.playbackState = .stopped
     }
 
     private func add(_ command: MPRemoteCommand, handler: @escaping (MPRemoteCommandEvent) -> MPRemoteCommandHandlerStatus) {
@@ -86,4 +120,35 @@ final class NowPlayingCoordinator {
         let target = current.isFinite ? max(0, current + interval) : 0
         player.seek(to: CMTime(seconds: target, preferredTimescale: 600))
     }
+
+    private func loadArtworkIfNeeded(from url: URL?) {
+        guard artworkURL != url else {
+            return
+        }
+        artworkTask?.cancel()
+        artworkURL = url
+        artwork = NowPlayingArtworkBuilder.make(from: UIImage(named: "BrandMark"))
+        guard let url else {
+            return
+        }
+        artworkTask = Task { [weak self] in
+            guard
+                let (data, response) = try? await URLSession.shared.data(from: url),
+                !Task.isCancelled,
+                (response as? HTTPURLResponse).map({ (200..<300).contains($0.statusCode) }) ?? false,
+                let image = UIImage(data: data),
+                let remoteArtwork = NowPlayingArtworkBuilder.make(from: image)
+            else {
+                return
+            }
+            guard let self, self.artworkURL == url else {
+                return
+            }
+            self.artwork = remoteArtwork
+            var values = MPNowPlayingInfoCenter.default().nowPlayingInfo ?? [:]
+            values[MPMediaItemPropertyArtwork] = remoteArtwork
+            MPNowPlayingInfoCenter.default().nowPlayingInfo = values
+        }
+    }
+
 }

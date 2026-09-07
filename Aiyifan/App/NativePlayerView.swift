@@ -63,6 +63,7 @@ final class NativePlayerViewModel: ObservableObject {
     func start() {
         loadTask?.cancel()
         cancelAutoplay()
+        PlaybackAudioSessionCoordinator.shared.attach(player: player)
         NowPlayingCoordinator.shared.activate(
             player: player,
             playPreviousEpisode: { [weak self] in self?.playPreviousEpisode() },
@@ -85,6 +86,7 @@ final class NativePlayerViewModel: ObservableObject {
         playbackEntries = []
         preparedEntryCount = 0
         castManager.clear()
+        PlaybackAudioSessionCoordinator.shared.detach(player: player)
         NowPlayingCoordinator.shared.clear()
     }
 
@@ -338,6 +340,11 @@ final class NativePlayerViewModel: ObservableObject {
         guard !isPlayingAdvertisement else {
             return
         }
+        let isPlaying = player.timeControlStatus == .playing
+        PlaybackAudioSessionCoordinator.shared.recordPlaybackState(
+            isPlaying: isPlaying,
+            rate: playbackRate
+        )
         NowPlayingCoordinator.shared.update(
             NowPlayingSnapshot(
                 item: item,
@@ -345,7 +352,7 @@ final class NativePlayerViewModel: ObservableObject {
                 duration: duration,
                 elapsed: position,
                 playbackRate: playbackRate,
-                isPlaying: player.timeControlStatus == .playing
+                isPlaying: isPlaying
             ),
             hasPrevious: previousEpisode != nil,
             hasNext: nextEpisode != nil

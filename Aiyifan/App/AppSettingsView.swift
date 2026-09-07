@@ -34,6 +34,7 @@ struct AppSettingsView: View {
                 Section("iCloud") {
                     Toggle("Sync Library", isOn: cloudBinding)
                         .accessibilityIdentifier("cloudSyncToggle")
+                        .disabled(!AppCapabilities.iCloudSyncAvailable)
                     LabeledContent("Status", value: cloudSync.status)
                     if settings.cloudSyncEnabled {
                         Button("Sync Now", systemImage: "icloud.and.arrow.up") { synchronizeCloud() }
