@@ -1,6 +1,67 @@
 import AVKit
 import SwiftUI
 
+enum CastSessionPhase: String, Equatable, Sendable {
+    case disconnected
+    case connecting
+    case connected
+    case loading
+    case playing
+    case paused
+    case failed
+}
+
+struct CastSessionSnapshot: Equatable, Sendable {
+    let phase: CastSessionPhase
+    let receiverName: String
+    let title: String
+    let subtitle: String?
+    let artworkURL: URL?
+    let position: Double
+    let duration: Double
+    let isMuted: Bool
+    let isAdvertisement: Bool
+    let errorMessage: String?
+
+    init(
+        phase: CastSessionPhase = .disconnected,
+        receiverName: String = "",
+        title: String = "",
+        subtitle: String? = nil,
+        artworkURL: URL? = nil,
+        position: Double = 0,
+        duration: Double = 0,
+        isMuted: Bool = false,
+        isAdvertisement: Bool = false,
+        errorMessage: String? = nil
+    ) {
+        let safeDuration = duration.isFinite ? max(0, duration) : 0
+        let nonnegativePosition = position.isFinite ? max(0, position) : 0
+        self.phase = phase
+        self.receiverName = receiverName
+        self.title = title
+        self.subtitle = subtitle
+        self.artworkURL = artworkURL
+        self.duration = safeDuration
+        self.position = safeDuration > 0 ? min(nonnegativePosition, safeDuration) : nonnegativePosition
+        self.isMuted = isMuted
+        self.isAdvertisement = isAdvertisement
+        self.errorMessage = errorMessage
+    }
+
+    var isPlaying: Bool {
+        phase == .playing
+    }
+
+    var hasError: Bool {
+        phase == .failed || errorMessage != nil
+    }
+
+    var progress: Double {
+        duration > 0 ? min(max(position / duration, 0), 1) : 0
+    }
+}
+
 struct CastQueueEntry: Equatable, Sendable {
     let url: URL
     let isAdvertisement: Bool
@@ -106,15 +167,33 @@ import GoogleCast
 final class GoogleCastManager: NSObject, ObservableObject, CastPlaybackManaging {
     static let shared = GoogleCastManager()
 
-    @Published private(set) var isCasting = false
+    @Published private(set) var snapshot = CastSessionSnapshot()
+
+    var isCasting: Bool {
+        snapshot.phase != .disconnected
+    }
 
     private var isConfigured = false
     private var preparedPlan: CastPlaybackPlan?
     private var muteState = CastMuteState()
     private weak var mediaClient: GCKRemoteMediaClient?
+    private let simulatesSession = ProcessInfo.processInfo.arguments.contains("-AiyifanSimulateCastSession")
 
     func configure() {
         guard !isConfigured else {
+            return
+        }
+        if simulatesSession {
+            snapshot = CastSessionSnapshot(
+                phase: .paused,
+                receiverName: "Living Room TV",
+                title: "Fixture Series",
+                subtitle: "Episode 04",
+                artworkURL: URL(string: "https://images.example.com/poster.jpg"),
+                position: 420,
+                duration: 1_800
+            )
+            isConfigured = true
             return
         }
         if !GCKCastContext.isSharedInstanceInitialized() {
@@ -133,6 +212,7 @@ final class GoogleCastManager: NSObject, ObservableObject, CastPlaybackManaging 
 
     func prepare(_ plan: CastPlaybackPlan, loadIfConnected: Bool) {
         preparedPlan = plan
+        snapshot = snapshot(applying: plan)
         guard loadIfConnected, isCasting else {
             return
         }
@@ -159,14 +239,79 @@ final class GoogleCastManager: NSObject, ObservableObject, CastPlaybackManaging 
     }
 
     func clear() {
-        preparedPlan = nil
+        if !isCasting {
+            preparedPlan = nil
+        }
+    }
+
+    func togglePlayback() {
+        if simulatesSession {
+            snapshot = replacingSnapshot(phase: snapshot.isPlaying ? .paused : .playing)
+            return
+        }
+        if snapshot.isPlaying {
+            mediaClient?.pause()
+        } else {
+            mediaClient?.play()
+        }
+    }
+
+    func seek(to position: Double) {
+        let safePosition = position.isFinite ? max(0, position) : 0
+        let clampedPosition = snapshot.duration > 0 ? min(safePosition, snapshot.duration) : safePosition
+        if simulatesSession {
+            snapshot = replacingSnapshot(position: clampedPosition)
+            return
+        }
+        let options = GCKMediaSeekOptions()
+        options.interval = clampedPosition
+        options.relative = false
+        mediaClient?.seek(with: options)
+    }
+
+    func skip(by interval: Double) {
+        seek(to: snapshot.position + interval)
+    }
+
+    func toggleMute() {
+        guard !snapshot.isAdvertisement else {
+            return
+        }
+        if simulatesSession {
+            snapshot = replacingSnapshot(isMuted: !snapshot.isMuted)
+            return
+        }
+        GCKCastContext.sharedInstance().sessionManager.currentSession?.setDeviceMuted(!snapshot.isMuted)
+    }
+
+    func retry() {
+        snapshot = replacingSnapshot(phase: .loading, errorMessage: nil, preserveError: false)
+        if simulatesSession {
+            snapshot = replacingSnapshot(phase: .paused)
+        } else {
+            loadPreparedPlan()
+        }
+    }
+
+    func stopCasting() {
+        if simulatesSession {
+            resetSession()
+            return
+        }
+        _ = GCKCastContext.sharedInstance().sessionManager.endSessionAndStopCasting(true)
     }
 
     private func handleConnectedSession(_ session: GCKSession, shouldLoad: Bool) {
         mediaClient?.remove(self)
         mediaClient = session.remoteMediaClient
         mediaClient?.add(self)
-        isCasting = true
+        snapshot = replacingSnapshot(
+            phase: .connected,
+            receiverName: session.device.friendlyName ?? "Cast device",
+            isMuted: session.currentDeviceMuted,
+            errorMessage: nil,
+            preserveError: false
+        )
         if shouldLoad {
             loadPreparedPlan()
         }
@@ -180,6 +325,13 @@ final class GoogleCastManager: NSObject, ObservableObject, CastPlaybackManaging 
         else {
             return
         }
+
+        snapshot = snapshot(applying: plan, phase: .loading, receiverName: session.device.friendlyName ?? "Cast device")
+        snapshot = replacingSnapshot(
+            phase: .loading,
+            errorMessage: nil,
+            preserveError: false
+        )
 
         let queueItems = plan.entries.map { entry in
             let metadata = GCKMediaMetadata(metadataType: .movie)
@@ -222,6 +374,64 @@ final class GoogleCastManager: NSObject, ObservableObject, CastPlaybackManaging 
         if let desiredMute = nextState.desiredMute, desiredMute != session.currentDeviceMuted {
             session.setDeviceMuted(desiredMute)
         }
+        if let desiredMute = nextState.desiredMute {
+            snapshot = replacingSnapshot(isMuted: desiredMute, isAdvertisement: isAdvertisement)
+        } else {
+            snapshot = replacingSnapshot(isAdvertisement: isAdvertisement)
+        }
+    }
+
+    private func replacingSnapshot(
+        phase: CastSessionPhase? = nil,
+        receiverName: String? = nil,
+        title: String? = nil,
+        subtitle: String? = nil,
+        artworkURL: URL? = nil,
+        position: Double? = nil,
+        duration: Double? = nil,
+        isMuted: Bool? = nil,
+        isAdvertisement: Bool? = nil,
+        errorMessage: String? = nil,
+        preserveError: Bool = true
+    ) -> CastSessionSnapshot {
+        CastSessionSnapshot(
+            phase: phase ?? snapshot.phase,
+            receiverName: receiverName ?? snapshot.receiverName,
+            title: title ?? snapshot.title,
+            subtitle: subtitle ?? snapshot.subtitle,
+            artworkURL: artworkURL ?? snapshot.artworkURL,
+            position: position ?? snapshot.position,
+            duration: duration ?? snapshot.duration,
+            isMuted: isMuted ?? snapshot.isMuted,
+            isAdvertisement: isAdvertisement ?? snapshot.isAdvertisement,
+            errorMessage: preserveError ? snapshot.errorMessage : errorMessage
+        )
+    }
+
+    private func snapshot(
+        applying plan: CastPlaybackPlan,
+        phase: CastSessionPhase? = nil,
+        receiverName: String? = nil
+    ) -> CastSessionSnapshot {
+        CastSessionSnapshot(
+            phase: phase ?? snapshot.phase,
+            receiverName: receiverName ?? snapshot.receiverName,
+            title: plan.title,
+            subtitle: plan.subtitle,
+            artworkURL: plan.artworkURL,
+            position: snapshot.position,
+            duration: snapshot.duration,
+            isMuted: snapshot.isMuted,
+            isAdvertisement: snapshot.isAdvertisement,
+            errorMessage: snapshot.errorMessage
+        )
+    }
+
+    private func resetSession() {
+        mediaClient?.remove(self)
+        mediaClient = nil
+        snapshot = CastSessionSnapshot()
+        muteState = CastMuteState()
     }
 }
 
@@ -239,10 +449,7 @@ extension GoogleCastManager: @preconcurrency GCKSessionManagerListener {
         didEnd session: GCKSession,
         withError error: (any Error)?
     ) {
-        mediaClient?.remove(self)
-        mediaClient = nil
-        isCasting = false
-        muteState = CastMuteState()
+        resetSession()
     }
 }
 
@@ -251,16 +458,41 @@ extension GoogleCastManager: @preconcurrency GCKRemoteMediaClientListener {
         _ client: GCKRemoteMediaClient,
         didUpdate mediaStatus: GCKMediaStatus?
     ) {
-        guard
-            let value = mediaStatus?.currentQueueItem?.customData as? [String: Any],
-            let isAdvertisement = value["aiyifanAdvertisement"] as? Bool
-        else {
+        guard let mediaStatus else {
             return
         }
-        guard let session = GCKCastContext.sharedInstance().sessionManager.currentSession else {
-            return
+        let phase: CastSessionPhase
+        switch mediaStatus.playerState {
+        case .playing:
+            phase = .playing
+        case .paused:
+            phase = .paused
+        case .buffering, .loading:
+            phase = .loading
+        case .idle where mediaStatus.idleReason == .error:
+            phase = .failed
+        case .idle:
+            phase = .connected
+        default:
+            phase = snapshot.phase
         }
-        applyMutePolicy(isAdvertisement: isAdvertisement, session: session)
+        let errorMessage = phase == .failed ? "The Cast receiver could not play this video." : nil
+        snapshot = replacingSnapshot(
+            phase: phase,
+            position: mediaStatus.streamPosition,
+            duration: mediaStatus.mediaInformation?.streamDuration,
+            isMuted: GCKCastContext.sharedInstance().sessionManager.currentSession?.currentDeviceMuted,
+            errorMessage: errorMessage,
+            preserveError: false
+        )
+
+        if
+            let value = mediaStatus.currentQueueItem?.customData as? [String: Any],
+            let isAdvertisement = value["aiyifanAdvertisement"] as? Bool,
+            let session = GCKCastContext.sharedInstance().sessionManager.currentSession
+        {
+            applyMutePolicy(isAdvertisement: isAdvertisement, session: session)
+        }
     }
 }
 
@@ -279,12 +511,22 @@ struct GoogleCastRouteButton: UIViewRepresentable {
 @MainActor
 final class GoogleCastManager: ObservableObject, CastPlaybackManaging {
     static let shared = GoogleCastManager()
-    let isCasting = false
+    @Published private(set) var snapshot = CastSessionSnapshot()
+
+    var isCasting: Bool {
+        snapshot.phase != .disconnected
+    }
 
     func configure() {}
     func prepare(_ plan: CastPlaybackPlan, loadIfConnected: Bool) {}
     func updateProgramPosition(_ position: Double) {}
     func clear() {}
+    func togglePlayback() {}
+    func seek(to position: Double) {}
+    func skip(by interval: Double) {}
+    func toggleMute() {}
+    func retry() {}
+    func stopCasting() {}
 }
 
 struct GoogleCastRouteButton: View {

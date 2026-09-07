@@ -82,37 +82,53 @@ private struct LibraryView: View {
     @ObservedObject var playedItemsStore: PlayedItemsStore
     @ObservedObject var appSettings: AppSettingsStore
     @Binding var selectedTab: LibraryTab
+    @StateObject private var castManager = GoogleCastManager.shared
+    @State private var isShowingCastControls = false
 
     var body: some View {
-        TabView(selection: $selectedTab) {
-            LatestHomeView(
-                viewModel: viewModel,
-                savedItemsStore: savedItemsStore,
-                playedItemsStore: playedItemsStore,
-                appSettings: appSettings
-            )
-                .tabItem {
-                    Label("Latest", systemImage: "sparkles.tv")
-                }
-                .tag(LibraryTab.latest)
+        GeometryReader { geometry in
+            TabView(selection: $selectedTab) {
+                LatestHomeView(
+                    viewModel: viewModel,
+                    savedItemsStore: savedItemsStore,
+                    playedItemsStore: playedItemsStore,
+                    appSettings: appSettings
+                )
+                    .tabItem {
+                        Label("Latest", systemImage: "sparkles.tv")
+                    }
+                    .tag(LibraryTab.latest)
 
-            SavedItemsView(
-                viewModel: viewModel,
-                savedItemsStore: savedItemsStore,
-                appSettings: appSettings
-            )
-                .tabItem {
-                    Label("Saved", systemImage: "bookmark.fill")
-                }
-                .tag(LibraryTab.saved)
+                SavedItemsView(
+                    viewModel: viewModel,
+                    savedItemsStore: savedItemsStore,
+                    appSettings: appSettings
+                )
+                    .tabItem {
+                        Label("Saved", systemImage: "bookmark.fill")
+                    }
+                    .tag(LibraryTab.saved)
 
-            PlayedItemsView(viewModel: viewModel, playedItemsStore: playedItemsStore)
-                .tabItem {
-                    Label("Played", systemImage: "clock.arrow.circlepath")
+                PlayedItemsView(viewModel: viewModel, playedItemsStore: playedItemsStore)
+                    .tabItem {
+                        Label("Played", systemImage: "clock.arrow.circlepath")
+                    }
+                    .tag(LibraryTab.played)
+            }
+            .tint(.cyan)
+            .overlay(alignment: .bottom) {
+                if castManager.isCasting {
+                    CastMiniController(manager: castManager) {
+                        isShowingCastControls = true
+                    }
+                    .padding(.bottom, 50 + geometry.safeAreaInsets.bottom)
                 }
-                .tag(LibraryTab.played)
+            }
         }
-        .tint(.cyan)
+        .sheet(isPresented: $isShowingCastControls) {
+            CastExpandedController(manager: castManager)
+                .presentationDetents([.medium, .large])
+        }
     }
 }
 
