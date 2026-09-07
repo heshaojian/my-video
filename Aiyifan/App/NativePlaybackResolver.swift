@@ -51,6 +51,20 @@ struct VideoPlaybackContext: Equatable, Sendable {
     let metrics: ViewerMetrics
 }
 
+enum SerialPlaybackIntent {
+    static func infer(
+        providerIsSerial: Bool,
+        item: AiyifanItem,
+        preferredEpisodeKey: String? = nil
+    ) -> Bool {
+        if providerIsSerial || item.isSerial == true || item.latestEpisodeKey != nil || preferredEpisodeKey != nil {
+            return true
+        }
+        let categoryParts = item.categoryPath?.split(separator: ",").map(String.init) ?? []
+        return categoryParts.count >= 3 && ["4", "5", "6"].contains(categoryParts[2])
+    }
+}
+
 struct EpisodeSelection: Equatable, Sendable {
     let mediaKey: String
     let title: String
@@ -511,17 +525,29 @@ protocol NativePlaybackResolving: Sendable {
     func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback
 }
 
+protocol EpisodePlaylistResolving: Sendable {
+    func loadEpisodes(for item: AiyifanItem, expectedEpisodeKey: String?) async throws -> [Episode]
+}
+
 extension NativePlaybackResolving {
     func resolve(item: AiyifanItem) async throws -> NativePlayback {
         try await resolve(item: item, preferredEpisodeKey: nil)
     }
 }
 
-struct NativePlaybackResolver: NativePlaybackResolving {
+struct NativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving {
     private let session: URLSession
+    private let playlistRetryDelays: [Duration]
+    private let certificateCache: ProviderCertificateCache
 
-    init(session: URLSession? = nil) {
+    init(
+        session: URLSession? = nil,
+        playlistRetryDelays: [Duration] = [.milliseconds(500), .milliseconds(1_500), .seconds(3)],
+        certificateCache: ProviderCertificateCache? = nil
+    ) {
         self.session = session ?? ProviderSessionFactory.make()
+        self.playlistRetryDelays = playlistRetryDelays
+        self.certificateCache = certificateCache ?? (session == nil ? .shared : ProviderCertificateCache())
     }
 
     static func validatePage(_ item: AiyifanItem) throws -> String {
@@ -542,13 +568,7 @@ struct NativePlaybackResolver: NativePlaybackResolving {
     func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
         let pageHost = try Self.validatePage(item)
 
-        var pageRequest = URLRequest(url: item.playURL)
-        pageRequest.timeoutInterval = 15
-        pageRequest.cachePolicy = .reloadIgnoringLocalCacheData
-        let (pageData, pageResponse) = try await session.data(for: pageRequest)
-        try validate(pageResponse, maximumBytes: 1_000_000, actualBytes: pageData.count)
-
-        let certificate = try PlaybackCertificateParser.parse(pageData)
+        let certificate = try await certificate(for: item, pageHost: pageHost)
         let detailURL = try NativePlaybackRequestBuilder.makeDetailURL(
             mediaKey: item.listPath,
             siteHost: pageHost,
@@ -559,23 +579,44 @@ struct NativePlaybackResolver: NativePlaybackResolving {
         let mediaKey: String
         let episodes: [Episode]
         let selectedEpisode: Episode?
-        if context.isSerial {
-            let playlistURL = try NativePlaybackRequestBuilder.makePlaylistURL(
-                seriesKey: item.listPath,
-                categoryID: context.categoryID,
-                siteHost: pageHost,
-                certificate: certificate
-            )
-            let playlistData = try await fetch(playlistURL, referer: item.playURL)
-            episodes = try EpisodePlaylistResponseDecoder.decodeEpisodes(playlistData)
-            guard let episode = EpisodePlaylistResponseDecoder.selectEpisode(
-                from: episodes,
-                preferredKey: preferredEpisodeKey
-            ) else {
-                throw NativePlaybackError.unsupportedMedia
+        let requestedEpisodeKey = preferredEpisodeKey ?? item.latestEpisodeKey
+        let isSerial = SerialPlaybackIntent.infer(
+            providerIsSerial: context.isSerial,
+            item: item,
+            preferredEpisodeKey: preferredEpisodeKey
+        )
+        if isSerial {
+            if preferredEpisodeKey == nil,
+               let latestEpisodeKey = item.latestEpisodeKey {
+                let episode = Episode(
+                    mediaKey: latestEpisodeKey,
+                    title: item.latestEpisodeTitle ?? latestEpisodeKey,
+                    updateDate: nil
+                )
+                episodes = []
+                mediaKey = episode.mediaKey
+                selectedEpisode = episode
+            } else {
+                let playlistURL = try NativePlaybackRequestBuilder.makePlaylistURL(
+                    seriesKey: item.listPath,
+                    categoryID: context.categoryID,
+                    siteHost: pageHost,
+                    certificate: certificate
+                )
+                episodes = try await fetchEpisodes(
+                    playlistURL,
+                    referer: item.playURL,
+                    expectedEpisodeKey: requestedEpisodeKey
+                )
+                guard let episode = EpisodePlaylistResponseDecoder.selectEpisode(
+                    from: episodes,
+                    preferredKey: requestedEpisodeKey
+                ) else {
+                    throw NativePlaybackError.unsupportedMedia
+                }
+                mediaKey = episode.mediaKey
+                selectedEpisode = episode
             }
-            mediaKey = episode.mediaKey
-            selectedEpisode = episode
         } else {
             mediaKey = item.listPath
             episodes = []
@@ -583,7 +624,7 @@ struct NativePlaybackResolver: NativePlaybackResolving {
         }
         let playbackURL = try NativePlaybackRequestBuilder.makeURL(
             mediaKey: mediaKey,
-            albumMode: !context.isSerial,
+            albumMode: !isSerial,
             siteHost: pageHost,
             certificate: certificate
         )
@@ -595,6 +636,84 @@ struct NativePlaybackResolver: NativePlaybackResolving {
             selectedEpisode: selectedEpisode,
             metrics: context.metrics.isEmpty ? nil : context.metrics
         )
+    }
+
+    func loadEpisodes(for item: AiyifanItem, expectedEpisodeKey: String?) async throws -> [Episode] {
+        let pageHost = try Self.validatePage(item)
+        let certificate = try await certificate(for: item, pageHost: pageHost)
+        let detailURL = try NativePlaybackRequestBuilder.makeDetailURL(
+            mediaKey: item.listPath,
+            siteHost: pageHost,
+            certificate: certificate
+        )
+        let detailData = try await fetch(detailURL, referer: item.playURL)
+        let context = try VideoDetailResponseDecoder.decode(detailData)
+        guard SerialPlaybackIntent.infer(providerIsSerial: context.isSerial, item: item) else {
+            return []
+        }
+        let playlistURL = try NativePlaybackRequestBuilder.makePlaylistURL(
+            seriesKey: item.listPath,
+            categoryID: context.categoryID,
+            siteHost: pageHost,
+            certificate: certificate
+        )
+        return try await fetchEpisodes(
+            playlistURL,
+            referer: item.playURL,
+            expectedEpisodeKey: expectedEpisodeKey
+        )
+    }
+
+    private func fetchEpisodes(
+        _ url: URL,
+        referer: URL,
+        expectedEpisodeKey: String?
+    ) async throws -> [Episode] {
+        var attempt = 0
+        while true {
+            do {
+                let data = try await fetch(url, referer: referer)
+                let episodes = try EpisodePlaylistResponseDecoder.decodeEpisodes(data)
+                if let expectedEpisodeKey,
+                   !episodes.contains(where: { $0.mediaKey == expectedEpisodeKey }) {
+                    throw NativePlaybackError.invalidResponse
+                }
+                return episodes
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch {
+                guard attempt < playlistRetryDelays.count, shouldRetryPlaylist(error) else {
+                    throw error
+                }
+                let delay = playlistRetryDelays[attempt]
+                attempt += 1
+                if delay > .zero {
+                    try await Task.sleep(for: delay)
+                }
+                try Task.checkCancellation()
+            }
+        }
+    }
+
+    private func shouldRetryPlaylist(_ error: Error) -> Bool {
+        if let playbackError = error as? NativePlaybackError {
+            return playbackError == .invalidResponse || playbackError == .unsupportedMedia
+        }
+        return error is URLError
+    }
+
+    private func certificate(for item: AiyifanItem, pageHost: String) async throws -> PlaybackCertificate {
+        guard let domain = RemoteResourceHostValidator.matchingProviderDomain(for: pageHost) else {
+            throw NativePlaybackError.unsupportedSite
+        }
+        return try await certificateCache.certificate(for: domain) {
+            var request = URLRequest(url: item.playURL)
+            request.timeoutInterval = 15
+            request.cachePolicy = .reloadIgnoringLocalCacheData
+            let (data, response) = try await session.data(for: request)
+            try validate(response, maximumBytes: 1_000_000, actualBytes: data.count)
+            return try PlaybackCertificateParser.parse(data)
+        }
     }
 
     private func fetch(_ url: URL, referer: URL) async throws -> Data {
@@ -625,7 +744,39 @@ struct NativePlaybackResolver: NativePlaybackResolving {
     }
 }
 
-struct FixtureNativePlaybackResolver: NativePlaybackResolving {
+extension NativePlaybackResolver: SavedEpisodeResolving {
+    func latestEpisode(for item: AiyifanItem, expectedEpisodeKey: String?) async throws -> EpisodeSelection? {
+        let pageHost = try Self.validatePage(item)
+        let certificate = try await certificate(for: item, pageHost: pageHost)
+        let detailURL = try NativePlaybackRequestBuilder.makeDetailURL(
+            mediaKey: item.listPath,
+            siteHost: pageHost,
+            certificate: certificate
+        )
+        let detailData = try await fetch(detailURL, referer: item.playURL)
+        let context = try VideoDetailResponseDecoder.decode(detailData)
+        let isSerial = SerialPlaybackIntent.infer(providerIsSerial: context.isSerial, item: item)
+        guard isSerial else { return nil }
+
+        let playlistURL = try NativePlaybackRequestBuilder.makePlaylistURL(
+            seriesKey: item.listPath,
+            categoryID: context.categoryID,
+            siteHost: pageHost,
+            certificate: certificate
+        )
+        let episodes = try await fetchEpisodes(
+            playlistURL,
+            referer: item.playURL,
+            expectedEpisodeKey: expectedEpisodeKey
+        )
+        guard let latest = episodes.first else {
+            throw NativePlaybackError.unsupportedMedia
+        }
+        return EpisodeSelection(mediaKey: latest.mediaKey, title: latest.title)
+    }
+}
+
+struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving, SavedEpisodeResolving {
     func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
         let isSerial = item.isSerial == true || item.latestEpisodeKey != nil || preferredEpisodeKey != nil
         let episodes = [
@@ -653,5 +804,21 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving {
             selectedEpisode: selected,
             metrics: ViewerMetrics(likes: 76, favorites: 221, score: 9.6, views: 170_000)
         )
+    }
+
+    func latestEpisode(for item: AiyifanItem, expectedEpisodeKey: String?) async throws -> EpisodeSelection? {
+        guard item.isSerial == true || item.latestEpisodeKey != nil else { return nil }
+        return EpisodeSelection(mediaKey: "episode-10", title: "10")
+    }
+
+    func loadEpisodes(for item: AiyifanItem, expectedEpisodeKey: String?) async throws -> [Episode] {
+        guard item.isSerial == true || item.latestEpisodeKey != nil || expectedEpisodeKey != nil else {
+            return []
+        }
+        return [
+            Episode(mediaKey: "episode-10", title: "10", updateDate: "2026-09-07T10:00:00Z"),
+            Episode(mediaKey: "episode-4", title: "04", updateDate: "2026-09-06T15:00:00Z"),
+            Episode(mediaKey: "episode-2", title: "02", updateDate: "2026-09-06T10:00:00Z")
+        ]
     }
 }

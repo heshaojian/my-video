@@ -4,11 +4,13 @@ Date: 2026-09-07
 
 ## Automated Regression
 
-- Full iPhone 17 Pro simulator run after the English-interface, metrics, catalog-preference, and playback changes: 152/152 actual test cases passed (124 unit/integration, 28 UI).
-- Xcode reported a runner-service infrastructure failure after all 28 UI test cases had passed; no test case or assertion failed.
+- Full iPhone 17 Pro simulator run after the continuous-playback, quality, episode-recovery, and daily-update changes: 168/168 actual test cases passed (139 unit/integration, 29 UI).
 - App-icon, launch-branding, lock-screen metadata, audio-session, interruption recovery, and MediaPlayer background-artwork regression tests: passed.
 - Program-only local/Cast queues, frozen Played timestamps, active-playback-only progress, and fullscreen/Picture in Picture lifecycle tests: passed.
 - Native catalog filter, persistent per-category sort, result count, Save/play, pagination, retry, and race-condition tests: passed.
+- Exact-1080p default selection, highest-rendition fallback, persisted manual quality, and in-place player-item updates: passed.
+- Shared full/mini player ownership, browsing while playback remains active, independent episode recovery, and four-attempt partial-playlist retry: passed.
+- Direct saved-title baseline, deduplication, daily due policy, partial-check handling, per-title notification preference, and episode deep link: passed.
 - Deterministic 50-plus-action power-user session: passed on the stable iPhone 17 Pro simulator.
 - Release simulator build: passed.
 - Xcode static analysis: passed with no findings.
@@ -29,13 +31,16 @@ The long-session scenario repeatedly opens and closes native playback from Lates
 | Save/favorite add, remove, persistence, and update tracking | Saved store plus Latest/catalog UI scenarios | Passed | No |
 | Native movie and serial playback without an implicit web view | Routing, resolver, and playback UI scenarios | Passed | No |
 | Complete episode list, newest-first ordering, selection, autoplay continuity, and legacy Played restoration | Resolver, player model, navigator, and episode-picker scenarios | Passed | No |
+| Known latest episode starts before an independently retried full episode list; incomplete lists cannot silently substitute episode 1 | Resolver and player model recovery tests | Passed | No |
 | Provider advertisement exclusion from local and Cast program queues | Resolver, player, Cast, and UI scenarios | Passed | Receiver confirmation pending |
 | Played third tab, frozen inactive timestamps, resume, completion, watched state, restart, remove, and clear | Played store, player model, and Played UI scenarios | Passed | No |
 | Fullscreen and Picture in Picture transitions preserve the active player session | Player lifecycle and fullscreen UI scenarios | Passed | PiP pending |
+| Back collapses to a retained video mini-player while Latest, Saved, Played, and All remain navigable | Session state tests plus mini-player and power-user UI scenarios | Passed | Continuity pending |
+| Fresh default 1080p, highest available fallback, and persistent manual native quality | Quality projection, preference, and player-item tests | Passed | AirPlay quality pending |
 | Background audio, interruption recovery, and lock-screen metadata/controls | Playback feature contract tests | Passed | Lock-screen playback pending |
 | AirPlay and Google Cast controls, handoff metadata, queue, and simulated remote controls | Cast unit and UI scenarios | Passed | Real receivers pending |
 | Playback speed, sleep timer, next/previous episode, retry, and explicit website fallback | Playback feature, player model, and routing tests | Passed | No |
-| Settings, notifications, deep links, cache fallback, optional iCloud merge | Library service and settings UI scenarios | Passed | Delivery/iCloud pending |
+| Direct best-effort daily checks for every saved serial title, Settings Check Now/Last Checked, notifications, deep links, cache fallback, optional iCloud merge | Saved store, update policy, notification, and settings scenarios | Passed | Delivery/timing/iCloud pending |
 | Popup containment and untrusted URL/redirect/media input rejection | Popup, routing, catalog, resolver, and redirect security tests | Passed | No |
 | Long-session navigation and collection consistency over 50 actions | Heavy-user UI scenario | Passed | No |
 

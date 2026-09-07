@@ -12,19 +12,79 @@ struct BrowserView: View {
     @StateObject private var savedItemsStore = SavedItemsStore()
     @StateObject private var playedItemsStore = PlayedItemsStore()
     @StateObject private var appSettings = AppSettingsStore()
+    @StateObject private var playbackSession = PlaybackSessionController()
+    @StateObject private var castManager = GoogleCastManager.shared
+    @StateObject private var savedUpdateMonitor = SavedUpdateMonitor()
     @State private var selectedLibraryTab = LibraryTab.latest
+    @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
-        Group {
-            if let selectedItem = viewModel.selectedItem {
+        ZStack {
+            baseContent
+
+            if playbackSession.presentation == .expanded,
+               let playerViewModel = playbackSession.viewModel {
                 NativePlayerScreen(
-                    item: selectedItem,
-                    initialEpisodeKey: viewModel.selectedEpisodeKey,
-                    playedItemsStore: playedItemsStore,
-                    onClose: viewModel.closePlayer,
-                    onOpenWebsite: { viewModel.openWebsiteFallback(for: selectedItem) }
+                    viewModel: playerViewModel,
+                    onClose: playbackSession.collapse,
+                    onOpenWebsite: {
+                        let item = playerViewModel.item
+                        playbackSession.stop()
+                        viewModel.openWebsiteFallback(for: item)
+                    }
                 )
-            } else if let selectedCategory = viewModel.selectedCategory {
+                .transition(.move(edge: .trailing))
+                .zIndex(2)
+            }
+        }
+        .overlay(alignment: .bottom) {
+            if playbackSession.presentation == .collapsed,
+               let playerViewModel = playbackSession.viewModel,
+               !castManager.isCasting {
+                NativeMiniPlayer(
+                    viewModel: playerViewModel,
+                    onExpand: playbackSession.expand,
+                    onClose: playbackSession.stop
+                )
+                .padding(.horizontal, 10)
+                .padding(.bottom, showsLibrary ? 50 : 8)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                .zIndex(3)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: playbackSession.presentation)
+        .onChange(of: viewModel.selectedItem) { _, item in
+            guard let item else { return }
+            let monitorsPlayback = !ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed")
+                || ProcessInfo.processInfo.arguments.contains("-AiyifanUsePlayableFixtureMedia")
+            playbackSession.play(
+                item: item,
+                episodeKey: viewModel.selectedEpisodeKey,
+                playedItemsStore: playedItemsStore,
+                monitorPlayback: monitorsPlayback
+            )
+            viewModel.closePlayer()
+        }
+        .onOpenURL { url in
+            if let destination = AiyifanDeepLink.parse(url) {
+                viewModel.openDeepLink(destination)
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            guard phase == .active else { return }
+            Task {
+                await savedUpdateMonitor.check(
+                    savedItemsStore: savedItemsStore,
+                    settings: appSettings
+                )
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var baseContent: some View {
+        Group {
+            if let selectedCategory = viewModel.selectedCategory {
                 NativeCategoryCatalogView(
                     category: selectedCategory,
                     savedItemsStore: savedItemsStore,
@@ -37,6 +97,7 @@ struct BrowserView: View {
                     savedItemsStore: savedItemsStore,
                     playedItemsStore: playedItemsStore,
                     appSettings: appSettings,
+                    savedUpdateMonitor: savedUpdateMonitor,
                     selectedTab: $selectedLibraryTab
                 )
             } else {
@@ -75,11 +136,10 @@ struct BrowserView: View {
                 }
             }
         }
-        .onOpenURL { url in
-            if let destination = AiyifanDeepLink.parse(url) {
-                viewModel.openDeepLink(destination)
-            }
-        }
+    }
+
+    private var showsLibrary: Bool {
+        viewModel.selectedCategory == nil && !viewModel.isBrowsing
     }
 }
 
@@ -88,6 +148,7 @@ private struct LibraryView: View {
     @ObservedObject var savedItemsStore: SavedItemsStore
     @ObservedObject var playedItemsStore: PlayedItemsStore
     @ObservedObject var appSettings: AppSettingsStore
+    @ObservedObject var savedUpdateMonitor: SavedUpdateMonitor
     @Binding var selectedTab: LibraryTab
     @StateObject private var castManager = GoogleCastManager.shared
     @State private var isShowingCastControls = false
@@ -99,7 +160,8 @@ private struct LibraryView: View {
                     viewModel: viewModel,
                     savedItemsStore: savedItemsStore,
                     playedItemsStore: playedItemsStore,
-                    appSettings: appSettings
+                    appSettings: appSettings,
+                    savedUpdateMonitor: savedUpdateMonitor
                 )
                     .tabItem {
                         Label("Latest", systemImage: "sparkles.tv")
@@ -164,6 +226,7 @@ private struct LatestHomeView: View {
     @ObservedObject var savedItemsStore: SavedItemsStore
     @ObservedObject var playedItemsStore: PlayedItemsStore
     @ObservedObject var appSettings: AppSettingsStore
+    @ObservedObject var savedUpdateMonitor: SavedUpdateMonitor
     @State private var filter = LibraryFilter()
     @State private var isShowingFilters = false
     @State private var isShowingSettings = false
@@ -293,7 +356,8 @@ private struct LatestHomeView: View {
                 settings: appSettings,
                 viewModel: viewModel,
                 savedItemsStore: savedItemsStore,
-                playedItemsStore: playedItemsStore
+                playedItemsStore: playedItemsStore,
+                savedUpdateMonitor: savedUpdateMonitor
             )
         }
         .task {
@@ -307,6 +371,12 @@ private struct LatestHomeView: View {
                 await NotificationCoordinator.shared.schedule(batch)
             }
             BackgroundRefreshScheduler.schedule()
+        }
+        .task {
+            await savedUpdateMonitor.check(
+                savedItemsStore: savedItemsStore,
+                settings: appSettings
+            )
         }
     }
 

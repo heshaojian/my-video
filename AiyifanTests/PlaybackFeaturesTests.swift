@@ -7,6 +7,61 @@ import XCTest
 
 @MainActor
 final class PlaybackFeaturesTests: XCTestCase {
+    func testPlaybackQualityProjectionRejectsMalformedVariantsAndDeduplicatesHeights() {
+        let options = PlaybackQualityProjector.options(from: [
+            PlaybackVariantDescriptor(width: 3_840, height: 2_160, averageBitRate: 12_000_000, peakBitRate: 16_000_000),
+            PlaybackVariantDescriptor(width: 1_920, height: 1_080, averageBitRate: 5_000_000, peakBitRate: 7_000_000),
+            PlaybackVariantDescriptor(width: 1_920, height: 1_080, averageBitRate: 6_000_000, peakBitRate: 8_000_000),
+            PlaybackVariantDescriptor(width: 1_280, height: 720, averageBitRate: 3_000_000, peakBitRate: 4_000_000),
+            PlaybackVariantDescriptor(width: 0, height: 720, averageBitRate: 1_000_000, peakBitRate: 2_000_000),
+            PlaybackVariantDescriptor(width: 640, height: -1, averageBitRate: 1_000_000, peakBitRate: 2_000_000),
+            PlaybackVariantDescriptor(width: 640, height: 360, averageBitRate: .nan, peakBitRate: 2_000_000)
+        ])
+
+        XCTAssertEqual(options.map(\.height), [2_160, 1_080, 720])
+        XCTAssertEqual(options.map(\.title), ["2160p", "1080p", "720p"])
+        XCTAssertEqual(options.first(where: { $0.height == 1_080 })?.peakBitRate, 8_000_000)
+    }
+
+    func testPlaybackQualitySelectionDefaultsToExact1080AndFallsBackPredictably() throws {
+        let options = PlaybackQualityProjector.options(from: [
+            PlaybackVariantDescriptor(width: 3_840, height: 2_160, averageBitRate: 12_000_000, peakBitRate: 16_000_000),
+            PlaybackVariantDescriptor(width: 1_920, height: 1_080, averageBitRate: 5_000_000, peakBitRate: 7_000_000),
+            PlaybackVariantDescriptor(width: 1_280, height: 720, averageBitRate: 3_000_000, peakBitRate: 4_000_000)
+        ])
+
+        XCTAssertEqual(PlaybackQualitySelector.select(from: options, targetHeight: 1_080)?.height, 1_080)
+        XCTAssertEqual(PlaybackQualitySelector.select(from: options, targetHeight: 900)?.height, 720)
+        XCTAssertEqual(PlaybackQualitySelector.select(from: options, targetHeight: 480)?.height, 2_160)
+
+        let without1080 = options.filter { $0.height != 1_080 }
+        XCTAssertEqual(
+            PlaybackQualitySelector.select(
+                from: without1080,
+                targetHeight: 1_080,
+                fallbackToHighest: true
+            )?.height,
+            2_160
+        )
+    }
+
+    func testPlaybackQualityPreferenceDefaultsTo1080PersistsAndRecoversFromCorruption() {
+        let suite = "PlaybackQualityPreferenceTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        let store = PlaybackQualityPreferenceStore(defaults: defaults, storageKey: "quality")
+        XCTAssertEqual(store.targetHeight, 1_080)
+        XCTAssertFalse(store.hasManualSelection)
+
+        store.setTargetHeight(720)
+        XCTAssertEqual(PlaybackQualityPreferenceStore(defaults: defaults, storageKey: "quality").targetHeight, 720)
+        XCTAssertTrue(PlaybackQualityPreferenceStore(defaults: defaults, storageKey: "quality").hasManualSelection)
+
+        defaults.set(-4, forKey: "quality")
+        XCTAssertEqual(PlaybackQualityPreferenceStore(defaults: defaults, storageKey: "quality").targetHeight, 1_080)
+    }
+
     func testPlaybackPreferencesPersistRateAndAutoplay() {
         let suite = "PlaybackFeaturesTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!

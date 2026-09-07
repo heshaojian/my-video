@@ -5,6 +5,74 @@ import XCTest
 
 @MainActor
 final class NativePlayerViewModelTests: XCTestCase {
+    func testPlayerAppliesDefault1080QualityAndChangesItWithoutReplacingCurrentItem() async throws {
+        let suite = "NativePlayerQualityTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let preferences = PlaybackQualityPreferenceStore(defaults: defaults, storageKey: "quality")
+        let options = PlaybackQualityProjector.options(from: [
+            PlaybackVariantDescriptor(width: 3_840, height: 2_160, averageBitRate: 12_000_000, peakBitRate: 16_000_000),
+            PlaybackVariantDescriptor(width: 1_920, height: 1_080, averageBitRate: 5_000_000, peakBitRate: 7_000_000),
+            PlaybackVariantDescriptor(width: 1_280, height: 720, averageBitRate: 3_000_000, peakBitRate: 4_000_000)
+        ])
+        let playback = NativePlayback(entries: [
+            NativePlaybackEntry(
+                url: URL(string: "https://media.example.com/master.m3u8")!,
+                isAdvertisement: false
+            )
+        ])
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            resolver: StubPlaybackResolver(playback: playback),
+            qualityLoader: StubQualityLoader(options: options),
+            qualityPreferences: preferences
+        )
+
+        viewModel.start()
+        try await waitUntil { viewModel.selectedQuality?.height == 1_080 }
+
+        let currentItem = try XCTUnwrap(viewModel.player.currentItem)
+        XCTAssertEqual(viewModel.qualityOptions.map(\.height), [2_160, 1_080, 720])
+        XCTAssertEqual(currentItem.preferredMaximumResolution, CGSize(width: 1_920, height: 1_080))
+        XCTAssertEqual(currentItem.preferredPeakBitRate, 7_000_000)
+
+        let lower = try XCTUnwrap(viewModel.qualityOptions.first { $0.height == 720 })
+        viewModel.setQuality(lower)
+
+        XCTAssertTrue(viewModel.player.currentItem === currentItem)
+        XCTAssertEqual(viewModel.selectedQuality?.height, 720)
+        XCTAssertEqual(currentItem.preferredMaximumResolution, CGSize(width: 1_280, height: 720))
+        XCTAssertEqual(currentItem.preferredPeakBitRate, 4_000_000)
+        XCTAssertEqual(preferences.targetHeight, 720)
+        viewModel.stop()
+    }
+
+    func testSingleQualityIsAppliedButDoesNotExposeQualityControl() async throws {
+        let option = PlaybackQualityOption(
+            width: 1_280,
+            height: 720,
+            averageBitRate: 3_000_000,
+            peakBitRate: 4_000_000
+        )
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            resolver: StubPlaybackResolver(playback: NativePlayback(entries: [
+                NativePlaybackEntry(
+                    url: URL(string: "https://media.example.com/master.m3u8")!,
+                    isAdvertisement: false
+                )
+            ])),
+            qualityLoader: StubQualityLoader(options: [option])
+        )
+
+        viewModel.start()
+        try await waitUntil { viewModel.selectedQuality != nil }
+
+        XCTAssertFalse(viewModel.shouldShowQualityControl)
+        XCTAssertEqual(viewModel.player.currentItem?.preferredMaximumResolution, CGSize(width: 1_280, height: 720))
+        viewModel.stop()
+    }
+
     func testSerialCatalogItemExposesEpisodeControlBeforeAndAfterResolution() async throws {
         let episodes = (1...10).reversed().map {
             Episode(mediaKey: "episode-\($0)", title: String(format: "%02d", $0), updateDate: nil)
@@ -37,6 +105,30 @@ final class NativePlayerViewModelTests: XCTestCase {
 
         XCTAssertEqual(viewModel.episodeControlTitle, "Episode 10/10")
         XCTAssertEqual(viewModel.episodes.map(\.mediaKey), (1...10).reversed().map { "episode-\($0)" })
+        viewModel.stop()
+    }
+
+    func testKnownLatestStartsBeforeIndependentEpisodeListRecoveryCompletes() async throws {
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(
+                listPath: "series",
+                title: "Series",
+                isSerial: true,
+                latestEpisodeKey: "episode-10",
+                latestEpisodeTitle: "10"
+            ),
+            resolver: IndependentEpisodeResolver(),
+            qualityLoader: StubQualityLoader(options: [])
+        )
+
+        viewModel.start()
+        try await waitUntil { viewModel.player.currentItem != nil }
+        let currentItem = viewModel.player.currentItem
+        try await waitUntil { viewModel.episodes.count == 2 }
+
+        XCTAssertTrue(viewModel.player.currentItem === currentItem)
+        XCTAssertEqual(viewModel.selectedEpisode?.mediaKey, "episode-10")
+        XCTAssertEqual(viewModel.episodeControlTitle, "Episode 10/10")
         viewModel.stop()
     }
 
@@ -447,5 +539,33 @@ private struct EpisodeAwareStubResolver: NativePlaybackResolving {
             episodes: episodes,
             selectedEpisode: selected
         )
+    }
+}
+
+private struct IndependentEpisodeResolver: NativePlaybackResolving, EpisodePlaylistResolving {
+    func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
+        NativePlayback(
+            entries: [NativePlaybackEntry(
+                url: URL(string: "https://media.example.com/episode-10.m3u8")!,
+                isAdvertisement: false
+            )],
+            selectedEpisode: Episode(mediaKey: "episode-10", title: "10", updateDate: nil)
+        )
+    }
+
+    func loadEpisodes(for item: AiyifanItem, expectedEpisodeKey: String?) async throws -> [Episode] {
+        try await Task.sleep(for: .milliseconds(20))
+        return [
+            Episode(mediaKey: "episode-10", title: "10", updateDate: nil),
+            Episode(mediaKey: "episode-9", title: "09", updateDate: nil)
+        ]
+    }
+}
+
+private struct StubQualityLoader: PlaybackQualityLoading {
+    let options: [PlaybackQualityOption]
+
+    func loadOptions(for url: URL) async throws -> [PlaybackQualityOption] {
+        options
     }
 }

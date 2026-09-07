@@ -5,6 +5,7 @@ struct AppSettingsView: View {
     @ObservedObject var viewModel: BrowserViewModel
     @ObservedObject var savedItemsStore: SavedItemsStore
     @ObservedObject var playedItemsStore: PlayedItemsStore
+    @ObservedObject var savedUpdateMonitor: SavedUpdateMonitor
     @StateObject private var notifications = NotificationCoordinator.shared
     @StateObject private var cloudSync = CloudLibrarySync.shared
     @StateObject private var playback = PlaybackPreferencesStore()
@@ -17,8 +18,25 @@ struct AppSettingsView: View {
                     Toggle("Update Alerts", isOn: alertBinding)
                         .accessibilityIdentifier("updateAlertsToggle")
                     LabeledContent("Permission", value: notifications.permissionState.rawValue)
-                    Button("Refresh Latest", systemImage: "arrow.clockwise") {
+                    if let date = savedItemsStore.lastDirectUpdateCheck {
+                        LabeledContent(
+                            "Last Checked",
+                            value: date.formatted(date: .abbreviated, time: .shortened)
+                        )
+                    } else {
+                        LabeledContent("Last Checked", value: "Never")
+                    }
+                    Button("Check Now", systemImage: "arrow.clockwise") {
                         Task { await refreshLatest() }
+                    }
+                    .disabled(savedUpdateMonitor.isChecking)
+                    .accessibilityIdentifier("checkSavedUpdates")
+                    if savedUpdateMonitor.isChecking {
+                        ProgressView("Checking saved titles")
+                    } else if let status = savedUpdateMonitor.statusMessage {
+                        Text(status)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                 }
 
@@ -125,5 +143,10 @@ struct AppSettingsView: View {
            ) {
             await notifications.schedule(batch)
         }
+        await savedUpdateMonitor.check(
+            savedItemsStore: savedItemsStore,
+            settings: settings,
+            force: true
+        )
     }
 }

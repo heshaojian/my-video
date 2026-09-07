@@ -123,6 +123,28 @@ struct NotificationBatch: Equatable, Sendable {
         let suffix = count > 3 ? " and \(count - 3) more" : ""
         return NotificationBatch(title: title, body: names + suffix, deepLink: deepLink)
     }
+
+    static func make(
+        episodeUpdates: [SavedEpisodeUpdate],
+        notificationsEnabled: (AiyifanItem) -> Bool
+    ) -> NotificationBatch? {
+        let enabled = episodeUpdates.filter { notificationsEnabled($0.item) }
+        guard
+            let first = enabled.first,
+            let deepLink = AiyifanDeepLink.makeURL(
+                item: first.item,
+                episodeKey: first.episode.mediaKey
+            )
+        else {
+            return nil
+        }
+        let count = enabled.count
+        let title = "Aiyifan: \(count) new episode\(count == 1 ? "" : "s")"
+        let names = enabled.prefix(3).map { "\($0.item.title) Episode \($0.episode.title)" }
+            .joined(separator: ", ")
+        let suffix = count > 3 ? " and \(count - 3) more" : ""
+        return NotificationBatch(title: title, body: names + suffix, deepLink: deepLink)
+    }
 }
 
 enum NotificationPermissionState: String, Sendable {

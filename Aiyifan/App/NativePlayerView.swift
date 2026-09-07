@@ -55,15 +55,24 @@ final class NativePlayerViewModel: ObservableObject {
     @Published private(set) var sleepTimer = SleepTimerState.off
     @Published private(set) var autoplayCountdown: Int?
     @Published private(set) var viewerMetrics: ViewerMetrics?
+    @Published private(set) var qualityOptions: [PlaybackQualityOption] = []
+    @Published private(set) var selectedQuality: PlaybackQualityOption?
+    @Published private(set) var isPlaying = false
+    @Published private(set) var isLoadingEpisodes = false
+    @Published private(set) var episodeErrorMessage: String?
 
-    private let item: AiyifanItem
+    let item: AiyifanItem
     private let resolver: any NativePlaybackResolving
     private let playedItemsStore: PlayedItemsStore?
     private let castManager: any CastPlaybackManaging
     private let preferences: PlaybackPreferencesStore
+    private let qualityLoader: any PlaybackQualityLoading
+    private let qualityPreferences: PlaybackQualityPreferenceStore
     private var playbackItems: [AVPlayerItem] = []
     private var playbackEntries: [NativePlaybackEntry] = []
     private var loadTask: Task<Void, Never>?
+    private var qualityTask: Task<Void, Never>?
+    private var episodeLoadTask: Task<Void, Never>?
     private var requestedEpisodeKey: String?
     private var lastRecordedPosition: Double?
     private var autoplayTask: Task<Void, Never>?
@@ -84,12 +93,19 @@ final class NativePlayerViewModel: ObservableObject {
         expectsEpisodes || !episodes.isEmpty
     }
 
+    var shouldShowQualityControl: Bool {
+        qualityOptions.count > 1
+    }
+
     var episodeControlTitle: String? {
         guard shouldShowEpisodeControl else {
             return nil
         }
         guard let selectedEpisode, !episodes.isEmpty else {
-            return isLoading ? "Loading Episodes" : "Select Episode"
+            if episodeErrorMessage != nil {
+                return "Retry Episodes"
+            }
+            return isLoading || isLoadingEpisodes ? "Loading Episodes" : "Select Episode"
         }
         let selectedNumber = episodeNumber(in: selectedEpisode.title)
         let numericTotal = episodes.compactMap { episodeNumber(in: $0.title) }.max()
@@ -108,15 +124,23 @@ final class NativePlayerViewModel: ObservableObject {
         resolver: any NativePlaybackResolving = NativePlaybackResolver(),
         playedItemsStore: PlayedItemsStore? = nil,
         castManager: any CastPlaybackManaging = GoogleCastManager.shared,
-        preferences: PlaybackPreferencesStore = PlaybackPreferencesStore()
+        preferences: PlaybackPreferencesStore = PlaybackPreferencesStore(),
+        qualityLoader: any PlaybackQualityLoading = AVAssetPlaybackQualityLoader(),
+        qualityPreferences: PlaybackQualityPreferenceStore = PlaybackQualityPreferenceStore()
     ) {
         self.item = item
-        expectsEpisodes = item.isSerial == true || item.latestEpisodeKey != nil || initialEpisodeKey != nil
+        expectsEpisodes = SerialPlaybackIntent.infer(
+            providerIsSerial: false,
+            item: item,
+            preferredEpisodeKey: initialEpisodeKey
+        )
         requestedEpisodeKey = initialEpisodeKey
         self.resolver = resolver
         self.playedItemsStore = playedItemsStore
         self.castManager = castManager
         self.preferences = preferences
+        self.qualityLoader = qualityLoader
+        self.qualityPreferences = qualityPreferences
         playbackRate = preferences.playbackRate
         autoplayNext = preferences.autoplayNext
         player.defaultRate = preferences.playbackRate
@@ -151,6 +175,8 @@ final class NativePlayerViewModel: ObservableObject {
 
     private func beginLoad() {
         loadTask?.cancel()
+        qualityTask?.cancel()
+        episodeLoadTask?.cancel()
         cancelAutoplay()
         loadTask = Task { [weak self] in
             await self?.prepareAndPlay()
@@ -161,13 +187,22 @@ final class NativePlayerViewModel: ObservableObject {
         persistProgress()
         loadTask?.cancel()
         loadTask = nil
+        qualityTask?.cancel()
+        qualityTask = nil
+        episodeLoadTask?.cancel()
+        episodeLoadTask = nil
         monitorTask?.cancel()
         monitorTask = nil
         cancelAutoplay()
         player.pause()
+        isPlaying = false
         player.removeAllItems()
         playbackItems = []
         playbackEntries = []
+        qualityOptions = []
+        selectedQuality = nil
+        isLoadingEpisodes = false
+        episodeErrorMessage = nil
         preparedEntryCount = 0
         progressState = PlaybackProgressState()
         presentationState = PlayerPresentationState()
@@ -184,6 +219,10 @@ final class NativePlayerViewModel: ObservableObject {
         persistProgress()
         requestedEpisodeKey = episode.mediaKey
         beginLoad()
+    }
+
+    func retryEpisodes() {
+        beginEpisodeLoad()
     }
 
     func playNextEpisode() {
@@ -208,6 +247,39 @@ final class NativePlayerViewModel: ObservableObject {
             player.playImmediately(atRate: playbackRate)
         }
         updateNowPlaying(position: player.currentTime().seconds, duration: player.currentItem?.duration.seconds ?? 0)
+    }
+
+    func play() {
+        guard player.currentItem != nil, !castManager.isCasting else { return }
+        player.playImmediately(atRate: playbackRate)
+        isPlaying = true
+        updateNowPlaying(
+            position: player.currentTime().seconds,
+            duration: player.currentItem?.duration.seconds ?? 0
+        )
+    }
+
+    func pause() {
+        player.pause()
+        isPlaying = false
+        persistProgress()
+        updateNowPlaying(
+            position: player.currentTime().seconds,
+            duration: player.currentItem?.duration.seconds ?? 0
+        )
+    }
+
+    func togglePlayback() {
+        isPlaying ? pause() : play()
+    }
+
+    func setQuality(_ quality: PlaybackQualityOption) {
+        guard let available = qualityOptions.first(where: { $0.id == quality.id }) else {
+            return
+        }
+        qualityPreferences.setTargetHeight(available.height)
+        selectedQuality = available
+        playbackItems.forEach { apply(available, to: $0) }
     }
 
     func setAutoplayNext(_ enabled: Bool) {
@@ -284,12 +356,17 @@ final class NativePlayerViewModel: ObservableObject {
         episodes = []
         selectedEpisode = nil
         viewerMetrics = nil
+        qualityOptions = []
+        selectedQuality = nil
+        isLoadingEpisodes = false
+        episodeErrorMessage = nil
         pendingResumePosition = 0
         lastRecordedPosition = nil
         progressState = PlaybackProgressState()
         hasAppliedResume = false
         preparedEntryCount = 0
         player.pause()
+        isPlaying = false
         player.removeAllItems()
 
         do {
@@ -313,6 +390,7 @@ final class NativePlayerViewModel: ObservableObject {
                 selectedEpisode: playback.selectedEpisode
             )
             let items = programEntries.map { AVPlayerItem(url: $0.url) }
+            items.forEach(applyInitialQualityPreference)
             playbackEntries = programEntries
             preparedEntryCount = programEntries.count
             playbackItems = items
@@ -332,8 +410,16 @@ final class NativePlayerViewModel: ObservableObject {
             }
             if castManager.isCasting {
                 player.pause()
+                isPlaying = false
             } else {
                 player.playImmediately(atRate: playbackRate)
+                isPlaying = true
+            }
+            if let programURL = programEntries.first?.url {
+                beginQualityLoad(for: programURL)
+            }
+            if expectsEpisodes, episodes.isEmpty {
+                beginEpisodeLoad()
             }
         } catch is CancellationError {
             return
@@ -341,6 +427,81 @@ final class NativePlayerViewModel: ObservableObject {
             isLoading = false
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
         }
+    }
+
+    private func beginEpisodeLoad() {
+        guard let loader = resolver as? any EpisodePlaylistResolving else { return }
+        episodeLoadTask?.cancel()
+        isLoadingEpisodes = true
+        episodeErrorMessage = nil
+        let expectedEpisodeKey = selectedEpisode?.mediaKey
+            ?? requestedEpisodeKey
+            ?? item.latestEpisodeKey
+        episodeLoadTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let loadedEpisodes = try await loader.loadEpisodes(
+                    for: item,
+                    expectedEpisodeKey: expectedEpisodeKey
+                )
+                try Task.checkCancellation()
+                episodes = loadedEpisodes
+                if let currentKey = selectedEpisode?.mediaKey,
+                   let recoveredSelection = loadedEpisodes.first(where: { $0.mediaKey == currentKey }) {
+                    selectedEpisode = recoveredSelection
+                    episodeTitle = recoveredSelection.title
+                }
+                isLoadingEpisodes = false
+            } catch is CancellationError {
+                return
+            } catch {
+                guard !Task.isCancelled else { return }
+                isLoadingEpisodes = false
+                episodeErrorMessage = "The episode list could not be loaded."
+            }
+        }
+    }
+
+    private func beginQualityLoad(for url: URL) {
+        qualityTask?.cancel()
+        qualityTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let options = try await qualityLoader.loadOptions(for: url)
+                try Task.checkCancellation()
+                qualityOptions = options
+                guard let quality = PlaybackQualitySelector.select(
+                    from: options,
+                    targetHeight: qualityPreferences.targetHeight,
+                    fallbackToHighest: !qualityPreferences.hasManualSelection
+                ) else {
+                    selectedQuality = nil
+                    return
+                }
+                selectedQuality = quality
+                playbackItems.forEach { apply(quality, to: $0) }
+            } catch {
+                guard !Task.isCancelled else { return }
+                qualityOptions = []
+                selectedQuality = nil
+            }
+        }
+    }
+
+    private func apply(_ quality: PlaybackQualityOption, to item: AVPlayerItem) {
+        item.preferredMaximumResolution = CGSize(
+            width: quality.width,
+            height: quality.height
+        )
+        item.preferredPeakBitRate = quality.peakBitRate ?? quality.averageBitRate ?? 0
+    }
+
+    private func applyInitialQualityPreference(to item: AVPlayerItem) {
+        let height = qualityPreferences.targetHeight
+        item.preferredMaximumResolution = CGSize(
+            width: Int((Double(height) * 16 / 9).rounded()),
+            height: height
+        )
     }
 
     private func resolveWithRecovery() async throws -> NativePlayback {
@@ -361,8 +522,11 @@ final class NativePlayerViewModel: ObservableObject {
 
     private func updatePlaybackState() {
         guard let currentItem = player.currentItem else {
+            isPlaying = false
             return
         }
+
+        isPlaying = player.timeControlStatus == .playing
 
         if let currentIndex = playbackItems.firstIndex(where: { $0 === currentItem }) {
             handlePlaybackEntry(
@@ -444,6 +608,7 @@ final class NativePlayerViewModel: ObservableObject {
 
     private func pauseForSleepTimer() {
         player.pause()
+        isPlaying = false
         sleepTimer = .off
         cancelAutoplay()
     }
@@ -495,34 +660,20 @@ struct NativePlayerScreen: View {
     let onClose: () -> Void
     let onOpenWebsite: () -> Void
 
-    @StateObject private var viewModel: NativePlayerViewModel
+    @ObservedObject private var viewModel: NativePlayerViewModel
     @StateObject private var castManager = GoogleCastManager.shared
     @State private var isShowingEpisodes = false
     @Environment(\.scenePhase) private var scenePhase
-    private let monitorsPlayback: Bool
 
     init(
-        item: AiyifanItem,
-        initialEpisodeKey: String? = nil,
-        playedItemsStore: PlayedItemsStore,
+        viewModel: NativePlayerViewModel,
         onClose: @escaping () -> Void,
         onOpenWebsite: @escaping () -> Void
     ) {
-        self.item = item
+        self.item = viewModel.item
         self.onClose = onClose
         self.onOpenWebsite = onOpenWebsite
-        let usesFixturePlayback = ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed")
-        monitorsPlayback = !usesFixturePlayback
-            || ProcessInfo.processInfo.arguments.contains("-AiyifanUsePlayableFixtureMedia")
-        let resolver: any NativePlaybackResolving = usesFixturePlayback
-            ? FixtureNativePlaybackResolver()
-            : NativePlaybackResolver()
-        _viewModel = StateObject(wrappedValue: NativePlayerViewModel(
-            item: item,
-            initialEpisodeKey: initialEpisodeKey,
-            resolver: resolver,
-            playedItemsStore: playedItemsStore
-        ))
+        self.viewModel = viewModel
     }
 
     var body: some View {
@@ -544,7 +695,11 @@ struct NativePlayerScreen: View {
                 HStack(spacing: 2) {
                     if let episodeTitle = viewModel.episodeControlTitle {
                         Button {
-                            isShowingEpisodes = true
+                            if viewModel.episodes.isEmpty, viewModel.episodeErrorMessage != nil {
+                                viewModel.retryEpisodes()
+                            } else {
+                                isShowingEpisodes = true
+                            }
                         } label: {
                             Text(episodeTitle)
                                 .font(.caption.weight(.semibold))
@@ -552,7 +707,7 @@ struct NativePlayerScreen: View {
                                 .minimumScaleFactor(0.8)
                                 .frame(minHeight: 44)
                         }
-                        .disabled(viewModel.episodes.isEmpty)
+                        .disabled(viewModel.episodes.isEmpty && viewModel.episodeErrorMessage == nil)
                         .accessibilityLabel("Episodes, \(episodeTitle)")
                         .accessibilityIdentifier("showEpisodes")
 
@@ -639,12 +794,6 @@ struct NativePlayerScreen: View {
             .background(Color.black)
         }
         .background(Color.black)
-        .task {
-            viewModel.start(monitorPlayback: monitorsPlayback)
-        }
-        .onDisappear {
-            viewModel.handleScreenDisappear()
-        }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
                 viewModel.persistProgress()
@@ -653,7 +802,7 @@ struct NativePlayerScreen: View {
         .onChange(of: castManager.isCasting) { _, isCasting in
             if isCasting {
                 viewModel.persistProgress()
-                viewModel.player.pause()
+                viewModel.pause()
             }
         }
         .sheet(isPresented: $isShowingEpisodes) {
@@ -683,7 +832,6 @@ struct NativePlayerScreen: View {
     }
 
     private func closePlayer() {
-        viewModel.stop()
         onClose()
     }
 
@@ -722,6 +870,24 @@ struct NativePlayerScreen: View {
                         }
                     }
                 }
+            }
+
+            if viewModel.shouldShowQualityControl {
+                Menu("Quality") {
+                    ForEach(viewModel.qualityOptions) { quality in
+                        Button {
+                            viewModel.setQuality(quality)
+                        } label: {
+                            if quality.id == viewModel.selectedQuality?.id {
+                                Label(quality.title, systemImage: "checkmark")
+                            } else {
+                                Text(quality.title)
+                            }
+                        }
+                        .accessibilityIdentifier("playbackQuality-\(quality.height)")
+                    }
+                }
+                .accessibilityIdentifier("playbackQuality")
             }
 
             Menu("Sleep Timer") {

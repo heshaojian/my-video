@@ -135,6 +135,25 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
     }
 
+    func testBackCollapsesPlaybackAndKeepsNavigationAvailable() {
+        let app = launchFixtureApp()
+        let latestItem = app.buttons["latestItem-fixture-movie"]
+        XCTAssertTrue(latestItem.waitForExistence(timeout: 5))
+
+        latestItem.tap()
+        XCTAssertTrue(app.buttons["closeNativePlayer"].waitForExistence(timeout: 5))
+        app.buttons["closeNativePlayer"].tap()
+
+        XCTAssertTrue(app.otherElements["nativeMiniPlayer"].waitForExistence(timeout: 5))
+        app.tabBars.buttons["Saved"].tap()
+        XCTAssertTrue(app.otherElements["nativeMiniPlayer"].exists)
+        app.buttons["expandMiniPlayer"].tap()
+        XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
+        app.buttons["closeNativePlayer"].tap()
+        app.buttons["closeMiniPlayer"].tap()
+        XCTAssertFalse(app.otherElements["nativeMiniPlayer"].exists)
+    }
+
     func testAllCategoryButtonOpensNativeCatalogWithoutBrowser() {
         let app = launchFixtureApp()
         let categoryButton = app.buttons["browseCategory-movie"]
@@ -563,6 +582,7 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(app.buttons["showEpisodes"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["showEpisodes"].label.contains("4/10"))
         app.buttons["closeNativePlayer"].tap()
+        XCTAssertTrue(app.otherElements["nativeMiniPlayer"].waitForExistence(timeout: 5))
 
         app.buttons["clearPlayed"].tap()
         XCTAssertTrue(app.alerts["Clear Played History?"].waitForExistence(timeout: 2))

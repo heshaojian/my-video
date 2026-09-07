@@ -10,10 +10,13 @@ Personal iOS client for Aiyifan (`https://m.yfsp.tv/`).
 - Opens All as a native, pull-to-refresh catalog with 24-item pagination, score badges, Save/Favorite controls, and direct native playback.
 - Filters the native library, with Continue Watching and New for You sections. Search is currently disabled.
 - Remembers independently selected filters, sort order, and sort direction for each category across navigation and app relaunches.
-- Saves titles for later, detects new episodes, and supports per-title update alerts.
+- Saves titles for later, directly checks every saved serial title daily on a best-effort schedule, and supports per-title update alerts with episode deep links.
 - Resolves supported streams into native `AVPlayer` playback with Picture in Picture, background audio, and provider Likes, Favorites, Score, and Views.
 - Excludes separately supplied front advertisements from native and Cast playback queues while leaving the full program stream untouched.
 - Lists multi-episode shows newest-first, autoplays the next episode, and remembers progress per episode.
+- Starts a known latest episode immediately while its complete episode list retries independently up to four times.
+- Prefers exact 1080p on a fresh install, falls back to the highest available HLS rendition, and remembers manual quality choices.
+- Keeps one player session alive when Back is tapped, with a video mini-player for browsing Latest, Saved, Played, and All without interrupting playback.
 - Continues audio while the screen is locked and provides playback speed, sleep timer, lock-screen Now Playing controls, interruption recovery, and transient-load retry.
 - Provides a third Played tab with resume, watched/unwatched, restart, remove, filter, and clear controls.
 - Supports AirPlay plus Google Cast with persistent and expanded TV playback controls.
@@ -57,4 +60,4 @@ pod install
 
 ## Notes
 
-Background audio, Picture in Picture, notifications, iCloud, AirPlay, and Google Cast require physical-device verification. The iOS Simulator cannot discover or validate real receivers.
+Background refresh timing is controlled by iOS; opening the app performs an overdue daily catch-up check. Background audio, Picture in Picture, notifications, iCloud, AirPlay, and Google Cast require physical-device verification. The iOS Simulator cannot discover or validate real receivers.

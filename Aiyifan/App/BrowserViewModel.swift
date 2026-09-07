@@ -99,17 +99,17 @@ final class BrowserViewModel: ObservableObject {
     func selectItem(_ item: AiyifanItem) {
         selectedTitle = item.title
         selectedURL = nil
-        selectedItem = item
         selectedEpisodeKey = nil
         errorMessage = nil
+        selectedItem = item
     }
 
     func selectPlayed(_ record: PlayedRecord) {
         selectedTitle = record.item.title
         selectedURL = nil
-        selectedItem = record.item
         selectedEpisodeKey = record.episodeKey
         errorMessage = nil
+        selectedItem = record.item
     }
 
     func closePlayer() {

@@ -75,6 +75,30 @@ final class LibraryServicesTests: XCTestCase {
         XCTAssertFalse(batch.body.contains("Two"))
         XCTAssertEqual(AiyifanDeepLink.parse(batch.deepLink)?.item, first)
     }
+
+    func testEpisodeUpdateNotificationDeepLinksToTheNewEpisode() throws {
+        let item = AiyifanItem(listPath: "series", title: "Series", isSerial: true)
+        let update = SavedEpisodeUpdate(
+            item: item,
+            episode: EpisodeSelection(mediaKey: "episode-8", title: "8")
+        )
+
+        let batch = try XCTUnwrap(NotificationBatch.make(
+            episodeUpdates: [update],
+            notificationsEnabled: { _ in true }
+        ))
+
+        XCTAssertTrue(batch.body.contains("Episode 8"))
+        XCTAssertEqual(AiyifanDeepLink.parse(batch.deepLink)?.episodeKey, "episode-8")
+    }
+
+    func testDailySavedUpdatePolicyRunsWhenNoCheckExistsOrDayElapsed() {
+        let now = Date(timeIntervalSince1970: 100_000)
+
+        XCTAssertTrue(DailySavedUpdatePolicy.isDue(lastChecked: nil, now: now))
+        XCTAssertFalse(DailySavedUpdatePolicy.isDue(lastChecked: now.addingTimeInterval(-86_399), now: now))
+        XCTAssertTrue(DailySavedUpdatePolicy.isDue(lastChecked: now.addingTimeInterval(-86_400), now: now))
+    }
 }
 
 final class FeedRepositoryTests: XCTestCase {
