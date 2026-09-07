@@ -46,6 +46,6 @@ These checks require a signed iPhone build plus reachable receivers on the same 
 ## Device Deployment Attempt
 
 - John's paired iPhone 17 Pro Max is connected by cable and Developer Mode is enabled.
-- The phone runs iOS 26.6.1, while the installed Xcode is 26.2. Xcode could not mount its developer disk image for the newer phone OS.
+- The phone runs iOS 26.6.1 with Xcode 26.2. On the latest retry, developer disk image services were available and the wired device connection was ready.
 - The Apple Development certificate for team `VGGZ34H2PS` is valid, but Xcode currently has no signed-in account and no provisioning profile for `com.john.aiyifan`.
-- Installation therefore remains blocked until a compatible Xcode is installed and the existing Apple developer account is added in Xcode so it can create the development profile.
+- Installation therefore remains blocked only until the existing Apple developer account is added in Xcode so it can create the development profile.
