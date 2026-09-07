@@ -6,12 +6,15 @@ Personal iOS client for Aiyifan (`https://m.yfsp.tv/`).
 
 - Starts on a native latest-updates page for `电影`, `电视剧`, `综艺`, and `动漫`.
 - Fetches the latest embedded Aiyifan category feeds and shows poster rows for quick browsing.
-- Saves titles for later in a persistent Saved library and supports removing them from either view.
+- Searches and filters the native library, with Continue Watching and New for You sections.
+- Saves titles for later, detects new episodes, and supports per-title update alerts.
 - Resolves supported streams into native `AVPlayer` playback with Picture in Picture and background audio.
 - Mutes front advertisements and restores the viewer's previous mute choice for the program.
-- Lists multi-episode shows newest-first and remembers progress separately for each episode.
-- Provides a third Played tab with resume, remove, and clear-history controls.
-- Supports AirPlay to Apple devices and Google Cast to Chromecast and compatible Android TVs.
+- Lists multi-episode shows newest-first, autoplays the next episode, and remembers progress per episode.
+- Supports playback speed, sleep timer, lock-screen Now Playing controls, and transient-load retry.
+- Provides a third Played tab with resume, watched/unwatched, restart, remove, filter, and clear controls.
+- Supports AirPlay plus Google Cast with persistent and expanded TV playback controls.
+- Caches each feed independently, refreshes in the background, and optionally syncs Saved and Played through iCloud.
 - Uses `WKWebView` only for explicit category browsing or the website fallback.
 
 ## Build
@@ -29,7 +32,7 @@ Run the full unit and UI suite after every source change:
 xcodebuild test -workspace Aiyifan.xcworkspace -scheme Aiyifan -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -enableCodeCoverage YES
 ```
 
-The UI suite uses a deterministic local fixture. Release verification also includes loading the four live feeds and playing a real episode until its timeline advances.
+The UI suite uses a deterministic local fixture. Release verification also loads all four live feeds, resolves a current movie and serial episode through the production API, and validates that both HLS manifests are reachable.
 
 ## Run On iPhone
 
@@ -43,4 +46,4 @@ If Xcode says it cannot create a provisioning profile, keep the bundle id `com.j
 
 ## Notes
 
-Background audio, Picture in Picture, AirPlay, and Google Cast require physical-device verification. The iOS Simulator cannot discover or validate real receivers.
+Background audio, Picture in Picture, notifications, iCloud, AirPlay, and Google Cast require physical-device verification. The iOS Simulator cannot discover or validate real receivers.
