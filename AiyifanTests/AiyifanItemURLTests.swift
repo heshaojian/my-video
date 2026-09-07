@@ -45,6 +45,18 @@ final class AiyifanItemURLTests: XCTestCase {
     }
 
     @MainActor
+    func testSelectingCategoryRoutesToNativeCatalogWithoutOpeningBrowser() {
+        let viewModel = BrowserViewModel()
+
+        viewModel.selectCategory(.drama)
+
+        XCTAssertEqual(viewModel.selectedCategory, .drama)
+        XCTAssertFalse(viewModel.isBrowsing)
+        XCTAssertNil(viewModel.selectedURL)
+        XCTAssertNil(viewModel.selectedItem)
+    }
+
+    @MainActor
     func testWebsiteFallbackRequiresExplicitStateTransition() {
         let item = AiyifanItem(
             listPath: "fallback-media-key",

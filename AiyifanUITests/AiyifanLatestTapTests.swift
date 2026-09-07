@@ -122,15 +122,132 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
     }
 
-    func testAllCategoryButtonOpensBrowserExplicitly() {
+    func testAllCategoryButtonOpensNativeCatalogWithoutBrowser() {
         let app = launchFixtureApp()
         let categoryButton = app.buttons["browseCategory-电影"]
         XCTAssertTrue(categoryButton.waitForExistence(timeout: 5))
 
         categoryButton.tap()
 
-        XCTAssertTrue(app.webViews["browserWebView"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.otherElements["nativeCategoryCatalog-电影"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["catalogItem-fixture-catalog-电影-1"].exists)
+        XCTAssertFalse(app.webViews["browserWebView"].exists)
         XCTAssertFalse(app.otherElements["nativePlayer"].exists)
+    }
+
+    func testEveryAllButtonOpensMatchingNativeCatalog() {
+        let app = launchFixtureApp()
+
+        for category in ["电影", "电视剧", "综艺", "动漫"] {
+            let categoryButton = app.buttons["browseCategory-\(category)"]
+            if !categoryButton.exists {
+                app.swipeUp()
+                app.swipeUp()
+            }
+            XCTAssertTrue(categoryButton.waitForExistence(timeout: 3))
+            categoryButton.tap()
+            XCTAssertTrue(app.otherElements["nativeCategoryCatalog-\(category)"].waitForExistence(timeout: 3))
+            XCTAssertFalse(app.webViews["browserWebView"].exists)
+            app.navigationBars.buttons.element(boundBy: 0).tap()
+        }
+    }
+
+    func testCatalogItemCanBeSavedAndPlayedNatively() {
+        let app = launchFixtureApp()
+        app.buttons["browseCategory-电影"].tap()
+
+        let saveButton = app.buttons["saveCatalogItem-fixture-catalog-电影-1"]
+        XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
+        saveButton.tap()
+
+        let item = app.buttons["catalogItem-fixture-catalog-电影-1"]
+        XCTAssertTrue(item.exists)
+        item.tap()
+        XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.webViews["browserWebView"].exists)
+        app.buttons["closeNativePlayer"].tap()
+
+        XCTAssertTrue(app.buttons["closeCategoryCatalog"].waitForExistence(timeout: 5))
+        app.buttons["closeCategoryCatalog"].tap()
+
+        app.tabBars.buttons["Saved"].tap()
+        XCTAssertTrue(app.buttons["savedItem-fixture-catalog-电影-1"].waitForExistence(timeout: 5))
+    }
+
+    func testCatalogSavedItemSurvivesRelaunch() {
+        var app = launchFixtureApp(resetSavedItems: true)
+        app.buttons["browseCategory-电影"].tap()
+        let saveButton = app.buttons["saveCatalogItem-fixture-catalog-电影-1"]
+        XCTAssertTrue(saveButton.waitForExistence(timeout: 5))
+        saveButton.tap()
+        app.terminate()
+
+        app = launchFixtureApp(resetSavedItems: false)
+        app.tabBars.buttons["Saved"].tap()
+
+        XCTAssertTrue(app.buttons["savedItem-fixture-catalog-电影-1"].waitForExistence(timeout: 5))
+    }
+
+    func testCatalogScrollingLoadsSecondPageWithoutDuplicates() {
+        let app = launchFixtureApp()
+        app.buttons["browseCategory-电视剧"].tap()
+
+        let secondPageItem = app.buttons["catalogItem-fixture-catalog-电视剧-25"]
+        for _ in 0..<8 where !secondPageItem.exists {
+            app.swipeUp()
+        }
+
+        XCTAssertTrue(secondPageItem.waitForExistence(timeout: 5))
+        let endMarker = app.staticTexts["已显示全部"]
+        for _ in 0..<4 where !endMarker.exists {
+            app.swipeUp()
+        }
+        XCTAssertTrue(endMarker.waitForExistence(timeout: 3))
+    }
+
+    func testCatalogInitialFailureCanRetryWithoutOpeningBrowser() {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "-AiyifanUseFixtureFeed",
+            "-AiyifanResetSavedItems",
+            "-AiyifanResetPlayedItems",
+            "-AiyifanFixtureCatalogInitialFailure"
+        ]
+        app.launch()
+        app.buttons["browseCategory-电影"].tap()
+
+        let retry = app.buttons["retryCatalogInitial"]
+        XCTAssertTrue(retry.waitForExistence(timeout: 5))
+        retry.tap()
+
+        XCTAssertTrue(app.buttons["catalogItem-fixture-catalog-电影-1"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.webViews["browserWebView"].exists)
+    }
+
+    func testCatalogLoadMoreFailureCanRetryWithoutLosingItems() {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "-AiyifanUseFixtureFeed",
+            "-AiyifanResetSavedItems",
+            "-AiyifanResetPlayedItems",
+            "-AiyifanFixtureCatalogLoadMoreFailure"
+        ]
+        app.launch()
+        app.buttons["browseCategory-电视剧"].tap()
+
+        let retry = app.buttons["retryCatalogLoadMore"]
+        for _ in 0..<8 where !retry.exists {
+            app.swipeUp()
+        }
+        XCTAssertTrue(retry.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["catalogItem-fixture-catalog-电视剧-24"].exists)
+        retry.tap()
+
+        let secondPageItem = app.buttons["catalogItem-fixture-catalog-电视剧-25"]
+        for _ in 0..<4 where !secondPageItem.exists {
+            app.swipeUp()
+        }
+        XCTAssertTrue(secondPageItem.waitForExistence(timeout: 5))
     }
 
     func testPlayedIsThirdTabAndSeededEpisodeOpensNativePlayer() {
@@ -385,5 +502,21 @@ final class AiyifanLatestTapTests: XCTestCase {
         app.tabBars.buttons["Latest"].tap()
         XCTAssertTrue(latestItem.exists)
         XCTAssertTrue(app.otherElements["castMiniController"].exists)
+
+        app.buttons["browseCategory-电影"].tap()
+        let catalogItem = app.buttons["catalogItem-fixture-catalog-电影-25"]
+        for _ in 0..<8 where !catalogItem.exists {
+            app.swipeUp()
+        }
+        XCTAssertTrue(catalogItem.waitForExistence(timeout: 5))
+        app.buttons["saveCatalogItem-fixture-catalog-电影-25"].tap()
+        catalogItem.tap()
+        XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
+        app.buttons["closeNativePlayer"].tap()
+        XCTAssertTrue(app.buttons["closeCategoryCatalog"].waitForExistence(timeout: 5))
+        app.buttons["closeCategoryCatalog"].tap()
+
+        app.tabBars.buttons["Saved"].tap()
+        XCTAssertTrue(app.buttons["savedItem-fixture-catalog-电影-25"].waitForExistence(timeout: 5))
     }
 }
