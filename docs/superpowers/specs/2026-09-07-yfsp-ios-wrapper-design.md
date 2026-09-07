@@ -7,7 +7,8 @@ Build a personal iOS app that opens `yfsp.tv` in a native shell so John can watc
 ## Scope
 
 - Native SwiftUI app named `YFSP`.
-- WKWebView loads `https://m.yfsp.tv/` by default.
+- App launches to a native four-category page: `电影`, `电视剧`, `综艺`, `动漫`.
+- WKWebView loads the selected category section after the user taps a category.
 - Persistent cookies, local storage, and normal website login state are preserved by WebKit.
 - Browser controls: back, forward, reload, home, and current loading progress.
 - Playback-friendly WebKit configuration:
@@ -31,7 +32,8 @@ Build a personal iOS app that opens `yfsp.tv` in a native shell so John can watc
 The app is intentionally small:
 
 - `YfspApp`: SwiftUI entry point and app-wide audio session setup.
-- `BrowserView`: SwiftUI wrapper around the web experience and toolbar.
+- `BrowserView`: SwiftUI wrapper around the native category landing screen, web experience, and toolbar.
+- `YfspCategory`: section definitions and destination URLs.
 - `WebView`: `UIViewRepresentable` bridge for `WKWebView`.
 - `BrowserViewModel`: observable browser state such as loading progress and navigation availability.
 
@@ -44,5 +46,6 @@ Background playback and floating video are partly controlled by iOS and the webs
 ## Verification
 
 - Build the app for an iOS simulator.
-- Launch on simulator and confirm the web view loads.
+- Launch on simulator and confirm the native category page only shows the four requested categories.
+- Select a category and confirm the web view loads.
 - Attempt device deployment when John's iPhone is available to Xcode.

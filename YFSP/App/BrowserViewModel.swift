@@ -4,14 +4,17 @@ import WebKit
 
 @MainActor
 final class BrowserViewModel: ObservableObject {
-    let homeURL = URL(string: "https://m.yfsp.tv/")!
-
+    @Published var selectedCategory: YfspCategory?
     @Published var canGoBack = false
     @Published var canGoForward = false
     @Published var estimatedProgress = 0.0
     @Published var errorMessage: String?
 
     weak var webView: WKWebView?
+
+    var currentURL: URL? {
+        selectedCategory?.url
+    }
 
     func bind(webView: WKWebView) {
         guard self.webView !== webView else {
@@ -43,8 +46,17 @@ final class BrowserViewModel: ObservableObject {
     }
 
     func goHome() {
+        selectedCategory = nil
         errorMessage = nil
-        webView?.load(URLRequest(url: homeURL))
+        webView = nil
+        canGoBack = false
+        canGoForward = false
+        estimatedProgress = 0.0
+    }
+
+    func selectCategory(_ category: YfspCategory) {
+        selectedCategory = category
+        errorMessage = nil
     }
 
     func markLoadingStarted() {
@@ -58,7 +70,7 @@ final class BrowserViewModel: ObservableObject {
     }
 
     func openInSafari() {
-        guard let url = webView?.url ?? Optional(homeURL) else {
+        guard let url = webView?.url ?? currentURL else {
             return
         }
 
