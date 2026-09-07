@@ -217,6 +217,37 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(app.buttons["clearFeedCache"].exists)
     }
 
+    func testSimulatedCastSessionOffersPersistentAndExpandedControls() {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "-AiyifanUseFixtureFeed",
+            "-AiyifanResetSavedItems",
+            "-AiyifanResetPlayedItems",
+            "-AiyifanSimulateCastSession"
+        ]
+        app.launch()
+
+        let miniController = app.otherElements["castMiniController"]
+        XCTAssertTrue(miniController.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["Living Room TV"].exists)
+        app.buttons["expandCastController"].tap()
+
+        XCTAssertTrue(app.otherElements["castExpandedController"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.buttons["toggleCastPlayback"].exists)
+        XCTAssertTrue(app.buttons["skipCastBackward"].exists)
+        XCTAssertTrue(app.buttons["skipCastForward"].exists)
+        XCTAssertTrue(app.buttons["toggleCastMute"].exists)
+
+        app.buttons["toggleCastPlayback"].tap()
+        XCTAssertEqual(app.buttons["toggleCastPlayback"].label, "Pause Cast")
+        app.buttons["skipCastForward"].tap()
+        app.buttons["toggleCastMute"].tap()
+        XCTAssertEqual(app.buttons["toggleCastMute"].label, "Unmute Cast")
+
+        app.buttons["stopCasting"].tap()
+        XCTAssertFalse(miniController.waitForExistence(timeout: 2))
+    }
+
     func testContinueWatchingAppearsAndResumesSeededEpisode() {
         let app = launchFixtureAppWithPlayedHistory()
 
@@ -287,5 +318,72 @@ final class AiyifanLatestTapTests: XCTestCase {
 
         app.tabBars.buttons["Saved"].tap()
         XCTAssertTrue(app.buttons["savedItem-fixture-电影"].exists)
+    }
+
+    func testFiftyActionHeavyUserSessionRemainsConsistent() {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "-AiyifanUseFixtureFeed",
+            "-AiyifanResetSavedItems",
+            "-AiyifanResetPlayedItems",
+            "-AiyifanSeedPlayedItems",
+            "-AiyifanSimulateCastSession"
+        ]
+        app.launch()
+
+        let latestItem = app.buttons["latestItem-fixture-电影"]
+        XCTAssertTrue(latestItem.waitForExistence(timeout: 5))
+        app.buttons["saveItem-fixture-电影"].tap()
+
+        for _ in 0..<5 {
+            latestItem.tap()
+            XCTAssertTrue(app.buttons["closeNativePlayer"].waitForExistence(timeout: 5))
+            app.buttons["closeNativePlayer"].tap()
+            XCTAssertTrue(latestItem.waitForExistence(timeout: 5))
+        }
+
+        app.tabBars.buttons["Saved"].tap()
+        let savedItem = app.buttons["savedItem-fixture-电影"]
+        XCTAssertTrue(savedItem.waitForExistence(timeout: 5))
+        for _ in 0..<3 {
+            savedItem.tap()
+            XCTAssertTrue(app.buttons["closeNativePlayer"].waitForExistence(timeout: 5))
+            app.buttons["closeNativePlayer"].tap()
+            XCTAssertTrue(savedItem.waitForExistence(timeout: 5))
+        }
+
+        app.tabBars.buttons["Played"].tap()
+        let playedItem = app.buttons["playedItem-fixture-电视剧::episode-4"]
+        XCTAssertTrue(playedItem.waitForExistence(timeout: 5))
+        for _ in 0..<3 {
+            playedItem.tap()
+            XCTAssertTrue(app.buttons["closeNativePlayer"].waitForExistence(timeout: 5))
+            app.buttons["closeNativePlayer"].tap()
+            XCTAssertTrue(playedItem.waitForExistence(timeout: 5))
+        }
+
+        app.tabBars.buttons["Latest"].tap()
+        app.buttons["expandCastController"].tap()
+        XCTAssertTrue(app.otherElements["castExpandedController"].waitForExistence(timeout: 3))
+        for _ in 0..<10 {
+            app.buttons["toggleCastPlayback"].tap()
+        }
+        for _ in 0..<5 {
+            app.buttons["skipCastForward"].tap()
+        }
+        for _ in 0..<5 {
+            app.buttons["skipCastBackward"].tap()
+        }
+        app.buttons["toggleCastMute"].tap()
+        app.buttons["toggleCastMute"].tap()
+        app.buttons["Done"].tap()
+
+        app.tabBars.buttons["Saved"].tap()
+        XCTAssertTrue(savedItem.exists)
+        app.tabBars.buttons["Played"].tap()
+        XCTAssertTrue(playedItem.exists)
+        app.tabBars.buttons["Latest"].tap()
+        XCTAssertTrue(latestItem.exists)
+        XCTAssertTrue(app.otherElements["castMiniController"].exists)
     }
 }

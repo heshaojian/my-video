@@ -2,6 +2,59 @@ import XCTest
 @testable import Aiyifan
 
 final class CastingTests: XCTestCase {
+    func testSessionSnapshotClampsInvalidProgressValues() {
+        let negative = CastSessionSnapshot(
+            phase: .paused,
+            receiverName: "Living Room TV",
+            title: "Series",
+            position: -20,
+            duration: 100
+        )
+        let beyondEnd = CastSessionSnapshot(
+            phase: .playing,
+            receiverName: "Living Room TV",
+            title: "Series",
+            position: 120,
+            duration: 100
+        )
+        let nonFinite = CastSessionSnapshot(
+            phase: .loading,
+            receiverName: "Living Room TV",
+            title: "Series",
+            position: .infinity,
+            duration: .nan
+        )
+
+        XCTAssertEqual(negative.position, 0)
+        XCTAssertEqual(negative.progress, 0)
+        XCTAssertEqual(beyondEnd.position, 100)
+        XCTAssertEqual(beyondEnd.progress, 1)
+        XCTAssertEqual(nonFinite.position, 0)
+        XCTAssertEqual(nonFinite.duration, 0)
+        XCTAssertEqual(nonFinite.progress, 0)
+    }
+
+    func testSessionSnapshotExposesPlaybackAndErrorState() {
+        let playing = CastSessionSnapshot(
+            phase: .playing,
+            receiverName: "Bedroom TV",
+            title: "Movie",
+            position: 30,
+            duration: 120
+        )
+        let failed = CastSessionSnapshot(
+            phase: .failed,
+            receiverName: "Bedroom TV",
+            title: "Movie",
+            errorMessage: "Receiver unavailable"
+        )
+
+        XCTAssertTrue(playing.isPlaying)
+        XCTAssertFalse(playing.hasError)
+        XCTAssertFalse(failed.isPlaying)
+        XCTAssertTrue(failed.hasError)
+    }
+
     func testMuteStateMutesAdvertisementsAndRestoresPreviousSetting() {
         let mutedForAdvertisement = CastMuteState().transition(
             isAdvertisement: true,
