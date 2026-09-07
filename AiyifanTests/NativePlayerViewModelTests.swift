@@ -198,6 +198,25 @@ final class NativePlayerViewModelTests: XCTestCase {
         viewModel.stop()
     }
 
+    func testNextAndPreviousEpisodeFollowChronologicalOrder() async throws {
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "series", title: "Series"),
+            initialEpisodeKey: "episode-3",
+            resolver: EpisodeAwareStubResolver()
+        )
+        viewModel.start()
+        try await waitUntil { viewModel.episodeTitle == "03" }
+
+        XCTAssertEqual(viewModel.nextEpisode?.mediaKey, "episode-4")
+        XCTAssertNil(viewModel.previousEpisode)
+
+        viewModel.playNextEpisode()
+        try await waitUntil { viewModel.episodeTitle == "04" }
+        XCTAssertNil(viewModel.nextEpisode)
+        XCTAssertEqual(viewModel.previousEpisode?.mediaKey, "episode-3")
+        viewModel.stop()
+    }
+
     private func waitUntil(
         timeoutIterations: Int = 250,
         condition: @escaping @MainActor () -> Bool

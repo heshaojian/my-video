@@ -196,6 +196,16 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(app.buttons["googleCastButton"].exists)
     }
 
+    func testSerialPlayerOffersEpisodeContinuityAndPlaybackSettings() {
+        let app = launchFixtureApp()
+        app.buttons["latestItem-fixture-电视剧"].tap()
+
+        XCTAssertTrue(app.buttons["previousEpisode"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["nextEpisode"].exists)
+        XCTAssertTrue(app.buttons["playbackSettings"].exists)
+        XCTAssertTrue(app.buttons["showEpisodes"].exists)
+    }
+
     func testContinueWatchingAppearsAndResumesSeededEpisode() {
         let app = launchFixtureAppWithPlayedHistory()
 

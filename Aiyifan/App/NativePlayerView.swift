@@ -15,34 +15,59 @@ final class NativePlayerViewModel: ObservableObject {
     @Published private(set) var pendingResumePosition = 0.0
     @Published private(set) var preparedEntryCount = 0
     @Published private(set) var hasAppliedResume = false
+    @Published private(set) var playbackRate: Float
+    @Published private(set) var autoplayNext: Bool
+    @Published private(set) var sleepTimer = SleepTimerState.off
+    @Published private(set) var autoplayCountdown: Int?
 
     private let item: AiyifanItem
     private let resolver: any NativePlaybackResolving
     private let playedItemsStore: PlayedItemsStore?
     private let castManager: any CastPlaybackManaging
+    private let preferences: PlaybackPreferencesStore
     private var playbackItems: [AVPlayerItem] = []
     private var playbackEntries: [NativePlaybackEntry] = []
     private var loadTask: Task<Void, Never>?
     private var requestedEpisodeKey: String?
     private var muteStateBeforeAdvertisement: Bool?
     private var lastRecordedPosition: Double?
+    private var autoplayTask: Task<Void, Never>?
+
+    var nextEpisode: Episode? {
+        EpisodeNavigator.next(in: episodes, current: selectedEpisode)
+    }
+
+    var previousEpisode: Episode? {
+        EpisodeNavigator.previous(in: episodes, current: selectedEpisode)
+    }
 
     init(
         item: AiyifanItem,
         initialEpisodeKey: String? = nil,
         resolver: any NativePlaybackResolving = NativePlaybackResolver(),
         playedItemsStore: PlayedItemsStore? = nil,
-        castManager: any CastPlaybackManaging = GoogleCastManager.shared
+        castManager: any CastPlaybackManaging = GoogleCastManager.shared,
+        preferences: PlaybackPreferencesStore = PlaybackPreferencesStore()
     ) {
         self.item = item
         requestedEpisodeKey = initialEpisodeKey
         self.resolver = resolver
         self.playedItemsStore = playedItemsStore
         self.castManager = castManager
+        self.preferences = preferences
+        playbackRate = preferences.playbackRate
+        autoplayNext = preferences.autoplayNext
+        player.defaultRate = preferences.playbackRate
     }
 
     func start() {
         loadTask?.cancel()
+        cancelAutoplay()
+        NowPlayingCoordinator.shared.activate(
+            player: player,
+            playPreviousEpisode: { [weak self] in self?.playPreviousEpisode() },
+            playNextEpisode: { [weak self] in self?.playNextEpisode() }
+        )
         loadTask = Task { [weak self] in
             await self?.prepareAndPlay()
         }
@@ -52,6 +77,7 @@ final class NativePlayerViewModel: ObservableObject {
         persistProgress()
         loadTask?.cancel()
         loadTask = nil
+        cancelAutoplay()
         restoreSoundAfterAdvertisement()
         player.pause()
         player.removeAllItems()
@@ -59,6 +85,7 @@ final class NativePlayerViewModel: ObservableObject {
         playbackEntries = []
         preparedEntryCount = 0
         castManager.clear()
+        NowPlayingCoordinator.shared.clear()
     }
 
     func selectEpisode(_ episode: Episode) {
@@ -68,6 +95,48 @@ final class NativePlayerViewModel: ObservableObject {
         persistProgress()
         requestedEpisodeKey = episode.mediaKey
         start()
+    }
+
+    func playNextEpisode() {
+        guard let nextEpisode else {
+            return
+        }
+        selectEpisode(nextEpisode)
+    }
+
+    func playPreviousEpisode() {
+        guard let previousEpisode else {
+            return
+        }
+        selectEpisode(previousEpisode)
+    }
+
+    func setPlaybackRate(_ rate: Float) {
+        preferences.setPlaybackRate(rate)
+        playbackRate = preferences.playbackRate
+        player.defaultRate = playbackRate
+        if player.timeControlStatus == .playing {
+            player.playImmediately(atRate: playbackRate)
+        }
+        updateNowPlaying(position: player.currentTime().seconds, duration: player.currentItem?.duration.seconds ?? 0)
+    }
+
+    func setAutoplayNext(_ enabled: Bool) {
+        preferences.setAutoplayNext(enabled)
+        autoplayNext = enabled
+        if !enabled {
+            cancelAutoplay()
+        }
+    }
+
+    func setSleepTimer(_ option: SleepTimerOption) {
+        sleepTimer = SleepTimerState.starting(option)
+    }
+
+    func cancelAutoplay() {
+        autoplayTask?.cancel()
+        autoplayTask = nil
+        autoplayCountdown = nil
     }
 
     func persistProgress() {
@@ -89,6 +158,10 @@ final class NativePlayerViewModel: ObservableObject {
     func monitorPlayback() async {
         while !Task.isCancelled {
             updatePlaybackState()
+
+            if sleepTimer.shouldPause() {
+                pauseForSleepTimer()
+            }
 
             do {
                 try await Task.sleep(for: .milliseconds(250))
@@ -114,7 +187,7 @@ final class NativePlayerViewModel: ObservableObject {
         player.removeAllItems()
 
         do {
-            let playback = try await resolver.resolve(item: item, preferredEpisodeKey: requestedEpisodeKey)
+            let playback = try await resolveWithRecovery()
             try Task.checkCancellation()
             episodes = playback.episodes
             selectedEpisode = playback.selectedEpisode
@@ -136,19 +209,36 @@ final class NativePlayerViewModel: ObservableObject {
             for item in items {
                 player.insert(item, after: nil)
             }
+            player.defaultRate = playbackRate
             if !playback.entries.isEmpty {
                 handlePlaybackEntry(index: 0, position: 0, duration: playback.entries[0].isAdvertisement ? 1 : 0)
             }
             if castManager.isCasting {
                 player.pause()
             } else {
-                player.play()
+                player.playImmediately(atRate: playbackRate)
             }
         } catch is CancellationError {
             return
         } catch {
             isLoading = false
             errorMessage = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+        }
+    }
+
+    private func resolveWithRecovery() async throws -> NativePlayback {
+        var attempt = 0
+        while true {
+            do {
+                return try await resolver.resolve(item: item, preferredEpisodeKey: requestedEpisodeKey)
+            } catch {
+                guard PlaybackRecoveryPolicy.shouldRetry(error: error, attempt: attempt) else {
+                    throw error
+                }
+                attempt += 1
+                try await Task.sleep(for: .milliseconds(500))
+                try Task.checkCancellation()
+            }
         }
     }
 
@@ -212,6 +302,54 @@ final class NativePlayerViewModel: ObservableObject {
         hasAppliedResume = true
         castManager.updateProgramPosition(position)
         recordProgress(position: position, duration: duration, force: false)
+        let programCompleted = duration.isFinite && duration > 0 && position / duration >= 0.99
+        updateNowPlaying(position: position, duration: duration)
+        if sleepTimer.shouldPause(programCompleted: programCompleted) {
+            pauseForSleepTimer()
+        } else if programCompleted {
+            scheduleAutoplayIfNeeded()
+        }
+    }
+
+    private func scheduleAutoplayIfNeeded() {
+        guard autoplayNext, nextEpisode != nil, autoplayTask == nil else {
+            return
+        }
+        autoplayTask = Task { [weak self] in
+            for remaining in stride(from: 5, through: 1, by: -1) {
+                guard !Task.isCancelled else { return }
+                self?.autoplayCountdown = remaining
+                try? await Task.sleep(for: .seconds(1))
+            }
+            guard !Task.isCancelled else { return }
+            self?.autoplayTask = nil
+            self?.autoplayCountdown = nil
+            self?.playNextEpisode()
+        }
+    }
+
+    private func pauseForSleepTimer() {
+        player.pause()
+        sleepTimer = .off
+        cancelAutoplay()
+    }
+
+    private func updateNowPlaying(position: Double, duration: Double) {
+        guard !isPlayingAdvertisement else {
+            return
+        }
+        NowPlayingCoordinator.shared.update(
+            NowPlayingSnapshot(
+                item: item,
+                episodeTitle: episodeTitle,
+                duration: duration,
+                elapsed: position,
+                playbackRate: playbackRate,
+                isPlaying: player.timeControlStatus == .playing
+            ),
+            hasPrevious: previousEpisode != nil,
+            hasNext: nextEpisode != nil
+        )
     }
 
     private func restoreSoundAfterAdvertisement() {
@@ -309,18 +447,6 @@ struct NativePlayerScreen: View {
                 GoogleCastRouteButton()
                     .frame(width: 36, height: 36)
 
-                if !viewModel.episodes.isEmpty {
-                    Button {
-                        isShowingEpisodes = true
-                    } label: {
-                        Image(systemName: "list.number")
-                            .frame(width: 36, height: 36)
-                    }
-                    .accessibilityLabel("Episodes")
-                    .accessibilityIdentifier("showEpisodes")
-                    .help("Episodes")
-                }
-
                 Button(action: onOpenWebsite) {
                     Image(systemName: "safari")
                         .frame(width: 36, height: 36)
@@ -331,6 +457,84 @@ struct NativePlayerScreen: View {
             }
             .padding(.horizontal, 10)
             .padding(.vertical, 6)
+            .foregroundStyle(.white)
+            .background(Color.black)
+
+            HStack(spacing: 8) {
+                if !viewModel.episodes.isEmpty {
+                    Button(action: viewModel.playPreviousEpisode) {
+                        Image(systemName: "backward.end.fill")
+                            .frame(width: 36, height: 36)
+                    }
+                    .disabled(viewModel.previousEpisode == nil)
+                    .accessibilityLabel("Previous Episode")
+                    .accessibilityIdentifier("previousEpisode")
+
+                    Button {
+                        isShowingEpisodes = true
+                    } label: {
+                        Image(systemName: "list.number")
+                            .frame(width: 36, height: 36)
+                    }
+                    .accessibilityLabel("Episodes")
+                    .accessibilityIdentifier("showEpisodes")
+
+                    Button(action: viewModel.playNextEpisode) {
+                        Image(systemName: "forward.end.fill")
+                            .frame(width: 36, height: 36)
+                    }
+                    .disabled(viewModel.nextEpisode == nil)
+                    .accessibilityLabel("Next Episode")
+                    .accessibilityIdentifier("nextEpisode")
+                }
+
+                Spacer()
+
+                if let timerLabel = viewModel.sleepTimer.remainingLabel() {
+                    Label(timerLabel, systemImage: "moon.zzz")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+
+                Menu {
+                    Menu("Speed") {
+                        ForEach(PlaybackPreferencesStore.supportedRates, id: \.self) { rate in
+                            Button {
+                                viewModel.setPlaybackRate(rate)
+                            } label: {
+                                if rate == viewModel.playbackRate {
+                                    Label("\(rate.formatted())x", systemImage: "checkmark")
+                                } else {
+                                    Text("\(rate.formatted())x")
+                                }
+                            }
+                        }
+                    }
+
+                    Menu("Sleep Timer") {
+                        ForEach(Array(SleepTimerOption.choices.enumerated()), id: \.offset) { _, option in
+                            Button(option.title) { viewModel.setSleepTimer(option) }
+                        }
+                    }
+
+                    if !viewModel.episodes.isEmpty {
+                        Button {
+                            viewModel.setAutoplayNext(!viewModel.autoplayNext)
+                        } label: {
+                            Label(
+                                viewModel.autoplayNext ? "Disable Autoplay Next" : "Enable Autoplay Next",
+                                systemImage: viewModel.autoplayNext ? "autostartstop.slash" : "autostartstop"
+                            )
+                        }
+                    }
+                } label: {
+                    Image(systemName: "slider.horizontal.3")
+                        .frame(width: 36, height: 36)
+                }
+                .accessibilityLabel("Playback Settings")
+                .accessibilityIdentifier("playbackSettings")
+            }
+            .padding(.horizontal, 10)
             .foregroundStyle(.white)
             .background(Color.black)
 
@@ -349,6 +553,23 @@ struct NativePlayerScreen: View {
                         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
                         .padding(12)
                         .accessibilityIdentifier("advertisementLabel")
+                }
+
+                if let countdown = viewModel.autoplayCountdown {
+                    Button {
+                        viewModel.cancelAutoplay()
+                    } label: {
+                        Label("Next episode in \(countdown)s", systemImage: "xmark.circle.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 9)
+                            .foregroundStyle(.white)
+                            .background(.black.opacity(0.8))
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+                    .padding(16)
+                    .accessibilityIdentifier("cancelAutoplay")
                 }
 
                 if let errorMessage = viewModel.errorMessage {
