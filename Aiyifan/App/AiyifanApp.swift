@@ -1,16 +1,21 @@
 import AVFoundation
 import SwiftUI
+import UserNotifications
 
 @main
 struct AiyifanApp: App {
     init() {
         configureAudioSession()
         GoogleCastManager.shared.configure()
+        UNUserNotificationCenter.current().delegate = NotificationResponseRouter.shared
     }
 
     var body: some Scene {
         WindowGroup {
             BrowserView()
+        }
+        .backgroundTask(.appRefresh(BackgroundRefreshScheduler.identifier)) {
+            await BackgroundFeedRefresher.refresh()
         }
     }
 

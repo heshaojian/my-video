@@ -55,15 +55,20 @@ final class SavedItemsStore: ObservableObject {
         updateNewItemIDs()
     }
 
-    func refreshUpdateMarkers(with feeds: [AiyifanCategory: [AiyifanItem]]) {
+    @discardableResult
+    func refreshUpdateMarkers(with feeds: [AiyifanCategory: [AiyifanItem]]) -> [AiyifanItem] {
         let refreshedItems = feeds.values.flatMap { $0 }
         var updatedMarkers = metadata.markers
         var updatedSeenMarkers = metadata.seenMarkers
+        var changedItems: [AiyifanItem] = []
 
         for item in refreshedItems where contains(item) {
             let key = Self.updateKey(for: item)
-            if updatedMarkers[item.id] == nil {
+            let previousKey = updatedMarkers[item.id]
+            if previousKey == nil {
                 updatedSeenMarkers[item.id] = key
+            } else if previousKey != key, !key.isEmpty {
+                changedItems.append(item)
             }
             updatedMarkers[item.id] = key
         }
@@ -75,6 +80,7 @@ final class SavedItemsStore: ObservableObject {
         )
         persistMetadata()
         updateNewItemIDs()
+        return changedItems
     }
 
     func hasNewUpdate(_ item: AiyifanItem) -> Bool {
@@ -109,6 +115,17 @@ final class SavedItemsStore: ObservableObject {
             notificationPreferences: preferences
         )
         persistMetadata()
+    }
+
+    func mergeFromCloud(_ cloudItems: [AiyifanItem]) {
+        let merged = (items + cloudItems).reduce(into: [AiyifanItem]()) { result, item in
+            if !result.contains(where: { $0.id == item.id }) {
+                result.append(item)
+            }
+        }
+        items = merged
+        persist(merged)
+        updateNewItemIDs()
     }
 
     private func persist(_ items: [AiyifanItem]) {

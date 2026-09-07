@@ -107,6 +107,14 @@ final class PlayedItemsStore: ObservableObject {
         replace(with: items.filter { $0.item.id != item.id })
     }
 
+    func mergeFromCloud(_ cloudItems: [PlayedRecord]) {
+        let merged = CloudLibraryMerger.merge(
+            local: CloudLibraryPayload(savedItems: [], playedItems: items),
+            cloud: CloudLibraryPayload(savedItems: [], playedItems: cloudItems)
+        )
+        replace(with: merged.playedItems)
+    }
+
     private func replaceRecord(
         _ record: PlayedRecord,
         position: Double,

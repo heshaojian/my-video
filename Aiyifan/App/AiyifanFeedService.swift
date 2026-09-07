@@ -5,7 +5,11 @@ enum AiyifanFeedError: Error {
     case missingFeed
 }
 
-struct AiyifanFeedService {
+protocol AiyifanFeedServing: Sendable {
+    func fetchLatest(category: AiyifanCategory) async throws -> [AiyifanItem]
+}
+
+struct AiyifanFeedService: @unchecked Sendable, AiyifanFeedServing {
     private let decoder: JSONDecoder
 
     init() {

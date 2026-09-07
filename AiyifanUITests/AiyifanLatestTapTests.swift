@@ -206,6 +206,17 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(app.buttons["showEpisodes"].exists)
     }
 
+    func testSettingsAreAvailableWithoutAddingAFourthTab() {
+        let app = launchFixtureApp()
+
+        XCTAssertTrue(app.buttons["appSettings"].waitForExistence(timeout: 5))
+        app.buttons["appSettings"].tap()
+        XCTAssertTrue(app.navigationBars["Settings"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.switches["updateAlertsToggle"].exists)
+        XCTAssertTrue(app.switches["cloudSyncToggle"].exists)
+        XCTAssertTrue(app.buttons["clearFeedCache"].exists)
+    }
+
     func testContinueWatchingAppearsAndResumesSeededEpisode() {
         let app = launchFixtureAppWithPlayedHistory()
 

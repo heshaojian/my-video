@@ -11,14 +11,20 @@ final class BrowserViewModel: ObservableObject {
     @Published var latestItems: [AiyifanCategory: [AiyifanItem]] = [:]
     @Published var isLoadingLatest = false
     @Published var latestErrorMessage: String?
+    @Published var latestStatusMessage: String?
+    @Published var lastFeedRefresh: Date?
     @Published var canGoBack = false
     @Published var canGoForward = false
     @Published var estimatedProgress = 0.0
     @Published var hasCommittedContent = false
     @Published var errorMessage: String?
 
-    private let feedService = AiyifanFeedService()
+    private let feedRepository: FeedRepository
     weak var webView: WKWebView?
+
+    init(feedRepository: FeedRepository = FeedRepository()) {
+        self.feedRepository = feedRepository
+    }
 
     var currentURL: URL? {
         selectedURL
@@ -137,34 +143,35 @@ final class BrowserViewModel: ObservableObject {
         UIApplication.shared.open(url)
     }
 
-    func loadLatestIfNeeded() async {
-        guard latestItems.isEmpty, !isLoadingLatest else {
+    func loadLatestIfNeeded(force: Bool = false) async {
+        guard (force || latestItems.isEmpty), !isLoadingLatest else {
             return
         }
 
         isLoadingLatest = true
         latestErrorMessage = nil
+        latestStatusMessage = nil
 
-        do {
-            let pairs = try await withThrowingTaskGroup(of: (AiyifanCategory, [AiyifanItem]).self) { group in
-                for category in AiyifanCategory.allCases {
-                    group.addTask { [feedService] in
-                        (category, try await feedService.fetchLatest(category: category))
-                    }
-                }
-
-                var result: [(AiyifanCategory, [AiyifanItem])] = []
-                for try await pair in group {
-                    result.append(pair)
-                }
-                return result
-            }
-
-            latestItems = Dictionary(uniqueKeysWithValues: pairs)
-        } catch {
-            latestErrorMessage = error.localizedDescription
-        }
+        let result = await feedRepository.refresh()
+        latestItems = result.items
+        latestErrorMessage = result.totalFailureMessage
+        latestStatusMessage = result.statusMessage
+        lastFeedRefresh = result.refreshedAt
 
         isLoadingLatest = false
+    }
+
+    func clearFeedCache() async {
+        await feedRepository.clearCache()
+        lastFeedRefresh = nil
+        latestStatusMessage = "Feed cache cleared"
+    }
+
+    func openDeepLink(_ destination: AiyifanDeepLinkDestination) {
+        selectedTitle = destination.item.title
+        selectedURL = nil
+        selectedItem = destination.item
+        selectedEpisodeKey = destination.episodeKey
+        errorMessage = nil
     }
 }

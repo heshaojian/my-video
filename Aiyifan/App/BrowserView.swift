@@ -11,57 +11,66 @@ struct BrowserView: View {
     @StateObject private var viewModel = BrowserViewModel()
     @StateObject private var savedItemsStore = SavedItemsStore()
     @StateObject private var playedItemsStore = PlayedItemsStore()
+    @StateObject private var appSettings = AppSettingsStore()
     @State private var selectedLibraryTab = LibraryTab.latest
 
     var body: some View {
-        if let selectedItem = viewModel.selectedItem {
-            NativePlayerScreen(
-                item: selectedItem,
-                initialEpisodeKey: viewModel.selectedEpisodeKey,
-                playedItemsStore: playedItemsStore,
-                onClose: viewModel.closePlayer,
-                onOpenWebsite: { viewModel.openWebsiteFallback(for: selectedItem) }
-            )
-        } else if !viewModel.isBrowsing {
-            LibraryView(
-                viewModel: viewModel,
-                savedItemsStore: savedItemsStore,
-                playedItemsStore: playedItemsStore,
-                selectedTab: $selectedLibraryTab
-            )
-        } else {
-            VStack(spacing: 0) {
-                HeaderView(viewModel: viewModel)
+        Group {
+            if let selectedItem = viewModel.selectedItem {
+                NativePlayerScreen(
+                    item: selectedItem,
+                    initialEpisodeKey: viewModel.selectedEpisodeKey,
+                    playedItemsStore: playedItemsStore,
+                    onClose: viewModel.closePlayer,
+                    onOpenWebsite: { viewModel.openWebsiteFallback(for: selectedItem) }
+                )
+            } else if !viewModel.isBrowsing {
+                LibraryView(
+                    viewModel: viewModel,
+                    savedItemsStore: savedItemsStore,
+                    playedItemsStore: playedItemsStore,
+                    appSettings: appSettings,
+                    selectedTab: $selectedLibraryTab
+                )
+            } else {
+                VStack(spacing: 0) {
+                    HeaderView(viewModel: viewModel)
 
-                ZStack {
-                    WebView(viewModel: viewModel)
-                        .accessibilityIdentifier("browserWebView")
+                    ZStack {
+                        WebView(viewModel: viewModel)
+                            .accessibilityIdentifier("browserWebView")
 
-                    if let errorMessage = viewModel.errorMessage {
-                        ContentUnavailableView(
-                            "Could not load Aiyifan",
-                            systemImage: "wifi.exclamationmark",
-                            description: Text(errorMessage)
-                        )
+                        if let errorMessage = viewModel.errorMessage {
+                            ContentUnavailableView(
+                                "Could not load Aiyifan",
+                                systemImage: "wifi.exclamationmark",
+                                description: Text(errorMessage)
+                            )
                             .padding()
                             .background(.background)
-                    } else if !viewModel.hasCommittedContent && viewModel.estimatedProgress < 1 {
-                        VStack(spacing: 12) {
-                            ProgressView()
-                            Text("Loading Aiyifan")
-                                .font(.footnote)
-                                .foregroundStyle(.secondary)
+                        } else if !viewModel.hasCommittedContent && viewModel.estimatedProgress < 1 {
+                            VStack(spacing: 12) {
+                                ProgressView()
+                                Text("Loading Aiyifan")
+                                    .font(.footnote)
+                                    .foregroundStyle(.secondary)
+                            }
+                            .allowsHitTesting(false)
                         }
-                        .allowsHitTesting(false)
                     }
-                }
 
-                if !viewModel.hasCommittedContent && viewModel.estimatedProgress > 0 && viewModel.estimatedProgress < 1 {
-                    ProgressView(value: viewModel.estimatedProgress)
-                        .progressViewStyle(.linear)
-                }
+                    if !viewModel.hasCommittedContent && viewModel.estimatedProgress > 0 && viewModel.estimatedProgress < 1 {
+                        ProgressView(value: viewModel.estimatedProgress)
+                            .progressViewStyle(.linear)
+                    }
 
-                BrowserToolbar(viewModel: viewModel)
+                    BrowserToolbar(viewModel: viewModel)
+                }
+            }
+        }
+        .onOpenURL { url in
+            if let destination = AiyifanDeepLink.parse(url) {
+                viewModel.openDeepLink(destination)
             }
         }
     }
@@ -71,6 +80,7 @@ private struct LibraryView: View {
     @ObservedObject var viewModel: BrowserViewModel
     @ObservedObject var savedItemsStore: SavedItemsStore
     @ObservedObject var playedItemsStore: PlayedItemsStore
+    @ObservedObject var appSettings: AppSettingsStore
     @Binding var selectedTab: LibraryTab
 
     var body: some View {
@@ -78,14 +88,19 @@ private struct LibraryView: View {
             LatestHomeView(
                 viewModel: viewModel,
                 savedItemsStore: savedItemsStore,
-                playedItemsStore: playedItemsStore
+                playedItemsStore: playedItemsStore,
+                appSettings: appSettings
             )
                 .tabItem {
                     Label("Latest", systemImage: "sparkles.tv")
                 }
                 .tag(LibraryTab.latest)
 
-            SavedItemsView(viewModel: viewModel, savedItemsStore: savedItemsStore)
+            SavedItemsView(
+                viewModel: viewModel,
+                savedItemsStore: savedItemsStore,
+                appSettings: appSettings
+            )
                 .tabItem {
                     Label("Saved", systemImage: "bookmark.fill")
                 }
@@ -125,8 +140,10 @@ private struct LatestHomeView: View {
     @ObservedObject var viewModel: BrowserViewModel
     @ObservedObject var savedItemsStore: SavedItemsStore
     @ObservedObject var playedItemsStore: PlayedItemsStore
+    @ObservedObject var appSettings: AppSettingsStore
     @State private var filter = LibraryFilter()
     @State private var isShowingFilters = false
+    @State private var isShowingSettings = false
 
     var body: some View {
         NavigationStack {
@@ -154,6 +171,17 @@ private struct LatestHomeView: View {
                                 .foregroundStyle(.white.opacity(0.8))
                                 .accessibilityLabel("Filter Latest")
                                 .accessibilityIdentifier("filterLatest")
+
+                                Button {
+                                    isShowingSettings = true
+                                } label: {
+                                    Image(systemName: "gearshape")
+                                        .font(.title2)
+                                        .frame(width: 44, height: 44)
+                                }
+                                .foregroundStyle(.white.opacity(0.8))
+                                .accessibilityLabel("Settings")
+                                .accessibilityIdentifier("appSettings")
                             }
 
                             Text("中文 / English")
@@ -210,6 +238,13 @@ private struct LatestHomeView: View {
                                 )
                             }
                         }
+
+                        if let status = viewModel.latestStatusMessage {
+                            Label(status, systemImage: "clock.arrow.circlepath")
+                                .font(.caption)
+                                .foregroundStyle(.white.opacity(0.6))
+                                .padding(.horizontal, 18)
+                        }
                     }
                     .padding(.bottom, 24)
                 }
@@ -224,9 +259,25 @@ private struct LatestHomeView: View {
         .sheet(isPresented: $isShowingFilters) {
             LibraryFilterSheet(filter: $filter, isPresented: $isShowingFilters)
         }
+        .sheet(isPresented: $isShowingSettings) {
+            AppSettingsView(
+                settings: appSettings,
+                viewModel: viewModel,
+                savedItemsStore: savedItemsStore,
+                playedItemsStore: playedItemsStore
+            )
+        }
         .task {
             await viewModel.loadLatestIfNeeded()
-            savedItemsStore.refreshUpdateMarkers(with: viewModel.latestItems)
+            let changedItems = savedItemsStore.refreshUpdateMarkers(with: viewModel.latestItems)
+            if appSettings.updateAlertsEnabled,
+               let batch = NotificationBatch.make(
+                items: changedItems,
+                notificationsEnabled: { item in savedItemsStore.notificationsEnabled(for: item) }
+               ) {
+                await NotificationCoordinator.shared.schedule(batch)
+            }
+            BackgroundRefreshScheduler.schedule()
         }
     }
 
@@ -610,138 +661,6 @@ private struct LatestItemCard: View {
             .accessibilityIdentifier("saveItem-\(item.id)")
         }
         .frame(width: 132, alignment: .leading)
-    }
-}
-
-private struct SavedItemsView: View {
-    @ObservedObject var viewModel: BrowserViewModel
-    @ObservedObject var savedItemsStore: SavedItemsStore
-
-    private let columns = [
-        GridItem(.flexible(), spacing: 14),
-        GridItem(.flexible(), spacing: 14)
-    ]
-
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                Color(red: 0.055, green: 0.052, blue: 0.073)
-                    .ignoresSafeArea()
-
-                if savedItemsStore.items.isEmpty {
-                    ContentUnavailableView(
-                        "Nothing saved yet",
-                        systemImage: "bookmark",
-                        description: Text("Save something from Latest and it will appear here.")
-                    )
-                    .foregroundStyle(.white)
-                } else {
-                    ScrollView {
-                        LazyVGrid(columns: columns, spacing: 20) {
-                            ForEach(savedItemsStore.items) { item in
-                                SavedItemCard(
-                                    item: item,
-                                    hasNewUpdate: savedItemsStore.hasNewUpdate(item),
-                                    onTap: { viewModel.selectItem(item) },
-                                    onRemove: { savedItemsStore.toggle(item) },
-                                    notificationsEnabled: savedItemsStore.notificationsEnabled(for: item),
-                                    onToggleNotifications: {
-                                        savedItemsStore.setNotificationsEnabled(
-                                            !savedItemsStore.notificationsEnabled(for: item),
-                                            for: item
-                                        )
-                                    },
-                                    onMarkSeen: { savedItemsStore.markUpdateSeen(item) }
-                                )
-                            }
-                        }
-                        .padding(18)
-                    }
-                }
-            }
-            .navigationTitle("Saved")
-        }
-    }
-}
-
-private struct SavedItemCard: View {
-    let item: AiyifanItem
-    let hasNewUpdate: Bool
-    let onTap: () -> Void
-    let onRemove: () -> Void
-    let notificationsEnabled: Bool
-    let onToggleNotifications: () -> Void
-    let onMarkSeen: () -> Void
-
-    var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Button(action: onTap) {
-                VStack(alignment: .leading, spacing: 7) {
-                    AsyncImage(url: item.thumbnailURL) { phase in
-                        if case .success(let image) = phase {
-                            image.resizable().scaledToFill()
-                        } else {
-                            Image(systemName: "photo")
-                                .font(.largeTitle)
-                                .foregroundStyle(.white.opacity(0.25))
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .background(Color.white.opacity(0.08))
-                        }
-                    }
-                    .aspectRatio(0.72, contentMode: .fit)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-                    Text(item.title)
-                        .font(.system(size: 15, weight: .semibold))
-                        .lineLimit(2)
-                        .foregroundStyle(.white.opacity(0.92))
-
-                    Text(item.updateLabel)
-                        .font(.caption)
-                        .lineLimit(1)
-                        .foregroundStyle(.white.opacity(0.48))
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("savedItem-\(item.id)")
-            .contextMenu {
-                Button(notificationsEnabled ? "Disable Alerts" : "Enable Alerts", systemImage: notificationsEnabled ? "bell.slash" : "bell") {
-                    onToggleNotifications()
-                }
-                if hasNewUpdate {
-                    Button("Mark Update Seen", systemImage: "eye") { onMarkSeen() }
-                }
-                Button("Remove", systemImage: "bookmark.slash", role: .destructive) { onRemove() }
-            }
-
-            Button(action: onRemove) {
-                Image(systemName: "bookmark.slash.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.black)
-                    .frame(width: 34, height: 34)
-                    .background(Color.cyan)
-                    .clipShape(Circle())
-            }
-            .padding(7)
-            .accessibilityLabel("Remove from Saved")
-            .accessibilityIdentifier("removeSavedItem-\(item.id)")
-
-            if hasNewUpdate {
-                Text("NEW")
-                    .font(.caption2.bold())
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 3)
-                    .foregroundStyle(.black)
-                    .background(.cyan)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(7)
-                    .allowsHitTesting(false)
-            }
-        }
     }
 }
 
