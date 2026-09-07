@@ -2,44 +2,6 @@ import XCTest
 @testable import Aiyifan
 
 final class LibraryFeaturesTests: XCTestCase {
-    func testSearchCombinesTextCategoryLanguageYearAndWatchState() {
-        let documents = [
-            LibraryDocument(
-                item: AiyifanItem(listPath: "cn-drama", title: "漫长的季节 2023", subTitle: "更新至12集"),
-                category: .drama,
-                watchState: .inProgress,
-                hasNewUpdate: true
-            ),
-            LibraryDocument(
-                item: AiyifanItem(listPath: "en-movie", title: "The Brutalist", subTitle: "Movie 2024"),
-                category: .movie,
-                watchState: .unplayed,
-                hasNewUpdate: false
-            )
-        ]
-        let filter = LibraryFilter(
-            query: "季节",
-            category: .drama,
-            language: .chinese,
-            year: 2023,
-            watchState: .newUpdate
-        )
-
-        XCTAssertEqual(LibrarySearchEngine.results(in: documents, matching: filter).map(\.item.id), ["cn-drama"])
-    }
-
-    func testLanguageAndYearClassificationAreHonestAboutUnknownMetadata() {
-        let chinese = AiyifanItem(listPath: "cn", title: "庆余年")
-        let english = AiyifanItem(listPath: "en", title: "Severance")
-        let ambiguous = AiyifanItem(listPath: "ambiguous", title: "1234")
-        let dated = AiyifanItem(listPath: "dated", title: "Movie", subTitle: "Released 2025")
-
-        XCTAssertEqual(ContentLanguage.classify(chinese), .chinese)
-        XCTAssertEqual(ContentLanguage.classify(english), .english)
-        XCTAssertEqual(ContentLanguage.classify(ambiguous), .unknown)
-        XCTAssertEqual(LibraryMetadata.year(for: dated), 2025)
-    }
-
     func testContinueWatchingKeepsLatestIncompleteEpisodePerTitle() {
         let show = AiyifanItem(listPath: "show", title: "Show")
         let movie = AiyifanItem(listPath: "movie", title: "Movie")

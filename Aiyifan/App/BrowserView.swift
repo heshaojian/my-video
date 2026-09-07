@@ -227,8 +227,6 @@ private struct LatestHomeView: View {
     @ObservedObject var playedItemsStore: PlayedItemsStore
     @ObservedObject var appSettings: AppSettingsStore
     @ObservedObject var savedUpdateMonitor: SavedUpdateMonitor
-    @State private var filter = LibraryFilter()
-    @State private var isShowingFilters = false
     @State private var isShowingSettings = false
 
     var body: some View {
@@ -262,17 +260,6 @@ private struct LatestHomeView: View {
                                 Spacer()
 
                                 Button {
-                                    isShowingFilters = true
-                                } label: {
-                                    Image(systemName: filter.isActive && filter.query.isEmpty ? "line.3.horizontal.decrease.circle.fill" : "line.3.horizontal.decrease.circle")
-                                        .font(.title2)
-                                        .frame(width: 44, height: 44)
-                                }
-                                .foregroundStyle(.white.opacity(0.8))
-                                .accessibilityLabel("Filter Latest")
-                                .accessibilityIdentifier("filterLatest")
-
-                                Button {
                                     isShowingSettings = true
                                 } label: {
                                     Image(systemName: "gearshape")
@@ -288,7 +275,7 @@ private struct LatestHomeView: View {
                         .padding(.horizontal, 18)
                         .padding(.top, 18)
 
-                        if !continueWatching.isEmpty && !filter.isActive {
+                        if !continueWatching.isEmpty {
                             ContinueWatchingSection(
                                 records: continueWatching,
                                 onResume: viewModel.selectPlayed,
@@ -298,7 +285,7 @@ private struct LatestHomeView: View {
                             )
                         }
 
-                        if !newForYou.isEmpty && !filter.isActive {
+                        if !newForYou.isEmpty {
                             NewForYouSection(
                                 items: newForYou,
                                 onPlay: viewModel.selectItem,
@@ -315,14 +302,6 @@ private struct LatestHomeView: View {
                             ContentUnavailableView("Unable to Load", systemImage: "wifi.exclamationmark", description: Text(message))
                                 .foregroundStyle(.white)
                                 .padding(.horizontal)
-                        } else if filter.isActive {
-                            SearchResultsSection(
-                                documents: searchResults,
-                                onSelectItem: viewModel.selectItem,
-                                isSaved: savedItemsStore.contains,
-                                onToggleSaved: toggleSaved,
-                                onClearSearch: { filter = LibraryFilter() }
-                            )
                         } else {
                             ForEach(AiyifanCategory.allCases) { category in
                                 LatestCategorySection(
@@ -348,9 +327,6 @@ private struct LatestHomeView: View {
             }
         }
         .accessibilityIdentifier("latestHome")
-        .sheet(isPresented: $isShowingFilters) {
-            LibraryFilterSheet(filter: $filter, isPresented: $isShowingFilters)
-        }
         .sheet(isPresented: $isShowingSettings) {
             AppSettingsView(
                 settings: appSettings,
@@ -384,33 +360,10 @@ private struct LatestHomeView: View {
         ContinueWatchingProjector.records(from: playedItemsStore.items)
     }
 
-    private var documents: [LibraryDocument] {
-        AiyifanCategory.allCases.flatMap { category in
-            (viewModel.latestItems[category] ?? []).map { item in
-                LibraryDocument(
-                    item: item,
-                    category: category,
-                    watchState: watchState(for: item),
-                    hasNewUpdate: savedItemsStore.hasNewUpdate(item)
-                )
-            }
-        }
-    }
-
-    private var searchResults: [LibraryDocument] {
-        LibrarySearchEngine.results(in: documents, matching: filter)
-    }
-
     private var newForYou: [AiyifanItem] {
-        documents.filter(\.hasNewUpdate).map(\.item)
-    }
-
-    private func watchState(for item: AiyifanItem) -> LibraryWatchState {
-        let records = playedItemsStore.items.filter { $0.item.id == item.id }
-        if records.isEmpty {
-            return .unplayed
-        }
-        return records.contains(where: { !$0.isCompleted }) ? .inProgress : .watched
+        AiyifanCategory.allCases
+            .flatMap { viewModel.latestItems[$0] ?? [] }
+            .filter(savedItemsStore.hasNewUpdate)
     }
 
     private func toggleSaved(_ item: AiyifanItem) {
@@ -513,140 +466,6 @@ private struct NewForYouSection: View {
                 .padding(.horizontal, 18)
             }
         }
-    }
-}
-
-private struct SearchResultsSection: View {
-    let documents: [LibraryDocument]
-    let onSelectItem: (AiyifanItem) -> Void
-    let isSaved: (AiyifanItem) -> Bool
-    let onToggleSaved: (AiyifanItem) -> Void
-    let onClearSearch: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("Filtered Titles")
-                    .font(.title3.weight(.semibold))
-                    .foregroundStyle(.white)
-                Spacer()
-                Button(action: onClearSearch) {
-                    Image(systemName: "xmark.circle.fill")
-                        .frame(width: 36, height: 36)
-                }
-                .foregroundStyle(.white.opacity(0.7))
-                .accessibilityLabel("Clear Filters")
-                .accessibilityIdentifier("clearLatestFilters")
-            }
-            .padding(.horizontal, 18)
-
-            if documents.isEmpty {
-                ContentUnavailableView("No matches", systemImage: "magnifyingglass")
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 40)
-            } else {
-                LazyVStack(spacing: 10) {
-                    ForEach(documents) { document in
-                        HStack(spacing: 8) {
-                            Button {
-                                onSelectItem(document.item)
-                            } label: {
-                                HStack(spacing: 12) {
-                                    PosterImage(item: document.item)
-                                        .frame(width: 58, height: 82)
-                                    VStack(alignment: .leading, spacing: 5) {
-                                        Text(document.item.title).font(.headline).lineLimit(2)
-                                        Text("\(document.category.title) · \(document.item.updateLabel)")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    Spacer()
-                                }
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityIdentifier("searchItem-\(document.item.id)")
-
-                            Button {
-                                onToggleSaved(document.item)
-                            } label: {
-                                Image(systemName: isSaved(document.item) ? "bookmark.fill" : "bookmark")
-                                    .frame(width: 36, height: 36)
-                            }
-                            .accessibilityLabel(isSaved(document.item) ? "Remove from Saved" : "Save for Later")
-                            .accessibilityIdentifier("saveSearchItem-\(document.item.id)")
-                        }
-                        .padding(10)
-                        .foregroundStyle(.white)
-                        .background(Color.white.opacity(0.07))
-                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                    }
-                }
-                .padding(.horizontal, 18)
-            }
-        }
-    }
-}
-
-private struct LibraryFilterSheet: View {
-    @Binding var filter: LibraryFilter
-    @Binding var isPresented: Bool
-
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section("Category") {
-                    Button("All") { filter.category = nil }
-                        .accessibilityIdentifier("filterCategory-All")
-                    ForEach(AiyifanCategory.allCases) { category in
-                        Button {
-                            filter.category = category
-                        } label: {
-                            HStack {
-                                Text(category.title)
-                                Spacer()
-                                if filter.category == category { Image(systemName: "checkmark") }
-                            }
-                        }
-                        .accessibilityIdentifier("filterCategory-\(category.id)")
-                    }
-                }
-
-                Section("Language") {
-                    Picker("Language", selection: $filter.language) {
-                        Text("All").tag(ContentLanguage?.none)
-                        ForEach(ContentLanguage.allCases) { language in
-                            Text(language.title).tag(Optional(language))
-                        }
-                    }
-                }
-
-                Section("Watch State") {
-                    Picker("Watch State", selection: $filter.watchState) {
-                        ForEach(WatchStateFilter.allCases) { state in
-                            Text(state.title).tag(state)
-                        }
-                    }
-                }
-            }
-            .navigationTitle("Filters")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button("Reset") {
-                        let query = filter.query
-                        filter = LibraryFilter(query: query)
-                    }
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Apply") { isPresented = false }
-                        .fontWeight(.semibold)
-                        .accessibilityIdentifier("applyFilters")
-                }
-            }
-        }
-        .presentationDetents([.medium, .large])
     }
 }
 

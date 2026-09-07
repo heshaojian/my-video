@@ -4,11 +4,11 @@ Date: 2026-09-07
 
 ## Automated Regression
 
-- Full iPhone 17 Pro simulator run after the continuous-playback, quality, episode-recovery, and daily-update changes: 168/168 actual test cases passed (139 unit/integration, 29 UI).
+- Full iPhone 17 Pro simulator run after the continuous-playback, quality, episode-recovery, daily-update, and discovery simplification changes: 167/167 actual test cases passed (137 unit/integration, 30 UI).
 - App-icon, launch-branding, lock-screen metadata, audio-session, interruption recovery, and MediaPlayer background-artwork regression tests: passed.
 - Program-only local/Cast queues, frozen Played timestamps, active-playback-only progress, and fullscreen/Picture in Picture lifecycle tests: passed.
 - Native catalog filter, persistent per-category sort, result count, Save/play, pagination, retry, and race-condition tests: passed.
-- Exact-1080p default selection, highest-rendition fallback, persisted manual quality, and in-place player-item updates: passed.
+- Always-visible Automatic quality, exact-1080p preference, highest-rendition fallback, persisted manual quality, and in-place player-item updates: passed.
 - Shared full/mini player ownership, browsing while playback remains active, independent episode recovery, and four-attempt partial-playlist retry: passed.
 - Direct saved-title baseline, deduplication, daily due policy, partial-check handling, per-title notification preference, and episode deep link: passed.
 - Deterministic 50-plus-action power-user session: passed on the stable iPhone 17 Pro simulator.
@@ -23,7 +23,7 @@ The long-session scenario repeatedly opens and closes native playback from Lates
 
 | Feature or failure path | Automated evidence | Result | Hardware check |
 | --- | --- | --- | --- |
-| Latest contains only Movies, Series, Variety, and Anime; search control is absent and category filtering remains available | `AiyifanLatestTapTests` latest/filter scenarios | Passed | No |
+| Latest contains only Movies, Series, Variety, and Anime; search and local filtering are absent while All retains provider filters and sorting | `AiyifanLatestTapTests` Latest and catalog scenarios | Passed | No |
 | App-owned interface is English while provider titles, episode names, descriptions, and filter values remain original | Static string scan plus latest/catalog/player UI scenarios | Passed | No |
 | Native All catalog for all four categories | Matching catalog navigation UI scenario | Passed | No |
 | Provider filters, per-category persisted sort and direction, result count, pagination, empty/error/retry behavior | Catalog preference, unit, race, relaunch, and UI scenarios | Passed | No |
@@ -36,7 +36,7 @@ The long-session scenario repeatedly opens and closes native playback from Lates
 | Played third tab, frozen inactive timestamps, resume, completion, watched state, restart, remove, and clear | Played store, player model, and Played UI scenarios | Passed | No |
 | Fullscreen and Picture in Picture transitions preserve the active player session | Player lifecycle and fullscreen UI scenarios | Passed | PiP pending |
 | Back collapses to a retained video mini-player while Latest, Saved, Played, and All remain navigable | Session state tests plus mini-player and power-user UI scenarios | Passed | Continuity pending |
-| Fresh default 1080p, highest available fallback, and persistent manual native quality | Quality projection, preference, and player-item tests | Passed | AirPlay quality pending |
+| Always-visible Automatic quality preferring exact 1080p, highest available fallback, and persistent manual native choices when exposed | Quality projection, preference, player-item, and playback-menu UI tests | Passed | AirPlay quality pending |
 | Background audio, interruption recovery, and lock-screen metadata/controls | Playback feature contract tests | Passed | Lock-screen playback pending |
 | AirPlay and Google Cast controls, handoff metadata, queue, and simulated remote controls | Cast unit and UI scenarios | Passed | Real receivers pending |
 | Playback speed, sleep timer, next/previous episode, retry, and explicit website fallback | Playback feature, player model, and routing tests | Passed | No |

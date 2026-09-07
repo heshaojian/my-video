@@ -21,9 +21,12 @@ final class NativePlayerViewModelTests: XCTestCase {
                 isAdvertisement: false
             )
         ])
+        let castManager = MockCastPlaybackManager()
+        castManager.isCasting = true
         let viewModel = NativePlayerViewModel(
             item: AiyifanItem(listPath: "movie", title: "Movie"),
             resolver: StubPlaybackResolver(playback: playback),
+            castManager: castManager,
             qualityLoader: StubQualityLoader(options: options),
             qualityPreferences: preferences
         )
@@ -31,7 +34,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         viewModel.start()
         try await waitUntil { viewModel.selectedQuality?.height == 1_080 }
 
-        let currentItem = try XCTUnwrap(viewModel.player.currentItem)
+        let currentItem = try XCTUnwrap(viewModel.preparedPlayerItems.first)
         XCTAssertEqual(viewModel.qualityOptions.map(\.height), [2_160, 1_080, 720])
         XCTAssertEqual(currentItem.preferredMaximumResolution, CGSize(width: 1_920, height: 1_080))
         XCTAssertEqual(currentItem.preferredPeakBitRate, 7_000_000)
@@ -39,21 +42,32 @@ final class NativePlayerViewModelTests: XCTestCase {
         let lower = try XCTUnwrap(viewModel.qualityOptions.first { $0.height == 720 })
         viewModel.setQuality(lower)
 
-        XCTAssertTrue(viewModel.player.currentItem === currentItem)
+        XCTAssertTrue(viewModel.preparedPlayerItems.first === currentItem)
+        XCTAssertEqual(viewModel.manualQualityOptions.map(\.height), [2_160, 1_080, 720])
+        XCTAssertFalse(viewModel.usesAutomaticQuality)
         XCTAssertEqual(viewModel.selectedQuality?.height, 720)
         XCTAssertEqual(currentItem.preferredMaximumResolution, CGSize(width: 1_280, height: 720))
         XCTAssertEqual(currentItem.preferredPeakBitRate, 4_000_000)
         XCTAssertEqual(preferences.targetHeight, 720)
+
+        viewModel.setAutomaticQuality()
+        XCTAssertTrue(viewModel.usesAutomaticQuality)
+        XCTAssertTrue(viewModel.preparedPlayerItems.first === currentItem)
+        XCTAssertEqual(viewModel.selectedQuality?.height, 1_080)
+        XCTAssertEqual(currentItem.preferredMaximumResolution, CGSize(width: 1_920, height: 1_080))
+        XCTAssertEqual(currentItem.preferredPeakBitRate, 7_000_000)
         viewModel.stop()
     }
 
-    func testSingleQualityIsAppliedButDoesNotExposeQualityControl() async throws {
+    func testSingleQualityIsAppliedAndStillExposesAutomaticQualityControl() async throws {
         let option = PlaybackQualityOption(
             width: 1_280,
             height: 720,
             averageBitRate: 3_000_000,
             peakBitRate: 4_000_000
         )
+        let castManager = MockCastPlaybackManager()
+        castManager.isCasting = true
         let viewModel = NativePlayerViewModel(
             item: AiyifanItem(listPath: "movie", title: "Movie"),
             resolver: StubPlaybackResolver(playback: NativePlayback(entries: [
@@ -62,14 +76,17 @@ final class NativePlayerViewModelTests: XCTestCase {
                     isAdvertisement: false
                 )
             ])),
+            castManager: castManager,
             qualityLoader: StubQualityLoader(options: [option])
         )
 
         viewModel.start()
         try await waitUntil { viewModel.selectedQuality != nil }
 
-        XCTAssertFalse(viewModel.shouldShowQualityControl)
-        XCTAssertEqual(viewModel.player.currentItem?.preferredMaximumResolution, CGSize(width: 1_280, height: 720))
+        XCTAssertTrue(viewModel.usesAutomaticQuality)
+        XCTAssertTrue(viewModel.manualQualityOptions.isEmpty)
+        let preparedItem = try XCTUnwrap(viewModel.preparedPlayerItems.first)
+        XCTAssertEqual(preparedItem.preferredMaximumResolution, CGSize(width: 1_280, height: 720))
         viewModel.stop()
     }
 
@@ -122,11 +139,11 @@ final class NativePlayerViewModelTests: XCTestCase {
         )
 
         viewModel.start()
-        try await waitUntil { viewModel.player.currentItem != nil }
-        let currentItem = viewModel.player.currentItem
+        try await waitUntil { viewModel.preparedEntryCount == 1 }
+        let preparedItem = try XCTUnwrap(viewModel.preparedPlayerItems.first)
         try await waitUntil { viewModel.episodes.count == 2 }
 
-        XCTAssertTrue(viewModel.player.currentItem === currentItem)
+        XCTAssertTrue(viewModel.preparedPlayerItems.first === preparedItem)
         XCTAssertEqual(viewModel.selectedEpisode?.mediaKey, "episode-10")
         XCTAssertEqual(viewModel.episodeControlTitle, "Episode 10/10")
         viewModel.stop()

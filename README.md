@@ -2,20 +2,23 @@
 
 Personal iOS client for Aiyifan (`https://m.yfsp.tv/`).
 
+Developers and coding agents should read [DEVELOPMENT.md](DEVELOPMENT.md) before
+changing navigation, playback, provider requests, persistence, or casting.
+
 ## What It Does
 
 - Starts on an English native Latest page for Movies, Series, Variety, and Anime while preserving provider titles and metadata in their original language.
 - Uses the established Aiyifan folded-mark identity for the app icon, launch screen, in-app header, and Now Playing artwork.
 - Fetches the latest signed Aiyifan category results and shows provider scores on poster rows.
 - Opens All as a native, pull-to-refresh catalog with 24-item pagination, score badges, Save/Favorite controls, and direct native playback.
-- Filters the native library, with Continue Watching and New for You sections. Search is currently disabled.
+- Keeps Latest focused on discovery, with Continue Watching and New for You sections; filtering and sorting live in each native All catalog.
 - Remembers independently selected filters, sort order, and sort direction for each category across navigation and app relaunches.
 - Saves titles for later, directly checks every saved serial title daily on a best-effort schedule, and supports per-title update alerts with episode deep links.
 - Resolves supported streams into native `AVPlayer` playback with Picture in Picture, background audio, and provider Likes, Favorites, Score, and Views.
 - Excludes separately supplied front advertisements from native and Cast playback queues while leaving the full program stream untouched.
 - Lists multi-episode shows newest-first, autoplays the next episode, and remembers progress per episode.
 - Starts a known latest episode immediately while its complete episode list retries independently up to four times.
-- Prefers exact 1080p on a fresh install, falls back to the highest available HLS rendition, and remembers manual quality choices.
+- Always exposes Quality with Automatic preferring exact 1080p, falls back to the highest available HLS rendition, and remembers manual choices when the stream exposes them.
 - Keeps one player session alive when Back is tapped, with a video mini-player for browsing Latest, Saved, Played, and All without interrupting playback.
 - Continues audio while the screen is locked and provides playback speed, sleep timer, lock-screen Now Playing controls, interruption recovery, and transient-load retry.
 - Provides a third Played tab with resume, watched/unwatched, restart, remove, filter, and clear controls.
@@ -43,9 +46,9 @@ The UI suite uses a deterministic local fixture. The 50-action power-user scenar
 ## Run On iPhone
 
 1. Run `pod install`, then open `Aiyifan.xcworkspace` in Xcode.
-2. Add `heshaojian@outlook.com` in Xcode Settings > Accounts. The generated project defaults to Personal Team `GM4SSCNNUK`.
-3. Connect and unlock John's iPhone, then trust this Mac if prompted.
-4. Select John's iPhone as the run destination.
+2. Add your Apple ID in Xcode Settings > Accounts and select your team under Signing & Capabilities.
+3. Connect and unlock the iPhone, then trust the Mac if prompted.
+4. Select the iPhone as the run destination.
 5. Press Run.
 
 If Xcode says it cannot create a provisioning profile, keep the bundle id `com.john.aiyifan` or change it to a unique personal bundle id, then let Xcode manage signing automatically.

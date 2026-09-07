@@ -62,6 +62,8 @@ final class NativePlayerViewModel: ObservableObject {
     @Published private(set) var episodeErrorMessage: String?
 
     let item: AiyifanItem
+    var preparedPlayerItems: [AVPlayerItem] { playbackItems }
+
     private let resolver: any NativePlaybackResolving
     private let playedItemsStore: PlayedItemsStore?
     private let castManager: any CastPlaybackManaging
@@ -93,8 +95,12 @@ final class NativePlayerViewModel: ObservableObject {
         expectsEpisodes || !episodes.isEmpty
     }
 
-    var shouldShowQualityControl: Bool {
-        qualityOptions.count > 1
+    var usesAutomaticQuality: Bool {
+        !qualityPreferences.hasManualSelection
+    }
+
+    var manualQualityOptions: [PlaybackQualityOption] {
+        qualityOptions.count > 1 ? qualityOptions : []
     }
 
     var episodeControlTitle: String? {
@@ -280,6 +286,21 @@ final class NativePlayerViewModel: ObservableObject {
         qualityPreferences.setTargetHeight(available.height)
         selectedQuality = available
         playbackItems.forEach { apply(available, to: $0) }
+    }
+
+    func setAutomaticQuality() {
+        qualityPreferences.setAutomatic()
+        guard let automatic = PlaybackQualitySelector.select(
+            from: qualityOptions,
+            targetHeight: PlaybackQualityPreferenceStore.defaultTargetHeight,
+            fallbackToHighest: true
+        ) else {
+            selectedQuality = nil
+            playbackItems.forEach(applyInitialQualityPreference)
+            return
+        }
+        selectedQuality = automatic
+        playbackItems.forEach { apply(automatic, to: $0) }
     }
 
     func setAutoplayNext(_ enabled: Bool) {
@@ -502,6 +523,7 @@ final class NativePlayerViewModel: ObservableObject {
             width: Int((Double(height) * 16 / 9).rounded()),
             height: height
         )
+        item.preferredPeakBitRate = 0
     }
 
     private func resolveWithRecovery() async throws -> NativePlayback {
@@ -872,13 +894,28 @@ struct NativePlayerScreen: View {
                 }
             }
 
-            if viewModel.shouldShowQualityControl {
-                Menu("Quality") {
-                    ForEach(viewModel.qualityOptions) { quality in
+            Menu("Quality") {
+                Button {
+                    viewModel.setAutomaticQuality()
+                } label: {
+                    if viewModel.usesAutomaticQuality {
+                        Label("Automatic (prefers 1080p)", systemImage: "checkmark")
+                    } else {
+                        Text("Automatic (prefers 1080p)")
+                    }
+                }
+                .accessibilityIdentifier("automaticPlaybackQuality")
+
+                if viewModel.manualQualityOptions.isEmpty {
+                    Text("No manual options for this stream")
+                } else {
+                    Divider()
+                    ForEach(viewModel.manualQualityOptions) { quality in
                         Button {
                             viewModel.setQuality(quality)
                         } label: {
-                            if quality.id == viewModel.selectedQuality?.id {
+                            if !viewModel.usesAutomaticQuality,
+                               quality.id == viewModel.selectedQuality?.id {
                                 Label(quality.title, systemImage: "checkmark")
                             } else {
                                 Text(quality.title)
@@ -887,8 +924,8 @@ struct NativePlayerScreen: View {
                         .accessibilityIdentifier("playbackQuality-\(quality.height)")
                     }
                 }
-                .accessibilityIdentifier("playbackQuality")
             }
+            .accessibilityIdentifier("playbackQuality")
 
             Menu("Sleep Timer") {
                 ForEach(Array(SleepTimerOption.choices.enumerated()), id: \.offset) { _, option in

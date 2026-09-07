@@ -538,16 +538,27 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(episodeControl.label.contains("4/10"))
     }
 
-    func testLatestCategoryFilterWorksWithoutSearchBar() {
+    func testLatestKeepsDiscoverySimpleWithoutLocalFilter() {
         let app = launchFixtureApp()
-        XCTAssertTrue(app.buttons["filterLatest"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.otherElements["latestHome"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.searchFields.firstMatch.exists)
-        app.buttons["filterLatest"].tap()
-        app.buttons["filterCategory-anime"].tap()
-        app.buttons["applyFilters"].tap()
+        XCTAssertFalse(app.buttons["filterLatest"].exists)
+        XCTAssertTrue(app.buttons["browseCategory-anime"].exists)
+    }
 
-        XCTAssertTrue(app.buttons["searchItem-fixture-anime"].waitForExistence(timeout: 3))
-        XCTAssertFalse(app.buttons["searchItem-fixture-drama"].exists)
+    func testPlayerAlwaysOffersAutomaticQualityControl() {
+        let app = launchFixtureApp()
+        app.buttons["latestItem-fixture-movie"].tap()
+        XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
+
+        app.buttons["playbackSettings"].tap()
+        let quality = app.buttons["playbackQuality"]
+        XCTAssertTrue(quality.waitForExistence(timeout: 3))
+        quality.tap()
+
+        let automatic = app.buttons["automaticPlaybackQuality"]
+        XCTAssertTrue(automatic.waitForExistence(timeout: 3))
+        XCTAssertTrue(automatic.label.contains("Automatic"))
     }
 
     func testPowerUserSessionKeepsNavigationAndCollectionsConsistent() {

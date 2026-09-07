@@ -58,6 +58,10 @@ final class PlaybackFeaturesTests: XCTestCase {
         XCTAssertEqual(PlaybackQualityPreferenceStore(defaults: defaults, storageKey: "quality").targetHeight, 720)
         XCTAssertTrue(PlaybackQualityPreferenceStore(defaults: defaults, storageKey: "quality").hasManualSelection)
 
+        store.setAutomatic()
+        XCTAssertEqual(PlaybackQualityPreferenceStore(defaults: defaults, storageKey: "quality").targetHeight, 1_080)
+        XCTAssertFalse(PlaybackQualityPreferenceStore(defaults: defaults, storageKey: "quality").hasManualSelection)
+
         defaults.set(-4, forKey: "quality")
         XCTAssertEqual(PlaybackQualityPreferenceStore(defaults: defaults, storageKey: "quality").targetHeight, 1_080)
     }

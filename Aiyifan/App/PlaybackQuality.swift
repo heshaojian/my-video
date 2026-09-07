@@ -155,6 +155,16 @@ final class PlaybackQualityPreferenceStore {
         defaults.set(data, forKey: storageKey)
     }
 
+    func setAutomatic() {
+        let payload = Payload(
+            version: 1,
+            targetHeight: Self.defaultTargetHeight,
+            isManualSelection: false
+        )
+        guard let data = try? JSONEncoder().encode(payload) else { return }
+        defaults.set(data, forKey: storageKey)
+    }
+
     private static func isValid(height: Int) -> Bool {
         (144...4_320).contains(height)
     }
