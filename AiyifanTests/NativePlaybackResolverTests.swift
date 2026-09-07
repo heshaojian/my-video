@@ -151,7 +151,7 @@ final class NativePlaybackResolverTests: XCTestCase {
         }
     }
 
-    func testResponseDecoderQueuesFrontAdBeforeFullProgram() throws {
+    func testResponseDecoderDiscardsFrontAdAndReturnsOnlyFullProgram() throws {
         let data = responseData(info: """
         {
           "isPreView": false,
@@ -165,11 +165,9 @@ final class NativePlaybackResolverTests: XCTestCase {
 
         let playback = try NativePlaybackResponseDecoder.decode(data)
 
-        XCTAssertEqual(playback.entries.count, 2)
-        XCTAssertTrue(playback.entries[0].isAdvertisement)
-        XCTAssertEqual(playback.entries[0].url.absoluteString, "https://ads.example.com/front.mp4")
-        XCTAssertFalse(playback.entries[1].isAdvertisement)
-        XCTAssertEqual(playback.entries[1].url.absoluteString, "https://media.example.com/full.m3u8")
+        XCTAssertEqual(playback.entries.count, 1)
+        XCTAssertFalse(playback.entries[0].isAdvertisement)
+        XCTAssertEqual(playback.entries[0].url.absoluteString, "https://media.example.com/full.m3u8")
     }
 
     func testResponseDecoderRejectsPreviewAndLoginOnlyPlayback() {
@@ -221,7 +219,7 @@ final class NativePlaybackResolverTests: XCTestCase {
         }
     }
 
-    func testResponseDecoderDoesNotSilentlySkipInvalidFrontAd() {
+    func testResponseDecoderIgnoresInvalidFrontAdAndKeepsSecureProgram() throws {
         let data = responseData(info: """
         {
           "isPreView":false,
@@ -233,9 +231,9 @@ final class NativePlaybackResolverTests: XCTestCase {
         }
         """)
 
-        XCTAssertThrowsError(try NativePlaybackResponseDecoder.decode(data)) { error in
-            XCTAssertEqual(error as? NativePlaybackError, .unsupportedMedia)
-        }
+        let playback = try NativePlaybackResponseDecoder.decode(data)
+
+        XCTAssertEqual(playback.entries.map(\.url.absoluteString), ["https://media.example.com/full.m3u8"])
     }
 
     func testCertificateParserRejectsMalformedPageData() {

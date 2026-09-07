@@ -2,13 +2,47 @@ import AVFoundation
 import AVKit
 import SwiftUI
 
+enum PlaybackProgressPersistence: Equatable, Sendable {
+    case none
+    case periodic
+    case final
+}
+
+struct PlaybackProgressState: Equatable, Sendable {
+    private var wasPlaying = false
+
+    mutating func update(isPlaying: Bool) -> PlaybackProgressPersistence {
+        defer { wasPlaying = isPlaying }
+        if isPlaying {
+            return .periodic
+        }
+        return wasPlaying ? .final : .none
+    }
+}
+
+struct PlayerPresentationState: Equatable, Sendable {
+    private(set) var isFullScreenActive = false
+    private(set) var isPictureInPictureActive = false
+
+    var shouldStopOnDisappear: Bool {
+        !isFullScreenActive && !isPictureInPictureActive
+    }
+
+    mutating func setFullScreenActive(_ active: Bool) {
+        isFullScreenActive = active
+    }
+
+    mutating func setPictureInPictureActive(_ active: Bool) {
+        isPictureInPictureActive = active
+    }
+}
+
 @MainActor
 final class NativePlayerViewModel: ObservableObject {
     let player = AVQueuePlayer()
 
     @Published private(set) var isLoading = true
     @Published private(set) var errorMessage: String?
-    @Published private(set) var isPlayingAdvertisement = false
     @Published private(set) var episodeTitle: String?
     @Published private(set) var episodes: [Episode] = []
     @Published private(set) var selectedEpisode: Episode?
@@ -29,9 +63,12 @@ final class NativePlayerViewModel: ObservableObject {
     private var playbackEntries: [NativePlaybackEntry] = []
     private var loadTask: Task<Void, Never>?
     private var requestedEpisodeKey: String?
-    private var muteStateBeforeAdvertisement: Bool?
     private var lastRecordedPosition: Double?
     private var autoplayTask: Task<Void, Never>?
+    private var monitorTask: Task<Void, Never>?
+    private var progressState = PlaybackProgressState()
+    private var presentationState = PlayerPresentationState()
+    private var sessionStarted = false
 
     var nextEpisode: Episode? {
         EpisodeNavigator.next(in: episodes, current: selectedEpisode)
@@ -60,15 +97,36 @@ final class NativePlayerViewModel: ObservableObject {
         player.defaultRate = preferences.playbackRate
     }
 
-    func start() {
-        loadTask?.cancel()
-        cancelAutoplay()
+    func start(monitorPlayback: Bool = false) {
+        guard !sessionStarted else {
+            return
+        }
+        sessionStarted = true
         PlaybackAudioSessionCoordinator.shared.attach(player: player)
         NowPlayingCoordinator.shared.activate(
             player: player,
             playPreviousEpisode: { [weak self] in self?.playPreviousEpisode() },
             playNextEpisode: { [weak self] in self?.playNextEpisode() }
         )
+        if monitorPlayback {
+            monitorTask = Task { [weak self] in
+                await self?.monitorPlayback()
+            }
+        }
+        beginLoad()
+    }
+
+    func retry() {
+        if sessionStarted {
+            beginLoad()
+        } else {
+            start()
+        }
+    }
+
+    private func beginLoad() {
+        loadTask?.cancel()
+        cancelAutoplay()
         loadTask = Task { [weak self] in
             await self?.prepareAndPlay()
         }
@@ -78,13 +136,17 @@ final class NativePlayerViewModel: ObservableObject {
         persistProgress()
         loadTask?.cancel()
         loadTask = nil
+        monitorTask?.cancel()
+        monitorTask = nil
         cancelAutoplay()
-        restoreSoundAfterAdvertisement()
         player.pause()
         player.removeAllItems()
         playbackItems = []
         playbackEntries = []
         preparedEntryCount = 0
+        progressState = PlaybackProgressState()
+        presentationState = PlayerPresentationState()
+        sessionStarted = false
         castManager.clear()
         PlaybackAudioSessionCoordinator.shared.detach(player: player)
         NowPlayingCoordinator.shared.clear()
@@ -96,7 +158,7 @@ final class NativePlayerViewModel: ObservableObject {
         }
         persistProgress()
         requestedEpisodeKey = episode.mediaKey
-        start()
+        beginLoad()
     }
 
     func playNextEpisode() {
@@ -141,6 +203,18 @@ final class NativePlayerViewModel: ObservableObject {
         autoplayCountdown = nil
     }
 
+    var shouldStopOnDisappear: Bool {
+        presentationState.shouldStopOnDisappear
+    }
+
+    func setFullScreenPresentationActive(_ active: Bool) {
+        presentationState.setFullScreenActive(active)
+    }
+
+    func setPictureInPictureActive(_ active: Bool) {
+        presentationState.setPictureInPictureActive(active)
+    }
+
     func persistProgress() {
         guard
             let currentItem = player.currentItem,
@@ -157,7 +231,7 @@ final class NativePlayerViewModel: ObservableObject {
         )
     }
 
-    func monitorPlayback() async {
+    private func monitorPlayback() async {
         while !Task.isCancelled {
             updatePlaybackState()
 
@@ -174,15 +248,14 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     private func prepareAndPlay() async {
-        restoreSoundAfterAdvertisement()
         isLoading = true
         errorMessage = nil
-        isPlayingAdvertisement = false
         episodeTitle = nil
         episodes = []
         selectedEpisode = nil
         pendingResumePosition = 0
         lastRecordedPosition = nil
+        progressState = PlaybackProgressState()
         hasAppliedResume = false
         preparedEntryCount = 0
         player.pause()
@@ -197,13 +270,22 @@ final class NativePlayerViewModel: ObservableObject {
             pendingResumePosition = playedItemsStore?
                 .record(for: item, episodeKey: playback.selectedEpisode?.mediaKey)?
                 .resumePosition ?? 0
-            let items = playback.entries.map { AVPlayerItem(url: $0.url) }
-            playbackEntries = playback.entries
-            preparedEntryCount = playback.entries.count
+            let programEntries = playback.entries.filter { !$0.isAdvertisement }
+            guard !programEntries.isEmpty else {
+                throw NativePlaybackError.unsupportedMedia
+            }
+            let playable = NativePlayback(
+                entries: programEntries,
+                episodes: playback.episodes,
+                selectedEpisode: playback.selectedEpisode
+            )
+            let items = programEntries.map { AVPlayerItem(url: $0.url) }
+            playbackEntries = programEntries
+            preparedEntryCount = programEntries.count
             playbackItems = items
             if let castPlan = try? CastPlaybackPlanBuilder.make(
                 item: item,
-                playback: playback,
+                playback: playable,
                 programPosition: pendingResumePosition
             ) {
                 castManager.prepare(castPlan, loadIfConnected: true)
@@ -212,8 +294,8 @@ final class NativePlayerViewModel: ObservableObject {
                 player.insert(item, after: nil)
             }
             player.defaultRate = playbackRate
-            if !playback.entries.isEmpty {
-                handlePlaybackEntry(index: 0, position: 0, duration: playback.entries[0].isAdvertisement ? 1 : 0)
+            if !programEntries.isEmpty {
+                handlePlaybackEntry(index: 0, position: 0, duration: 0, isPlaying: false)
             }
             if castManager.isCasting {
                 player.pause()
@@ -253,7 +335,8 @@ final class NativePlayerViewModel: ObservableObject {
             handlePlaybackEntry(
                 index: currentIndex,
                 position: currentItem.currentTime().seconds,
-                duration: currentItem.duration.seconds
+                duration: currentItem.duration.seconds,
+                isPlaying: player.timeControlStatus == .playing
             )
         }
 
@@ -272,22 +355,10 @@ final class NativePlayerViewModel: ObservableObject {
         }
     }
 
-    func handlePlaybackEntry(index: Int, position: Double, duration: Double) {
+    func handlePlaybackEntry(index: Int, position: Double, duration: Double, isPlaying: Bool) {
         guard playbackEntries.indices.contains(index) else {
             return
         }
-        let isAdvertisement = playbackEntries[index].isAdvertisement
-        isPlayingAdvertisement = isAdvertisement
-
-        if isAdvertisement {
-            if muteStateBeforeAdvertisement == nil {
-                muteStateBeforeAdvertisement = player.isMuted
-            }
-            player.isMuted = true
-            return
-        }
-
-        restoreSoundAfterAdvertisement()
         if !hasAppliedResume, pendingResumePosition > 0 {
             if position + 0.5 >= pendingResumePosition {
                 hasAppliedResume = true
@@ -302,8 +373,16 @@ final class NativePlayerViewModel: ObservableObject {
             }
         }
         hasAppliedResume = true
-        castManager.updateProgramPosition(position)
-        recordProgress(position: position, duration: duration, force: false)
+        switch progressState.update(isPlaying: isPlaying) {
+        case .none:
+            break
+        case .periodic:
+            castManager.updateProgramPosition(position)
+            recordProgress(position: position, duration: duration, force: false)
+        case .final:
+            castManager.updateProgramPosition(position)
+            recordProgress(position: position, duration: duration, force: true)
+        }
         let programCompleted = duration.isFinite && duration > 0 && position / duration >= 0.99
         updateNowPlaying(position: position, duration: duration)
         if sleepTimer.shouldPause(programCompleted: programCompleted) {
@@ -337,9 +416,6 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     private func updateNowPlaying(position: Double, duration: Double) {
-        guard !isPlayingAdvertisement else {
-            return
-        }
         let isPlaying = player.timeControlStatus == .playing
         PlaybackAudioSessionCoordinator.shared.recordPlaybackState(
             isPlaying: isPlaying,
@@ -357,14 +433,6 @@ final class NativePlayerViewModel: ObservableObject {
             hasPrevious: previousEpisode != nil,
             hasNext: nextEpisode != nil
         )
-    }
-
-    private func restoreSoundAfterAdvertisement() {
-        guard let muteStateBeforeAdvertisement else {
-            return
-        }
-        player.isMuted = muteStateBeforeAdvertisement
-        self.muteStateBeforeAdvertisement = nil
     }
 
     private func recordProgress(position: Double, duration: Double, force: Bool) {
@@ -398,7 +466,7 @@ struct NativePlayerScreen: View {
     @StateObject private var castManager = GoogleCastManager.shared
     @State private var isShowingEpisodes = false
     @Environment(\.scenePhase) private var scenePhase
-    private let usesFixturePlayback: Bool
+    private let monitorsPlayback: Bool
 
     init(
         item: AiyifanItem,
@@ -411,7 +479,8 @@ struct NativePlayerScreen: View {
         self.onClose = onClose
         self.onOpenWebsite = onOpenWebsite
         let usesFixturePlayback = ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed")
-        self.usesFixturePlayback = usesFixturePlayback
+        monitorsPlayback = !usesFixturePlayback
+            || ProcessInfo.processInfo.arguments.contains("-AiyifanUsePlayableFixtureMedia")
         let resolver: any NativePlaybackResolving = usesFixturePlayback
             ? FixtureNativePlaybackResolver()
             : NativePlaybackResolver()
@@ -426,7 +495,7 @@ struct NativePlayerScreen: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                Button(action: onClose) {
+                Button(action: closePlayer) {
                     Image(systemName: "chevron.backward")
                         .frame(width: 36, height: 36)
                 }
@@ -454,7 +523,7 @@ struct NativePlayerScreen: View {
                 GoogleCastRouteButton()
                     .frame(width: 36, height: 36)
 
-                Button(action: onOpenWebsite) {
+                Button(action: openWebsite) {
                     Image(systemName: "safari")
                         .frame(width: 36, height: 36)
                 }
@@ -546,21 +615,12 @@ struct NativePlayerScreen: View {
             .background(Color.black)
 
             ZStack {
-                NativePlayerController(player: viewModel.player)
+                NativePlayerController(
+                    player: viewModel.player,
+                    onFullScreenChanged: viewModel.setFullScreenPresentationActive,
+                    onPictureInPictureChanged: viewModel.setPictureInPictureActive
+                )
                     .ignoresSafeArea(edges: .bottom)
-
-                if viewModel.isPlayingAdvertisement && viewModel.errorMessage == nil {
-                    Text("Advertisement · Muted")
-                        .font(.caption.weight(.semibold))
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 6)
-                        .foregroundStyle(.white)
-                        .background(.black.opacity(0.75))
-                        .clipShape(RoundedRectangle(cornerRadius: 4))
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
-                        .padding(12)
-                        .accessibilityIdentifier("advertisementLabel")
-                }
 
                 if let countdown = viewModel.autoplayCountdown {
                     Button {
@@ -593,7 +653,7 @@ struct NativePlayerScreen: View {
                             .foregroundStyle(.secondary)
 
                         HStack(spacing: 12) {
-                            Button("Retry", action: viewModel.start)
+                            Button("Retry", action: viewModel.retry)
                                 .buttonStyle(.borderedProminent)
                                 .accessibilityIdentifier("retryNativePlayback")
 
@@ -617,13 +677,12 @@ struct NativePlayerScreen: View {
         }
         .background(Color.black)
         .task {
-            viewModel.start()
-            if !usesFixturePlayback {
-                await viewModel.monitorPlayback()
-            }
+            viewModel.start(monitorPlayback: monitorsPlayback)
         }
         .onDisappear {
-            viewModel.stop()
+            if viewModel.shouldStopOnDisappear {
+                viewModel.stop()
+            }
         }
         .onChange(of: scenePhase) { _, phase in
             if phase != .active {
@@ -661,14 +720,34 @@ struct NativePlayerScreen: View {
             .presentationDetents([.medium, .large])
         }
     }
+
+    private func closePlayer() {
+        viewModel.stop()
+        onClose()
+    }
+
+    private func openWebsite() {
+        viewModel.stop()
+        onOpenWebsite()
+    }
 }
 
 private struct NativePlayerController: UIViewControllerRepresentable {
     let player: AVPlayer
+    let onFullScreenChanged: (Bool) -> Void
+    let onPictureInPictureChanged: (Bool) -> Void
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(
+            onFullScreenChanged: onFullScreenChanged,
+            onPictureInPictureChanged: onPictureInPictureChanged
+        )
+    }
 
     func makeUIViewController(context: Context) -> AVPlayerViewController {
         let controller = AVPlayerViewController()
         controller.player = player
+        controller.delegate = context.coordinator
         controller.view.accessibilityIdentifier = "nativePlayer"
         controller.allowsPictureInPicturePlayback = true
         controller.canStartPictureInPictureAutomaticallyFromInline = true
@@ -679,6 +758,43 @@ private struct NativePlayerController: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: AVPlayerViewController, context: Context) {
         if controller.player !== player {
             controller.player = player
+        }
+    }
+
+    final class Coordinator: NSObject, @MainActor AVPlayerViewControllerDelegate {
+        private let onFullScreenChanged: (Bool) -> Void
+        private let onPictureInPictureChanged: (Bool) -> Void
+
+        init(
+            onFullScreenChanged: @escaping (Bool) -> Void,
+            onPictureInPictureChanged: @escaping (Bool) -> Void
+        ) {
+            self.onFullScreenChanged = onFullScreenChanged
+            self.onPictureInPictureChanged = onPictureInPictureChanged
+        }
+
+        @MainActor func playerViewController(
+            _ playerViewController: AVPlayerViewController,
+            willBeginFullScreenPresentationWithAnimationCoordinator coordinator: any UIViewControllerTransitionCoordinator
+        ) {
+            onFullScreenChanged(true)
+        }
+
+        @MainActor func playerViewController(
+            _ playerViewController: AVPlayerViewController,
+            willEndFullScreenPresentationWithAnimationCoordinator coordinator: any UIViewControllerTransitionCoordinator
+        ) {
+            coordinator.animate(alongsideTransition: nil) { [onFullScreenChanged] _ in
+                onFullScreenChanged(false)
+            }
+        }
+
+        @MainActor func playerViewControllerWillStartPictureInPicture(_ playerViewController: AVPlayerViewController) {
+            onPictureInPictureChanged(true)
+        }
+
+        @MainActor func playerViewControllerDidStopPictureInPicture(_ playerViewController: AVPlayerViewController) {
+            onPictureInPictureChanged(false)
         }
     }
 }

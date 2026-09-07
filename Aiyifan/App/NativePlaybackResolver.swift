@@ -408,17 +408,8 @@ enum NativePlaybackResponseDecoder {
             throw NativePlaybackError.unsupportedMedia
         }
 
-        let advertisements = try media[..<programIndex].compactMap { media -> NativePlaybackEntry? in
-            guard media.duration > 0 else {
-                return nil
-            }
-            guard let url = media.secureURL else {
-                throw NativePlaybackError.unsupportedMedia
-            }
-            return NativePlaybackEntry(url: url, isAdvertisement: true)
-        }
         let program = NativePlaybackEntry(url: programURL, isAdvertisement: false)
-        return NativePlayback(entries: advertisements + [program])
+        return NativePlayback(entries: [program])
     }
 
 }
@@ -541,6 +532,10 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving {
             Episode(mediaKey: "episode-2", title: "02", updateDate: "2026-09-06T10:00:00Z")
         ]
         let selected = episodes.first { $0.mediaKey == preferredEpisodeKey } ?? episodes[0]
+        let usesPlayableMedia = ProcessInfo.processInfo.arguments.contains("-AiyifanUsePlayableFixtureMedia")
+        let programURL = usesPlayableMedia
+            ? URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8")!
+            : URL(string: "https://media.example.com/\(selected.mediaKey).m3u8")!
         return NativePlayback(
             entries: [
                 NativePlaybackEntry(
@@ -548,7 +543,7 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving {
                     isAdvertisement: true
                 ),
                 NativePlaybackEntry(
-                    url: URL(string: "https://media.example.com/\(selected.mediaKey).m3u8")!,
+                    url: programURL,
                     isAdvertisement: false
                 )
             ],

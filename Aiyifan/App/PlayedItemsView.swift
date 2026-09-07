@@ -131,9 +131,14 @@ private struct PlayedItemRow: View {
                         ProgressView(value: progress)
                             .tint(.cyan)
 
-                        Text(record.lastPlayedAt, style: .relative)
+                        Text(PlayedPositionFormatter.label(
+                            position: record.position,
+                            duration: record.duration
+                        ))
                             .font(.caption)
+                            .monospacedDigit()
                             .foregroundStyle(.white.opacity(0.48))
+                            .accessibilityIdentifier("playedPosition-\(record.id)")
                     }
                 }
                 .contentShape(Rectangle())

@@ -4,9 +4,10 @@ Date: 2026-09-07
 
 ## Automated Regression
 
-- Full iPhone 17 Pro simulator run after branding and locked-playback changes: 109/109 passed (84 unit, 25 UI).
-- App-source line coverage: 83.83% (7,678/9,159 executable lines).
+- Full iPhone 17 Pro simulator run after playback-correctness changes: 112/112 passed (86 unit, 26 UI).
+- App-source line coverage: 84.12% (7,780/9,249 executable lines).
 - App-icon, launch-branding, lock-screen metadata, audio-session, interruption recovery, and MediaPlayer background-artwork regression tests: passed.
+- Program-only local/Cast queues, frozen Played timestamps, active-playback-only progress, and live fullscreen enter/exit continuity: passed.
 - Native catalog open, Save/play, and pagination repeatability: 9/9 passed across three iterations.
 - Deterministic 50-plus-action session: passed on iPhone 17 Pro and iPhone 16e simulators.
 - Release simulator build: passed.
@@ -20,7 +21,7 @@ The long-session scenario repeatedly opens and closes native playback from Lates
 - Native catalog pages one and two returned 24 valid items per page for all four categories using the current signed `/api/list/index` contract.
 - Movie smoke check: `特立独行` resolved through the current signed playback API to a reachable HTTPS HLS manifest.
 - Serial smoke check: `交锋` returned six episodes, selected newest episode `06`, and resolved to a reachable HTTPS HLS manifest.
-- Both playback responses contained one provider advertisement before the program, matching the tested mute-and-restore queue policy.
+- Both playback responses contained one separately supplied provider advertisement before the program; the decoder excluded it and retained only the validated full program stream.
 
 No stream URL, page certificate, cookie, or media payload was saved.
 

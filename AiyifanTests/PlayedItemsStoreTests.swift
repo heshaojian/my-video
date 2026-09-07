@@ -68,6 +68,17 @@ final class PlayedItemsStoreTests: XCTestCase {
         XCTAssertTrue(completed.isCompleted)
     }
 
+    func testPlayedPositionLabelUsesFixedMediaTimeInsteadOfWallClockTime() {
+        XCTAssertEqual(
+            PlayedPositionFormatter.label(position: 40, duration: 100),
+            "Paused at 00:40 / 01:40"
+        )
+        XCTAssertEqual(
+            PlayedPositionFormatter.label(position: 3_723, duration: 7_200),
+            "Paused at 1:02:03 / 2:00:00"
+        )
+    }
+
     func testRemoveAndClearPersistAcrossStoreInstances() {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }

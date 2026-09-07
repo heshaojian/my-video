@@ -1,5 +1,22 @@
 import Foundation
 
+enum PlayedPositionFormatter {
+    static func label(position: Double, duration: Double) -> String {
+        "Paused at \(time(position)) / \(time(duration))"
+    }
+
+    private static func time(_ value: Double) -> String {
+        let totalSeconds = value.isFinite ? max(0, Int(value.rounded(.down))) : 0
+        let hours = totalSeconds / 3_600
+        let minutes = (totalSeconds % 3_600) / 60
+        let seconds = totalSeconds % 60
+        if hours > 0 {
+            return String(format: "%d:%02d:%02d", hours, minutes, seconds)
+        }
+        return String(format: "%02d:%02d", minutes, seconds)
+    }
+}
+
 struct PlayedRecord: Codable, Equatable, Identifiable, Sendable {
     let item: AiyifanItem
     let episodeKey: String?

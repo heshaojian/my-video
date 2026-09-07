@@ -262,6 +262,10 @@ final class AiyifanLatestTapTests: XCTestCase {
 
         let playedItem = app.buttons["playedItem-fixture-电视剧::episode-4"]
         XCTAssertTrue(playedItem.waitForExistence(timeout: 5))
+        let playedPosition = app.staticTexts["playedPosition-fixture-电视剧::episode-4"]
+        XCTAssertEqual(playedPosition.label, "Paused at 00:40 / 01:40")
+        Thread.sleep(forTimeInterval: 1)
+        XCTAssertEqual(playedPosition.label, "Paused at 00:40 / 01:40")
         playedItem.tap()
 
         XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
@@ -288,11 +292,48 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Episode 02"].waitForExistence(timeout: 5))
     }
 
-    func testAdvertisementIsVisiblyMuted() {
+    func testAdvertisementIsRemovedFromNativePlayback() {
         let app = launchFixtureApp()
         app.buttons["latestItem-fixture-电影"].tap()
 
-        XCTAssertTrue(app.staticTexts["Advertisement · Muted"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.staticTexts["Advertisement · Muted"].waitForExistence(timeout: 2))
+    }
+
+    func testFullscreenRoundTripKeepsNativePlayerSessionAlive() {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "-AiyifanUseFixtureFeed",
+            "-AiyifanUsePlayableFixtureMedia",
+            "-AiyifanResetSavedItems",
+            "-AiyifanResetPlayedItems"
+        ]
+        app.launch()
+        app.buttons["latestItem-fixture-电影"].tap()
+        let player = app.otherElements["nativePlayer"]
+        XCTAssertTrue(player.waitForExistence(timeout: 5))
+
+        let loading = app.activityIndicators["Loading video"]
+        if loading.exists {
+            let ready = XCTNSPredicateExpectation(
+                predicate: NSPredicate(format: "exists == false"),
+                object: loading
+            )
+            XCTAssertEqual(XCTWaiter().wait(for: [ready], timeout: 12), .completed)
+        }
+
+        player.tap()
+        let enterFullScreen = app.buttons.matching(
+            NSPredicate(format: "label CONTAINS[c] 'full screen'")
+        ).firstMatch
+        XCTAssertTrue(enterFullScreen.waitForExistence(timeout: 3), app.debugDescription)
+        enterFullScreen.tap()
+
+        XCTAssertFalse(app.buttons["closeNativePlayer"].exists)
+        app.swipeDown()
+
+        XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["closeNativePlayer"].waitForExistence(timeout: 5))
     }
 
     func testPlayedClearAllRequiresConfirmation() {

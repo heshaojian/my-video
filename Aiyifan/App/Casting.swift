@@ -119,15 +119,16 @@ enum CastPlaybackPlanBuilder {
         playback: NativePlayback,
         programPosition: Double
     ) throws -> CastPlaybackPlan {
-        guard playback.entries.contains(where: { !$0.isAdvertisement }) else {
+        let programEntries = playback.entries.filter { !$0.isAdvertisement }
+        guard !programEntries.isEmpty else {
             throw CastPlaybackPlanError.missingProgram
         }
         let safePosition = programPosition.isFinite ? max(0, programPosition) : 0
-        let entries = playback.entries.map { entry in
+        let entries = programEntries.map { entry in
             CastQueueEntry(
                 url: entry.url,
-                isAdvertisement: entry.isAdvertisement,
-                startPosition: entry.isAdvertisement ? 0 : safePosition,
+                isAdvertisement: false,
+                startPosition: safePosition,
                 contentType: contentType(for: entry.url)
             )
         }

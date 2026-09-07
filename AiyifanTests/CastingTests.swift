@@ -85,7 +85,7 @@ final class CastingTests: XCTestCase {
         XCTAssertNil(restoredForProgram.previousMute)
     }
 
-    func testPlanPreservesAdvertisementBeforeProgramAndResumesOnlyProgram() throws {
+    func testPlanDiscardsAdvertisementAndResumesOnlyProgram() throws {
         let playback = NativePlayback(entries: [
             NativePlaybackEntry(url: URL(string: "https://ads.example.com/front.mp4")!, isAdvertisement: true),
             NativePlaybackEntry(url: URL(string: "https://media.example.com/full.m3u8")!, isAdvertisement: false)
@@ -97,9 +97,9 @@ final class CastingTests: XCTestCase {
             programPosition: 42
         )
 
-        XCTAssertEqual(plan.entries.map(\.url), playback.entries.map(\.url))
-        XCTAssertEqual(plan.entries.map(\.isAdvertisement), [true, false])
-        XCTAssertEqual(plan.entries.map(\.startPosition), [0, 42])
+        XCTAssertEqual(plan.entries.map(\.url.absoluteString), ["https://media.example.com/full.m3u8"])
+        XCTAssertEqual(plan.entries.map(\.isAdvertisement), [false])
+        XCTAssertEqual(plan.entries.map(\.startPosition), [42])
     }
 
     func testPlanIncludesEpisodeAndArtworkMetadata() throws {

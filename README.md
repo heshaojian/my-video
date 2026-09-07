@@ -11,7 +11,7 @@ Personal iOS client for Aiyifan (`https://m.yfsp.tv/`).
 - Searches and filters the native library, with Continue Watching and New for You sections.
 - Saves titles for later, detects new episodes, and supports per-title update alerts.
 - Resolves supported streams into native `AVPlayer` playback with Picture in Picture and background audio.
-- Mutes front advertisements and restores the viewer's previous mute choice for the program.
+- Excludes separately supplied front advertisements from native and Cast playback queues while leaving the full program stream untouched.
 - Lists multi-episode shows newest-first, autoplays the next episode, and remembers progress per episode.
 - Continues audio while the screen is locked and provides playback speed, sleep timer, lock-screen Now Playing controls, interruption recovery, and transient-load retry.
 - Provides a third Played tab with resume, watched/unwatched, restart, remove, filter, and clear controls.
