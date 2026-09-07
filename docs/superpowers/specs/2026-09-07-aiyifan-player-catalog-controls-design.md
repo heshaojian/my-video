@@ -103,6 +103,8 @@ Filtering and sorting occur on the server so the result applies to the complete 
 
 Use TDD for the implementation and run focused tests while developing. Because this changes the catalog API contract and player navigation surface, run the complete major-change regression before deployment.
 
+The release gate is at least 90% app-source line coverage and 100% feature traceability: every documented user-facing feature must map to at least one automated unit, integration, or UI test. Coverage percentage alone is not sufficient. Generated code, resource catalogs, third-party SDKs, and platform callbacks that cannot be triggered in the simulator are excluded from the percentage only when the release report names the exclusion and supplies an equivalent contract test or physical-device check.
+
 Required automated coverage:
 
 - Query validation and deterministic request signing for every filter and sort field.
@@ -113,9 +115,12 @@ Required automated coverage:
 - Visible current/total episode count, newest-first episode sheet, and previous/next boundaries.
 - Player controls remain in one trailing cluster across supported iPhone sizes without overlap.
 - UI flows for filter, apply, sort, clear, empty state, save, play, and episode selection.
-- Full unit, integration, and UI suite with at least 80% app-source line coverage.
+- Existing Latest, Saved, Played, search, recommendations, notifications, settings, background refresh, persistence, playback, retry, progress, completion, fullscreen, Picture in Picture, sleep timer, playback speed, autoplay, AirPlay, Cast, and website-fallback behavior.
+- Full unit, integration, and UI suite with at least 90% app-source line coverage and no untested documented feature.
 
-Live verification will probe one filtered result in each category and open at least one multi-episode title from `全部`. Physical-device acceptance will verify the compact player toolbar, episode sheet, AirPlay/Cast affordances, fullscreen continuity, and one-handed operation.
+The implementation will maintain a feature-to-test matrix in the release verification document. Each row identifies the feature, automated test case, simulator result, physical-device requirement, and final status. A feature is not marked covered merely because its source lines executed indirectly.
+
+Live verification will probe one filtered result in each category and open at least one multi-episode title from `全部`. Physical-device acceptance will verify the compact player toolbar, episode sheet, locked-screen audio and controls, Picture in Picture, AirPlay and Google Cast on real receivers, fullscreen continuity, interruption recovery, and one-handed operation. Hardware-dependent rows remain explicitly pending until they are exercised on the corresponding device; simulator success cannot close them.
 
 ## Non-Goals
 
