@@ -1,4 +1,4 @@
-# YFSP iOS Wrapper Design
+# Aiyifan iOS Wrapper Design
 
 ## Goal
 
@@ -6,9 +6,9 @@ Build a personal iOS app that opens `yfsp.tv` in a native shell so John can watc
 
 ## Scope
 
-- Native SwiftUI app named `YFSP`.
+- Native SwiftUI app named `Aiyifan`.
 - App launches to a native latest-updates page for `电影`, `电视剧`, `综艺`, and `动漫`.
-- The latest page fetches YFSP's embedded category feed data and displays poster rows.
+- The latest page fetches Aiyifan's embedded category feed data and displays poster rows.
 - WKWebView loads the selected item or category section after the user taps it.
 - Persistent cookies, local storage, and normal website login state are preserved by WebKit.
 - Browser controls: back, forward, reload, home, and current loading progress.
@@ -50,6 +50,6 @@ Background playback and floating video are partly controlled by iOS and the webs
 
 - Build the app for an iOS simulator.
 - Launch on simulator and confirm the native latest page shows the four requested sections.
-- Confirm latest update posters and titles render from live YFSP data.
+- Confirm latest update posters and titles render from live Aiyifan data.
 - Select an item or category and confirm the web view loads.
 - Attempt device deployment when John's iPhone is available to Xcode.

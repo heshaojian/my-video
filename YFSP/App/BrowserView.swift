@@ -15,7 +15,7 @@ struct BrowserView: View {
                     WebView(viewModel: viewModel)
 
                     if let errorMessage = viewModel.errorMessage {
-                        ContentUnavailableView("Could not load YFSP", systemImage: "wifi.exclamationmark", description: Text(errorMessage))
+                    ContentUnavailableView("Could not load Aiyifan", systemImage: "wifi.exclamationmark", description: Text(errorMessage))
                             .padding()
                             .background(.background)
                     } else if viewModel.estimatedProgress < 1 {
@@ -44,7 +44,7 @@ private struct HeaderView: View {
 
     var body: some View {
         HStack {
-            Text("YFSP")
+            Text("Aiyifan")
                 .font(.headline)
 
             Spacer()

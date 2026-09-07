@@ -1,12 +1,12 @@
-# YFSP iOS
+# Aiyifan iOS
 
 Personal iOS wrapper for `https://m.yfsp.tv/`.
 
 ## What It Does
 
 - Starts on a native latest-updates page for `电影`, `电视剧`, `综艺`, and `动漫`.
-- Fetches the latest embedded YFSP category feeds and shows poster rows for quick browsing.
-- Opens the selected YFSP item or category section in a native `WKWebView`.
+- Fetches the latest embedded Aiyifan category feeds and shows poster rows for quick browsing.
+- Opens the selected Aiyifan item or category section in a native `WKWebView`.
 - Keeps normal WebKit website data such as cookies and login state.
 - Provides back, forward, home, reload, and open-in-Safari controls.
 - The home control returns to the native latest-updates page.
