@@ -75,13 +75,14 @@ final class PlaybackSessionControllerTests: XCTestCase {
     }
 
     private func makeController() -> PlaybackSessionController {
-        PlaybackSessionController { item, episodeKey, playedItemsStore in
+        PlaybackSessionController { item, episodeKey, playedItemsStore, onEpisodesObserved in
             NativePlayerViewModel(
                 item: item,
                 initialEpisodeKey: episodeKey,
                 resolver: SessionPlaybackResolver(),
                 playedItemsStore: playedItemsStore,
-                qualityLoader: EmptyQualityLoader()
+                qualityLoader: EmptyQualityLoader(),
+                onEpisodesObserved: onEpisodesObserved
             )
         }
     }

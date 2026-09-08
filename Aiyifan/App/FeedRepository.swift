@@ -6,6 +6,10 @@ struct FeedRefreshResult: Sendable {
     let refreshedAt: Date?
     let totalFailureMessage: String?
 
+    var hasFreshContent: Bool {
+        items.keys.contains { !staleCategories.contains($0) }
+    }
+
     var statusMessage: String? {
         guard !staleCategories.isEmpty else {
             return nil

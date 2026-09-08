@@ -127,21 +127,33 @@ final class SavedItemsStore: ObservableObject {
     @discardableResult
     func refreshUpdateMarkers(with feeds: [AiyifanCategory: [AiyifanItem]]) -> [AiyifanItem] {
         let refreshedItems = feeds.values.flatMap { $0 }
+        let observedByID = refreshedItems.reduce(into: [String: AiyifanItem]()) { result, item in
+            if result[item.id] == nil { result[item.id] = item }
+        }
         var updatedMarkers = metadata.markers
         var updatedSeenMarkers = metadata.seenMarkers
         var changedItems: [AiyifanItem] = []
 
-        for item in refreshedItems where contains(item) {
-            let key = Self.updateKey(for: item)
-            let previousKey = updatedMarkers[item.id]
+        let updatedItems = items.map { savedItem in
+            guard let observed = observedByID[savedItem.id] else { return savedItem }
+            let merged = SavedCatalogItemReconciler.merge(
+                saved: savedItem,
+                observed: observed,
+                episodeState: metadata.episodeUpdateStates[savedItem.id]
+            )
+            let key = Self.updateKey(for: merged)
+            let previousKey = updatedMarkers[savedItem.id]
             if previousKey == nil {
-                updatedSeenMarkers[item.id] = key
+                updatedSeenMarkers[savedItem.id] = key
             } else if previousKey != key, !key.isEmpty {
-                changedItems.append(item)
+                changedItems.append(merged)
             }
-            updatedMarkers[item.id] = key
+            updatedMarkers[savedItem.id] = key
+            return merged
         }
 
+        items = updatedItems
+        persist(updatedItems)
         metadata = SavedItemsMetadata(
             markers: updatedMarkers,
             seenMarkers: updatedSeenMarkers,
@@ -278,26 +290,38 @@ final class SavedItemsStore: ObservableObject {
 
         for snapshot in snapshots {
             guard let item = savedByID[snapshot.itemID] else { continue }
-            let key = snapshot.episode.mediaKey.trimmingCharacters(in: .whitespacesAndNewlines)
-            guard !key.isEmpty else { continue }
             let previousState = episodeUpdateStates[item.id]
-            let previousKey = previousState?.latestEpisodeKey ?? episodeMarkers[item.id]
-            if let previous = previousKey {
-                if previous != key {
-                    updates.append(SavedEpisodeUpdate(item: item, episode: snapshot.episode))
-                }
-            } else {
-                seenEpisodeMarkers[item.id] = key
+            guard let result = SavedEpisodeSnapshotReconciler.reconcile(
+                previous: previousState,
+                observedEpisodes: snapshot.episodes,
+                previouslySeenKey: seenEpisodeMarkers[item.id],
+                observedAt: observationDate
+            ) else { continue }
+            if result.didAdvance,
+               let latestEpisode = result.state.episodes.first(where: {
+                   $0.mediaKey == result.state.latestEpisodeKey
+               }) {
+                updates.append(SavedEpisodeUpdate(
+                    item: SavedCatalogItemReconciler.applying(episodeState: result.state, to: item),
+                    episode: latestEpisode
+                ))
             }
-            let seenKey = previousKey == nil ? key : previousState?.seenEpisodeKey ?? seenEpisodeMarkers[item.id]
-            episodeUpdateStates[item.id] = SavedEpisodeUpdateState(
-                episodes: snapshot.episodes,
-                latestEpisodeKey: key,
-                seenEpisodeKey: seenKey,
-                detectedAt: previousKey == key ? previousState?.detectedAt : observationDate,
-                lastObservedAt: observationDate
+            episodeUpdateStates[item.id] = result.state
+            episodeMarkers[item.id] = result.state.latestEpisodeKey
+            if previousState == nil {
+                seenEpisodeMarkers[item.id] = result.state.seenEpisodeKey
+            }
+        }
+
+        let reconciledItems = items.map { item in
+            SavedCatalogItemReconciler.applying(
+                episodeState: episodeUpdateStates[item.id],
+                to: item
             )
-            episodeMarkers[item.id] = key
+        }
+        if reconciledItems != items {
+            items = reconciledItems
+            persist(reconciledItems)
         }
 
         metadata = SavedItemsMetadata(
@@ -313,6 +337,16 @@ final class SavedItemsStore: ObservableObject {
         persistMetadata()
         updateNewItemIDs()
         return updates
+    }
+
+    @discardableResult
+    func observeEpisodes(
+        itemID: String,
+        episodes: [EpisodeSelection],
+        observedAt: Date = Date()
+    ) -> [SavedEpisodeUpdate] {
+        guard let snapshot = SavedEpisodeSnapshot(itemID: itemID, episodes: episodes) else { return [] }
+        return recordEpisodeChecks([snapshot], checkedAt: nil, observedAt: observedAt)
     }
 
     func mergeFromCloud(_ cloudItems: [AiyifanItem]) {

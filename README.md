@@ -9,14 +9,14 @@ changing navigation, playback, provider requests, persistence, or casting.
 
 - Starts on an English native Home page for Movies, Series, Variety, and Anime while preserving provider titles and metadata in their original language.
 - Uses the established Aiyifan folded-mark identity for the app icon, launch screen, in-app header, and Now Playing artwork.
-- Fetches the latest signed Aiyifan category results, refreshes stale Home data
-  after 15 minutes or on demand, and shows provider scores on poster rows.
+- Fetches the latest signed Aiyifan category results and refreshes Home plus
+  Saved on cold launch, after 15 minutes in the foreground, or on demand.
 - Opens All as a native, pull-to-refresh catalog with 24-item pagination, score badges, Save/Favorite controls, and direct native playback.
 - Keeps Home focused on discovery, with Continue Watching and New for You sections; filtering and sorting live in each native All catalog.
 - Provides a collapsed global search that queries Aiyifan's signed catalog API and returns native, playable, saveable cards rather than filtering the small Home sample.
-- Uses one poster-card system for Home, Search, Saved, and All, plus a matching progress-row variant for Continue Watching and Played.
+- Uses one compact poster-card system for Home, Search, Saved, All, and poster rails: a two-line title plus one update/year/region row. Continue Watching and Played use the matching progress-row variant.
 - Remembers independently selected filters, sort order, and sort direction for each category across navigation and app relaunches.
-- Saves titles for later, directly checks every saved serial title daily on a best-effort schedule, and supports per-title update alerts with episode deep links.
+- Saves titles for later, checks every saved serial title when the app opens and daily in the background, and supports per-title update alerts with episode deep links. Player-discovered episodes update Saved immediately and never regress to an older partial response.
 - Adds a Saved-only Ready to Watch queue above the unchanged Saved grid. It combines exact new episodes, genuinely unfinished Saved episodes, and manually pinned titles; users can reorder pins, dismiss entries, mark them watched, or play the exact episode.
 - Resolves supported streams into native `AVPlayer` playback with Picture in Picture, background audio, and provider Likes, Favorites, Score, and Views.
 - Excludes separately supplied front advertisements from native and Cast playback queues while leaving the full program stream untouched.
@@ -68,4 +68,4 @@ pod install
 
 ## Notes
 
-Background refresh timing is controlled by iOS; opening the app performs an overdue daily catch-up check. Background audio, Picture in Picture, notifications, iCloud, AirPlay, and Google Cast require physical-device verification. The iOS Simulator cannot discover or validate real receivers.
+Background refresh timing is controlled by iOS. A cold launch refreshes Home and Saved; later foreground returns use a 15-minute freshness window, while daily background work remains a best-effort notification safety net. Background audio, Picture in Picture, notifications, iCloud, AirPlay, and Google Cast require physical-device verification. The iOS Simulator cannot discover or validate real receivers.

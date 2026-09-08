@@ -29,6 +29,7 @@ final class BrowserViewModel: ObservableObject {
     @Published var latestErrorMessage: String?
     @Published var latestStatusMessage: String?
     @Published var lastFeedRefresh: Date?
+    @Published private(set) var lastLoadProducedFreshContent = false
     @Published var canGoBack = false
     @Published var canGoForward = false
     @Published var estimatedProgress = 0.0
@@ -181,10 +182,12 @@ final class BrowserViewModel: ObservableObject {
         }
 
         isLoadingLatest = true
+        lastLoadProducedFreshContent = false
         latestErrorMessage = nil
         latestStatusMessage = nil
 
         let result = await feedRepository.refresh()
+        lastLoadProducedFreshContent = result.hasFreshContent
         if !result.items.isEmpty {
             latestItems = result.items
         }

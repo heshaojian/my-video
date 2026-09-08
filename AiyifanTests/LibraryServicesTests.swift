@@ -100,6 +100,82 @@ final class LibraryServicesTests: XCTestCase {
         XCTAssertTrue(DailySavedUpdatePolicy.isDue(lastChecked: now.addingTimeInterval(-86_400), now: now))
     }
 
+    func testAppOpenRefreshPolicyUsesFifteenMinuteForegroundWindow() {
+        let now = Date(timeIntervalSince1970: 100_000)
+
+        XCTAssertTrue(AppOpenRefreshPolicy.isDue(lastSuccessfulRefresh: nil, now: now))
+        XCTAssertFalse(AppOpenRefreshPolicy.isDue(
+            lastSuccessfulRefresh: now.addingTimeInterval(-899),
+            now: now
+        ))
+        XCTAssertTrue(AppOpenRefreshPolicy.isDue(
+            lastSuccessfulRefresh: now.addingTimeInterval(-900),
+            now: now
+        ))
+    }
+
+    func testAppOpenRefreshCoordinatorCoalescesOverlappingCalls() async {
+        let coordinator = AppOpenLibraryRefreshCoordinator()
+        let now = Date(timeIntervalSince1970: 100_000)
+        let counter = AsyncCounter()
+
+        async let first = coordinator.refreshIfNeeded(now: now) {
+            await counter.increment()
+            try? await Task.sleep(for: .milliseconds(100))
+            return true
+        }
+        await Task.yield()
+        async let second = coordinator.refreshIfNeeded(now: now) {
+            await counter.increment()
+            return true
+        }
+
+        let results = await (first, second)
+        let operationCount = await counter.value()
+        XCTAssertEqual(operationCount, 1)
+        XCTAssertTrue(results.0)
+        XCTAssertTrue(results.1)
+        XCTAssertEqual(coordinator.lastSuccessfulRefresh, now)
+    }
+
+    func testPartialAppOpenRefreshDoesNotAdvanceSuccessAndCanRetry() async {
+        let coordinator = AppOpenLibraryRefreshCoordinator()
+        let firstDate = Date(timeIntervalSince1970: 100_000)
+        var operationCount = 0
+
+        let first = await coordinator.refreshIfNeeded(now: firstDate) {
+            operationCount += 1
+            return false
+        }
+        let second = await coordinator.refreshIfNeeded(now: firstDate.addingTimeInterval(1)) {
+            operationCount += 1
+            return true
+        }
+
+        XCTAssertFalse(first)
+        XCTAssertTrue(second)
+        XCTAssertEqual(operationCount, 2)
+        XCTAssertEqual(coordinator.lastSuccessfulRefresh, firstDate.addingTimeInterval(1))
+    }
+
+    func testSuccessfulAppOpenRefreshSkipsRapidForegroundReturn() async {
+        let coordinator = AppOpenLibraryRefreshCoordinator()
+        let firstDate = Date(timeIntervalSince1970: 100_000)
+        var operationCount = 0
+
+        _ = await coordinator.refreshIfNeeded(now: firstDate) {
+            operationCount += 1
+            return true
+        }
+        let skipped = await coordinator.refreshIfNeeded(now: firstDate.addingTimeInterval(899)) {
+            operationCount += 1
+            return true
+        }
+
+        XCTAssertFalse(skipped)
+        XCTAssertEqual(operationCount, 1)
+    }
+
     func testCancellingSavedUpdateCheckDoesNotScheduleMoreItems() async throws {
         let resolver = BlockingSavedEpisodeResolver()
         let items = (1...3).map {
@@ -143,6 +219,18 @@ private actor BlockingSavedEpisodeResolver: SavedEpisodeResolving {
     }
 }
 
+private actor AsyncCounter {
+    private var count = 0
+
+    func increment() {
+        count += 1
+    }
+
+    func value() -> Int {
+        count
+    }
+}
+
 final class FeedRepositoryTests: XCTestCase {
     func testPartialRefreshUsesCacheForFailedCategory() async {
         let suite = "FeedRepositoryTests.\(UUID().uuidString)"
@@ -159,7 +247,28 @@ final class FeedRepositoryTests: XCTestCase {
         XCTAssertEqual(result.items[.drama], [cached])
         XCTAssertTrue(result.staleCategories.contains(.drama))
         XCTAssertFalse(result.items[.movie, default: []].isEmpty)
+        XCTAssertTrue(result.hasFreshContent)
         XCTAssertNil(result.totalFailureMessage)
+    }
+
+    func testTotalFailureWithCacheDoesNotReportFreshContent() async {
+        let suite = "FeedRepositoryTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let cache = FeedCacheStore(defaults: defaults)
+        cache.save(
+            [.drama: [AiyifanItem(listPath: "cached", title: "Cached")]],
+            refreshedAt: Date(timeIntervalSince1970: 1)
+        )
+        let repository = FeedRepository(
+            service: StubFeedService(failing: Set(AiyifanCategory.allCases)),
+            cache: cache
+        )
+
+        let result = await repository.refresh()
+
+        XCTAssertFalse(result.hasFreshContent)
+        XCTAssertEqual(result.items[.drama]?.first?.title, "Cached")
     }
 
     func testTotalFailureWithoutCacheReturnsMessage() async {
@@ -228,12 +337,34 @@ final class HomeFeedFreshnessTests: XCTestCase {
         let refreshedStaleFeed = await viewModel.loadLatestIfNeeded(now: now)
         let staleRequestCount = await service.requestCount()
         XCTAssertTrue(refreshedStaleFeed)
+        XCTAssertTrue(viewModel.lastLoadProducedFreshContent)
         XCTAssertEqual(staleRequestCount, AiyifanCategory.allCases.count)
 
         let forcedRefresh = await viewModel.loadLatestIfNeeded(force: true, now: now)
         let forcedRequestCount = await service.requestCount()
         XCTAssertTrue(forcedRefresh)
         XCTAssertEqual(forcedRequestCount, AiyifanCategory.allCases.count * 2)
+    }
+
+    func testViewModelMarksCacheOnlyFailureAsNotFresh() async {
+        let suite = "HomeFeedFreshnessTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let cache = FeedCacheStore(defaults: defaults)
+        cache.save(
+            [.movie: [AiyifanItem(listPath: "cached", title: "Cached")]],
+            refreshedAt: Date(timeIntervalSince1970: 1)
+        )
+        let repository = FeedRepository(
+            service: StubFeedService(failing: Set(AiyifanCategory.allCases)),
+            cache: cache
+        )
+        let viewModel = BrowserViewModel(feedRepository: repository)
+
+        let didAttemptRefresh = await viewModel.loadLatestIfNeeded(force: true)
+        XCTAssertTrue(didAttemptRefresh)
+        XCTAssertFalse(viewModel.lastLoadProducedFreshContent)
+        XCTAssertEqual(viewModel.latestItems[.movie]?.first?.title, "Cached")
     }
 }
 

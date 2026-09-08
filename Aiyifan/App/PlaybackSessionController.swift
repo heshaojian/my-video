@@ -11,7 +11,8 @@ final class PlaybackSessionController: ObservableObject {
     typealias ViewModelFactory = @MainActor (
         _ item: AiyifanItem,
         _ episodeKey: String?,
-        _ playedItemsStore: PlayedItemsStore
+        _ playedItemsStore: PlayedItemsStore,
+        _ onEpisodesObserved: @escaping NativePlayerViewModel.EpisodeObservationHandler
     ) -> NativePlayerViewModel
 
     @Published private(set) var presentation = PlaybackSessionPresentation.inactive
@@ -29,7 +30,8 @@ final class PlaybackSessionController: ObservableObject {
         item: AiyifanItem,
         episodeKey: String?,
         playedItemsStore: PlayedItemsStore,
-        monitorPlayback: Bool
+        monitorPlayback: Bool,
+        onEpisodesObserved: @escaping NativePlayerViewModel.EpisodeObservationHandler = { _ in }
     ) {
         if let existing = viewModel, existing.item.id == item.id {
             let requestedDifferentEpisode = episodeKey.map { $0 != existing.selectedEpisode?.mediaKey } ?? false
@@ -40,7 +42,7 @@ final class PlaybackSessionController: ObservableObject {
         }
 
         viewModel?.stop()
-        let replacement = makeViewModel(item, episodeKey, playedItemsStore)
+        let replacement = makeViewModel(item, episodeKey, playedItemsStore, onEpisodesObserved)
         viewModel = replacement
         presentation = .expanded
         replacement.start(monitorPlayback: monitorPlayback)
@@ -66,7 +68,8 @@ final class PlaybackSessionController: ObservableObject {
     private static func makeDefaultViewModel(
         item: AiyifanItem,
         episodeKey: String?,
-        playedItemsStore: PlayedItemsStore
+        playedItemsStore: PlayedItemsStore,
+        onEpisodesObserved: @escaping NativePlayerViewModel.EpisodeObservationHandler
     ) -> NativePlayerViewModel {
         let usesFixturePlayback = ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed")
         let resolver: any NativePlaybackResolving = usesFixturePlayback
@@ -76,7 +79,8 @@ final class PlaybackSessionController: ObservableObject {
             item: item,
             initialEpisodeKey: episodeKey,
             resolver: resolver,
-            playedItemsStore: playedItemsStore
+            playedItemsStore: playedItemsStore,
+            onEpisodesObserved: onEpisodesObserved
         )
     }
 }

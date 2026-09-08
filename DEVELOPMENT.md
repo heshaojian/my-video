@@ -31,10 +31,11 @@ These are product invariants, not incidental implementation details.
 - Home contains exactly Movies, Series, Variety, and Anime.
 - Home is a fast, unfiltered discovery surface. Filtering and sorting do not
   belong on the small recent sample.
-- Home trusts the provider's last-updated descending order and refreshes when
-  its last successful result is at least 15 minutes old. Re-entering Home and
-  foreground activation use this stale-data rule; pull-to-refresh always forces
-  a request while keeping existing cards visible.
+- Home trusts the provider's last-updated descending order. A cold launch uses
+  the app-open coordinator to force Home and Saved together; later foreground
+  returns use a 15-minute successful-refresh window. Re-entering Home still uses
+  feed freshness, and pull-to-refresh always forces a request while keeping
+  existing cards visible.
 - Global search is collapsed by default and runs only after explicit submit.
   It queries the signed provider API; it never filters the loaded Home sample.
 - Search results reuse the exact All poster-grid card component and remain
@@ -50,6 +51,9 @@ These are product invariants, not incidental implementation details.
 - Home, Search, Saved, and All share the poster-card component family. Played
   and Continue Watching use its progress-row variant so workflow-specific
   information remains visible without visual drift.
+- Every poster card projects its display through `PosterCardProjection`: reserve
+  two title lines, then show the latest update in cyan and available year/region
+  in one muted compact row. Saved prefers the reconciled latest episode title.
 - Poster score/status and contextual actions are anchored to a deterministic
   poster surface. Card text and provider artwork dimensions must never move a
   Save or Remove control outside its grid cell.
@@ -60,13 +64,20 @@ These are product invariants, not incidental implementation details.
 ### Saved And Played
 
 - Saving is available from native discovery surfaces and persists locally.
-- Saved serial titles receive direct best-effort daily episode checks. The short
-  Home feed is not sufficient for update detection.
+- Saved serial titles receive direct checks on cold launch, after a 15-minute
+  foreground freshness window, and on forced pull-to-refresh. Daily background
+  work remains the notification safety net; the short Home feed is not
+  sufficient for episode detection.
 - The first successful direct check establishes a baseline without notifying.
   Later episode changes are deduplicated and respect global and per-title alert
   settings.
-- iOS decides when background refresh runs. App activation performs an overdue
-  catch-up; never promise an exact notification time.
+- Feed, direct-check, and player observations enter one main-actor reconciliation
+  path. Merge by validated media key, retain bounded newest-first snapshots, and
+  never downgrade a known latest episode because a delayed response is partial.
+- Native playback publishes resolved and recovered episode lists through a
+  callback. It must not depend directly on `SavedItemsStore`.
+- iOS decides when background refresh runs; never promise an exact notification
+  time.
 - Played records are per episode for serial content and per title for movies.
 - Progress advances only while AVPlayer reports actual playback. A loading,
   paused, failed, backgrounded, or visually stale player must not advance time.
@@ -189,6 +200,7 @@ These are product invariants, not incidental implementation details.
 | Playback rate, sleep timer, recovery policy | `Aiyifan/App/PlaybackFeatures.swift` |
 | Lock-screen metadata and controls | `Aiyifan/App/NowPlayingCoordinator.swift` |
 | Saved persistence and update baselines | `Aiyifan/App/SavedItemsStore.swift` |
+| App-open policy and monotonic Saved reconciliation | `Aiyifan/App/SavedLibrarySynchronization.swift` |
 | Direct saved-title checking | `Aiyifan/App/SavedUpdateService.swift` |
 | Ready queue projection and sparse intent | `Aiyifan/App/ReadyToWatch.swift`, `Aiyifan/App/ReadyToWatchOverridesStore.swift` |
 | Ready queue presentation | `Aiyifan/App/ReadyToWatchView.swift`, `Aiyifan/App/SavedItemsView.swift` |
@@ -212,12 +224,16 @@ These are product invariants, not incidental implementation details.
 4. The controller creates or reuses one `NativePlayerViewModel`.
 5. `NativePlaybackResolver` validates and resolves program media. Episode-list
    recovery may continue independently.
-6. Expanded and mini-player views observe the same view model and AVQueuePlayer.
+6. Resolved or recovered episode lists publish through the session callback;
+   `BrowserView` applies them only when the title is Saved.
+7. Expanded and mini-player views observe the same view model and AVQueuePlayer.
 
 ### Saved Title To Notification
 
-1. `SavedUpdateMonitor` checks whether the last complete run is at least 24 hours
-   old, unless Check Now forces a run.
+1. `AppOpenLibraryRefreshCoordinator` forces Home and Saved on cold launch,
+   coalesces overlap, and applies a 15-minute foreground freshness window.
+   Manual Saved refresh also forces a direct run. The daily monitor policy is
+   retained for background and settings-triggered notification work.
 2. `SavedUpdateChecker` checks saved titles directly with bounded concurrency.
 3. `NativePlaybackResolver` returns the newest validated serial episode.
 4. `SavedItemsStore` compares it with the per-title baseline and deduplicates it.
@@ -275,6 +291,9 @@ Treat every provider value and URL as untrusted input.
 | Card opens an HTML page and loses Save/Episodes | Web view used as primary routing | Route cards to native catalog/player; keep web explicit |
 | A poster widens, overlaps its neighbor, or hides a card action | Provider artwork participates in grid sizing | Size a layout-owned ratio container first; aspect-fill and clip artwork inside its overlay |
 | Home keeps yesterday's updates | Nonempty in-memory feed treated as permanently fresh | Refresh stale data on Home return/foreground and support forced pull-to-refresh |
+| Saved still shows episode 9 after playback found 10 | Player and Saved keep separate episode state | Publish player observations and project Saved cards from reconciled state |
+| Saved regresses from episode 10 to 9 | Delayed partial response replaces the retained snapshot | Merge observations monotonically; missing keys never prove a newer episode disappeared |
+| Launch causes duplicate Home/Saved requests | View and tab lifecycle hooks each start work | Use one app-open coordinator and coalesce its in-flight task |
 | Wrong episode starts from Played or notification | Item published before episode key | Assign episode key first, item second |
 | Back or fullscreen stops playback | Player owned by a transient view | Retain one session-owned view model and player |
 | Played time advances while nothing plays | Wall-clock timer treated as progress | Persist AVPlayer media time only while `.playing` |

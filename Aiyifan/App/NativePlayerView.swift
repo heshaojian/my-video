@@ -39,6 +39,8 @@ struct PlayerPresentationState: Equatable, Sendable {
 
 @MainActor
 final class NativePlayerViewModel: ObservableObject {
+    typealias EpisodeObservationHandler = @MainActor ([EpisodeSelection]) -> Void
+
     let player = AVQueuePlayer()
 
     @Published private(set) var isLoading = true
@@ -75,6 +77,7 @@ final class NativePlayerViewModel: ObservableObject {
     private let qualityLoader: any PlaybackQualityLoading
     private let qualityPreferences: PlaybackQualityPreferenceStore
     private let skipMarkerStore: SkipMarkerStore
+    private let onEpisodesObserved: EpisodeObservationHandler
     private var playbackItems: [AVPlayerItem] = []
     private var playbackEntries: [NativePlaybackEntry] = []
     private var loadTask: Task<Void, Never>?
@@ -155,7 +158,8 @@ final class NativePlayerViewModel: ObservableObject {
         preferences: PlaybackPreferencesStore = PlaybackPreferencesStore(),
         qualityLoader: any PlaybackQualityLoading = AVAssetPlaybackQualityLoader(),
         qualityPreferences: PlaybackQualityPreferenceStore = PlaybackQualityPreferenceStore(),
-        skipMarkerStore: SkipMarkerStore = SkipMarkerStore()
+        skipMarkerStore: SkipMarkerStore = SkipMarkerStore(),
+        onEpisodesObserved: @escaping EpisodeObservationHandler = { _ in }
     ) {
         self.item = item
         expectsEpisodes = SerialPlaybackIntent.infer(
@@ -171,6 +175,7 @@ final class NativePlayerViewModel: ObservableObject {
         self.qualityLoader = qualityLoader
         self.qualityPreferences = qualityPreferences
         self.skipMarkerStore = skipMarkerStore
+        self.onEpisodesObserved = onEpisodesObserved
         playbackRate = preferences.playbackRate
         autoplayNext = preferences.autoplayNext
         player.defaultRate = preferences.playbackRate
@@ -529,6 +534,7 @@ final class NativePlayerViewModel: ObservableObject {
             episodes = playback.episodes
             expectsEpisodes = expectsEpisodes || !playback.episodes.isEmpty
             selectedEpisode = playback.selectedEpisode
+            publishEpisodeObservation(playback.episodes)
             viewerMetrics = playback.metrics
             episodeTitle = playback.episodeTitle
             pendingResumePosition = playedItemsStore?
@@ -600,6 +606,7 @@ final class NativePlayerViewModel: ObservableObject {
                 )
                 try Task.checkCancellation()
                 episodes = loadedEpisodes
+                publishEpisodeObservation(loadedEpisodes)
                 if let currentKey = selectedEpisode?.mediaKey,
                    let recoveredSelection = loadedEpisodes.first(where: { $0.mediaKey == currentKey }) {
                     selectedEpisode = recoveredSelection
@@ -614,6 +621,14 @@ final class NativePlayerViewModel: ObservableObject {
                 episodeErrorMessage = "The episode list could not be loaded."
             }
         }
+    }
+
+    private func publishEpisodeObservation(_ episodes: [Episode]) {
+        let observed = episodes.map {
+            EpisodeSelection(mediaKey: $0.mediaKey, title: $0.title)
+        }
+        guard !observed.isEmpty else { return }
+        onEpisodesObserved(observed)
     }
 
     private func beginQualityLoad(for url: URL) {

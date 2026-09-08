@@ -5,6 +5,28 @@ enum PosterMediaCardLayout: Equatable {
     case grid
 }
 
+struct PosterCardProjection: Equatable, Sendable {
+    let title: String
+    let updateText: String
+    let metadataText: String?
+
+    init(item: AiyifanItem, episodeState: SavedEpisodeUpdateState? = nil) {
+        title = item.title
+        let latestEpisodeTitle = episodeState.flatMap { state in
+            state.episodes.first(where: { $0.mediaKey == state.latestEpisodeKey })?.title
+        }
+        updateText = Self.normalized(latestEpisodeTitle) ?? item.updateLabel
+        let metadata = [item.year, item.region].compactMap(Self.normalized)
+        metadataText = metadata.isEmpty ? nil : metadata.joined(separator: " · ")
+    }
+
+    private static func normalized(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+}
+
 struct PosterArtworkContainer<Artwork: View>: View {
     static var aspectRatio: CGFloat { 0.72 }
 
@@ -66,6 +88,7 @@ enum PosterMediaCardActionStyle {
 
 struct PosterMediaCard: View {
     let item: AiyifanItem
+    let projection: PosterCardProjection
     let layout: PosterMediaCardLayout
     let actionStyle: PosterMediaCardActionStyle
     let itemIdentifier: String
@@ -83,10 +106,12 @@ struct PosterMediaCard: View {
         actionIdentifier: String,
         scoreIdentifier: String,
         status: String? = nil,
+        projection: PosterCardProjection? = nil,
         onTap: @escaping () -> Void,
         onAction: @escaping () -> Void
     ) {
         self.item = item
+        self.projection = projection ?? PosterCardProjection(item: item)
         self.layout = layout
         self.actionStyle = actionStyle
         self.itemIdentifier = itemIdentifier
@@ -103,22 +128,27 @@ struct PosterMediaCard: View {
                 VStack(alignment: .leading, spacing: 7) {
                     poster
 
-                    Text(item.title)
+                    Text(projection.title)
                         .font(.system(size: 15, weight: .semibold))
-                        .lineLimit(2)
+                        .lineLimit(2, reservesSpace: true)
                         .foregroundStyle(.white.opacity(0.94))
 
-                    Text(item.updateLabel)
-                        .font(.caption)
-                        .lineLimit(1)
-                        .foregroundStyle(.cyan.opacity(0.82))
-
-                    if !metadata.isEmpty {
-                        Text(metadata)
-                            .font(.caption2)
+                    HStack(spacing: 4) {
+                        Text(projection.updateText)
+                            .font(.caption)
                             .lineLimit(1)
-                            .foregroundStyle(.white.opacity(0.48))
+                            .foregroundStyle(.cyan.opacity(0.82))
+                            .layoutPriority(1)
+
+                        if let metadata = projection.metadataText {
+                            Text("· \(metadata)")
+                                .font(.caption2)
+                                .lineLimit(1)
+                                .foregroundStyle(.white.opacity(0.48))
+                        }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityElement(children: .combine)
                 }
                 .frame(maxWidth: layout == .grid ? .infinity : nil, alignment: .leading)
                 .contentShape(Rectangle())
@@ -171,11 +201,6 @@ struct PosterMediaCard: View {
             .frame(maxWidth: layout == .grid ? .infinity : nil)
     }
 
-    private var metadata: String {
-        [item.year, item.region]
-            .compactMap { $0?.isEmpty == false ? $0 : nil }
-            .joined(separator: " · ")
-    }
 }
 
 struct ProgressMediaCard<TrailingActions: View>: View {

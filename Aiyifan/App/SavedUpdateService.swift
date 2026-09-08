@@ -33,6 +33,24 @@ struct SavedUpdateCheckResult: Equatable, Sendable {
     var isComplete: Bool { completedCount == requestedCount }
 }
 
+struct SavedUpdateMonitorResult: Equatable, Sendable {
+    let updates: [SavedEpisodeUpdate]
+    let completedCount: Int
+    let requestedCount: Int
+    let didRun: Bool
+
+    var isComplete: Bool {
+        didRun && completedCount == requestedCount
+    }
+
+    static let skipped = SavedUpdateMonitorResult(
+        updates: [],
+        completedCount: 0,
+        requestedCount: 0,
+        didRun: false
+    )
+}
+
 protocol SavedEpisodeResolving: Sendable {
     func episodesForSavedUpdate(
         for item: AiyifanItem,
@@ -163,14 +181,14 @@ final class SavedUpdateMonitor: ObservableObject {
         savedItemsStore: SavedItemsStore,
         settings: AppSettingsStore,
         force: Bool = false
-    ) async -> [SavedEpisodeUpdate] {
-        guard !isChecking else { return [] }
+    ) async -> SavedUpdateMonitorResult {
+        guard !isChecking else { return .skipped }
         let checkedAt = now()
         guard force || DailySavedUpdatePolicy.isDue(
             lastChecked: savedItemsStore.lastDirectUpdateCheck,
             now: checkedAt
         ) else {
-            return []
+            return .skipped
         }
 
         isChecking = true
@@ -198,7 +216,12 @@ final class SavedUpdateMonitor: ObservableObject {
            ) {
             await NotificationCoordinator.shared.schedule(batch)
         }
-        return updates
+        return SavedUpdateMonitorResult(
+            updates: updates,
+            completedCount: result.completedCount,
+            requestedCount: result.requestedCount,
+            didRun: true
+        )
     }
 
     private static func makeDefaultResolver() -> any SavedEpisodeResolving {

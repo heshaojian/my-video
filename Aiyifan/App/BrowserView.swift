@@ -17,6 +17,7 @@ struct BrowserView: View {
     @StateObject private var castManager = GoogleCastManager.shared
     @StateObject private var savedUpdateMonitor = SavedUpdateMonitor()
     @State private var selectedLibraryTab = LibraryTab.home
+    @State private var appOpenRefreshCoordinator = AppOpenLibraryRefreshCoordinator()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -62,7 +63,11 @@ struct BrowserView: View {
                 item: item,
                 episodeKey: viewModel.selectedEpisodeKey,
                 playedItemsStore: playedItemsStore,
-                monitorPlayback: monitorsPlayback
+                monitorPlayback: monitorsPlayback,
+                onEpisodesObserved: { episodes in
+                    guard savedItemsStore.contains(item) else { return }
+                    savedItemsStore.observeEpisodes(itemID: item.id, episodes: episodes)
+                }
             )
             viewModel.closePlayer()
         }
@@ -71,15 +76,12 @@ struct BrowserView: View {
                 viewModel.openDeepLink(destination)
             }
         }
-        .onChange(of: scenePhase) { _, phase in
-            guard phase == .active else { return }
-            Task {
-                await refreshHome(force: false)
-                await savedUpdateMonitor.check(
-                    savedItemsStore: savedItemsStore,
-                    settings: appSettings
-                )
-            }
+        .task(id: scenePhase) {
+            guard scenePhase == .active else { return }
+            await refreshLibraryAtAppOpen()
+        }
+        .task {
+            BackgroundRefreshScheduler.schedule()
         }
         .onChange(of: selectedLibraryTab) { _, tab in
             guard tab == .home else { return }
@@ -151,8 +153,12 @@ struct BrowserView: View {
     }
 
     private func refreshHome(force: Bool) async {
+        _ = await refreshHomeAndReportSuccess(force: force)
+    }
+
+    private func refreshHomeAndReportSuccess(force: Bool) async -> Bool {
         let didRefresh = await viewModel.loadLatestIfNeeded(force: force)
-        guard didRefresh else { return }
+        guard didRefresh else { return false }
 
         let changedItems = savedItemsStore.refreshUpdateMarkers(with: viewModel.latestItems)
         if appSettings.updateAlertsEnabled,
@@ -161,6 +167,20 @@ struct BrowserView: View {
                notificationsEnabled: { savedItemsStore.notificationsEnabled(for: $0) }
            ) {
             await NotificationCoordinator.shared.schedule(batch)
+        }
+        return viewModel.lastLoadProducedFreshContent
+    }
+
+    private func refreshLibraryAtAppOpen() async {
+        _ = await appOpenRefreshCoordinator.refreshIfNeeded {
+            let homeSucceeded = await refreshHomeAndReportSuccess(force: true)
+            guard !Task.isCancelled else { return false }
+            let savedResult = await savedUpdateMonitor.check(
+                savedItemsStore: savedItemsStore,
+                settings: appSettings,
+                force: true
+            )
+            return homeSucceeded && savedResult.isComplete
         }
     }
 }
@@ -198,7 +218,8 @@ private struct LibraryView: View {
                     savedItemsStore: savedItemsStore,
                     playedItemsStore: playedItemsStore,
                     readyToWatchStore: readyToWatchStore,
-                    appSettings: appSettings
+                    appSettings: appSettings,
+                    savedUpdateMonitor: savedUpdateMonitor
                 )
                     .tabItem {
                         Label("Saved", systemImage: "bookmark.fill")
@@ -408,16 +429,6 @@ private struct HomeView: View {
                 savedItemsStore: savedItemsStore,
                 playedItemsStore: playedItemsStore,
                 savedUpdateMonitor: savedUpdateMonitor
-            )
-        }
-        .task {
-            await onRefreshHome(false)
-            BackgroundRefreshScheduler.schedule()
-        }
-        .task {
-            await savedUpdateMonitor.check(
-                savedItemsStore: savedItemsStore,
-                settings: appSettings
             )
         }
     }

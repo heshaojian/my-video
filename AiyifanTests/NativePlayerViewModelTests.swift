@@ -189,7 +189,34 @@ final class NativePlayerViewModelTests: XCTestCase {
         viewModel.stop()
     }
 
+    func testResolvedPlaybackPublishesEpisodeObservation() async throws {
+        let episodes = [
+            Episode(mediaKey: "episode-10", title: "10", updateDate: nil),
+            Episode(mediaKey: "episode-9", title: "09", updateDate: nil)
+        ]
+        var observations: [[EpisodeSelection]] = []
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "series", title: "Series", isSerial: true),
+            resolver: StubPlaybackResolver(playback: NativePlayback(
+                entries: [NativePlaybackEntry(
+                    url: URL(string: "https://media.example.com/episode-10.m3u8")!,
+                    isAdvertisement: false
+                )],
+                episodes: episodes,
+                selectedEpisode: episodes[0]
+            )),
+            onEpisodesObserved: { observations.append($0) }
+        )
+
+        viewModel.start()
+        try await waitUntil { observations.count == 1 }
+
+        XCTAssertEqual(observations[0].map(\.mediaKey), ["episode-10", "episode-9"])
+        viewModel.stop()
+    }
+
     func testKnownLatestStartsBeforeIndependentEpisodeListRecoveryCompletes() async throws {
+        var observations: [[EpisodeSelection]] = []
         let viewModel = NativePlayerViewModel(
             item: AiyifanItem(
                 listPath: "series",
@@ -199,7 +226,8 @@ final class NativePlayerViewModelTests: XCTestCase {
                 latestEpisodeTitle: "10"
             ),
             resolver: IndependentEpisodeResolver(),
-            qualityLoader: StubQualityLoader(options: [])
+            qualityLoader: StubQualityLoader(options: []),
+            onEpisodesObserved: { observations.append($0) }
         )
 
         viewModel.start()
@@ -210,6 +238,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         XCTAssertTrue(viewModel.preparedPlayerItems.first === preparedItem)
         XCTAssertEqual(viewModel.selectedEpisode?.mediaKey, "episode-10")
         XCTAssertEqual(viewModel.episodeControlTitle, "Episode 10/10")
+        XCTAssertEqual(observations.last?.map(\.mediaKey), ["episode-10", "episode-9"])
         viewModel.stop()
     }
 

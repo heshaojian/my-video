@@ -6,6 +6,7 @@ struct SavedItemsView: View {
     @ObservedObject var playedItemsStore: PlayedItemsStore
     @ObservedObject var readyToWatchStore: ReadyToWatchOverridesStore
     @ObservedObject var appSettings: AppSettingsStore
+    @ObservedObject var savedUpdateMonitor: SavedUpdateMonitor
 
     private let columns = [
         GridItem(.adaptive(minimum: 145, maximum: 180), spacing: 14)
@@ -18,11 +19,27 @@ struct SavedItemsView: View {
                     .ignoresSafeArea()
 
                 if savedItemsStore.items.isEmpty {
-                    ContentUnavailableView("Nothing saved yet", systemImage: "bookmark")
-                        .foregroundStyle(.white)
+                    ScrollView {
+                        ContentUnavailableView("Nothing saved yet", systemImage: "bookmark")
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity, minHeight: 420)
+                    }
+                    .refreshable { await refreshSaved() }
                 } else {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 24) {
+                            if savedUpdateMonitor.isChecking {
+                                Label("Checking saved titles", systemImage: "arrow.triangle.2.circlepath")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(.cyan)
+                                    .accessibilityIdentifier("savedRefreshProgress")
+                            } else if let status = savedUpdateMonitor.statusMessage {
+                                Text(status)
+                                    .font(.caption)
+                                    .foregroundStyle(.white.opacity(0.65))
+                                    .accessibilityIdentifier("savedRefreshStatus")
+                            }
+
                             ReadyToWatchRail(
                                 entries: readyEntries,
                                 onPlay: play,
@@ -40,6 +57,7 @@ struct SavedItemsView: View {
                                 ForEach(savedItemsStore.items) { item in
                                     SavedItemCard(
                                         item: item,
+                                        episodeState: savedItemsStore.episodeUpdateState(for: item),
                                         hasNewUpdate: savedItemsStore.hasNewUpdate(item),
                                         onTap: { viewModel.selectItem(item) },
                                         onRemove: { savedItemsStore.toggle(item) },
@@ -53,6 +71,7 @@ struct SavedItemsView: View {
                         }
                         .padding(18)
                     }
+                    .refreshable { await refreshSaved() }
                 }
             }
             .navigationTitle("Saved")
@@ -136,10 +155,19 @@ struct SavedItemsView: View {
             savedItemsStore.setNotificationsEnabled(granted, for: item)
         }
     }
+
+    private func refreshSaved() async {
+        _ = await savedUpdateMonitor.check(
+            savedItemsStore: savedItemsStore,
+            settings: appSettings,
+            force: true
+        )
+    }
 }
 
 private struct SavedItemCard: View {
     let item: AiyifanItem
+    let episodeState: SavedEpisodeUpdateState?
     let hasNewUpdate: Bool
     let onTap: () -> Void
     let onRemove: () -> Void
@@ -157,6 +185,7 @@ private struct SavedItemCard: View {
             actionIdentifier: "removeSavedItem-\(item.id)",
             scoreIdentifier: "savedScore-\(item.id)",
             status: hasNewUpdate ? "NEW" : nil,
+            projection: PosterCardProjection(item: item, episodeState: episodeState),
             onTap: onTap,
             onAction: onRemove
         )

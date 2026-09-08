@@ -104,7 +104,10 @@ final class SavedItemsStoreTests: XCTestCase {
         )
         XCTAssertEqual(updates.map(\.episode.mediaKey), ["episode-4"])
         XCTAssertTrue(store.hasNewUpdate(item))
-        XCTAssertEqual(store.episodeUpdateState(for: item)?.episodes.map(\.mediaKey), ["episode-4", "episode-3"])
+        XCTAssertEqual(
+            store.episodeUpdateState(for: item)?.episodes.map(\.mediaKey),
+            ["episode-4", "episode-3", "episode-2"]
+        )
         XCTAssertEqual(store.episodeUpdateState(for: item)?.seenEpisodeKey, "episode-3")
         XCTAssertEqual(store.episodeUpdateState(for: item)?.detectedAt, secondCheck)
 
