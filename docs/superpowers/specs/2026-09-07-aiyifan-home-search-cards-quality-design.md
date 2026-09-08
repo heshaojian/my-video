@@ -91,6 +91,18 @@ Search behavior:
 
 Queries are trimmed, limited to 80 characters, and reject control characters. Empty queries never reach the network. Response sizes, page sizes, artwork hosts, identifiers, and redirects retain existing bounds.
 
+### Expanded Search Bar Refinement
+
+The collapsed search icon remains unchanged. Once expanded, the search control uses a stable, professional iOS layout:
+
+- The search field occupies all available horizontal space and has a fixed 50-point minimum height.
+- The magnifying-glass affordance remains leading; the Submit icon moves inside the field at the trailing edge.
+- A compact close icon sits outside the field and collapses Search without competing with the input width.
+- Clear Text appears inside the field only when text exists.
+- Return on the keyboard and the embedded Submit icon perform the same provider API request.
+- All interactive targets remain at least 44 points, retain VoiceOver labels and stable test identifiers, and do not change size as text appears.
+- Validation stays directly below the field and does not shift or overlap the header or results.
+
 ## Stream Quality
 
 The provider exposes two different concepts:
