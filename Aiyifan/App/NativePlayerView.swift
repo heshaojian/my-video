@@ -1387,7 +1387,7 @@ private struct PlaybackChromeOverlay: View {
 
     private func centerTransportControls(in availableSize: CGSize) -> some View {
         let frame = videoFrame(in: availableSize)
-        HStack(spacing: 28) {
+        return HStack(spacing: 28) {
             transportButton(
                 systemName: "gobackward.10",
                 label: "Rewind 10 seconds",
