@@ -53,6 +53,9 @@ These are product invariants, not incidental implementation details.
 - Poster score/status and contextual actions are anchored to a deterministic
   poster surface. Card text and provider artwork dimensions must never move a
   Save or Remove control outside its grid cell.
+- Let a layout-owned aspect-ratio container determine poster dimensions, then
+  render provider artwork as a centered, aspect-fill overlay clipped to that
+  container. Do not let the image's intrinsic size participate in grid sizing.
 
 ### Saved And Played
 
@@ -270,7 +273,7 @@ Treat every provider value and URL as untrusted input.
 | Symptom | Root cause | Correct pattern |
 | --- | --- | --- |
 | Card opens an HTML page and loses Save/Episodes | Web view used as primary routing | Route cards to native catalog/player; keep web explicit |
-| Some right-column cards lose Save | Overlay anchored to variable intrinsic card width | Fill the assigned grid cell and bind overlays to the poster surface |
+| A poster widens, overlaps its neighbor, or hides a card action | Provider artwork participates in grid sizing | Size a layout-owned ratio container first; aspect-fill and clip artwork inside its overlay |
 | Home keeps yesterday's updates | Nonempty in-memory feed treated as permanently fresh | Refresh stale data on Home return/foreground and support forced pull-to-refresh |
 | Wrong episode starts from Played or notification | Item published before episode key | Assign episode key first, item second |
 | Back or fullscreen stops playback | Player owned by a transient view | Retain one session-owned view model and player |

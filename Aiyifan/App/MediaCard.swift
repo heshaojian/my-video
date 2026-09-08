@@ -5,6 +5,23 @@ enum PosterMediaCardLayout: Equatable {
     case grid
 }
 
+struct PosterArtworkContainer<Artwork: View>: View {
+    static var aspectRatio: CGFloat { 0.72 }
+
+    @ViewBuilder let artwork: () -> Artwork
+
+    var body: some View {
+        Color.clear
+            .aspectRatio(Self.aspectRatio, contentMode: .fit)
+            .overlay {
+                artwork()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .clipped()
+            .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+    }
+}
+
 enum PosterMediaCardActionStyle {
     case save(isSaved: Bool)
     case removeSaved
@@ -147,8 +164,9 @@ struct PosterMediaCard: View {
 
     @ViewBuilder
     private var poster: some View {
-        PosterImage(item: item)
-            .aspectRatio(0.72, contentMode: .fit)
+        PosterArtworkContainer {
+            PosterImage(item: item)
+        }
             .frame(width: layout == .compact ? 132 : nil)
             .frame(maxWidth: layout == .grid ? .infinity : nil)
     }

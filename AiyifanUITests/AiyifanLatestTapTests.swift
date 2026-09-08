@@ -105,6 +105,24 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Nothing saved yet"].exists)
     }
 
+    func testSavedGridKeepsAdjacentCardsInUniformNonOverlappingColumns() {
+        let app = launchFixtureApp()
+        XCTAssertTrue(app.buttons["saveItem-fixture-movie"].waitForExistence(timeout: 5))
+        app.buttons["saveItem-fixture-movie"].tap()
+        app.buttons["saveItem-fixture-drama"].tap()
+        app.tabBars.buttons["Saved"].tap()
+
+        let movie = app.buttons["savedItem-fixture-movie"]
+        let drama = app.buttons["savedItem-fixture-drama"]
+        XCTAssertTrue(movie.waitForExistence(timeout: 5))
+        XCTAssertTrue(drama.exists)
+        XCTAssertEqual(movie.frame.width, drama.frame.width, accuracy: 0.5)
+
+        let left = movie.frame.minX < drama.frame.minX ? movie.frame : drama.frame
+        let right = movie.frame.minX < drama.frame.minX ? drama.frame : movie.frame
+        XCTAssertLessThan(left.maxX, right.minX)
+    }
+
     func testSavedItemOpensNativePlayerAndSurvivesRelaunch() {
         var app = launchFixtureApp(resetSavedItems: true)
         let saveButton = app.buttons["saveItem-fixture-movie"]

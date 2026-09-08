@@ -1,8 +1,24 @@
 import XCTest
+import SwiftUI
 import UIKit
 @testable import Aiyifan
 
 final class AiyifanItemURLTests: XCTestCase {
+    @MainActor
+    func testPosterArtworkContainerKeepsUniformFrameForWideAndTallArtwork() throws {
+        let wideSize = try renderedPosterSize(
+            content: Color.red.frame(width: 900, height: 100)
+        )
+        let tallSize = try renderedPosterSize(
+            content: Color.blue.frame(width: 100, height: 900)
+        )
+
+        XCTAssertEqual(wideSize.width, 144, accuracy: 0.5)
+        XCTAssertEqual(wideSize.height, 200, accuracy: 0.5)
+        XCTAssertEqual(tallSize.width, wideSize.width, accuracy: 0.5)
+        XCTAssertEqual(tallSize.height, wideSize.height, accuracy: 0.5)
+    }
+
     func testPlayURLUsesExplicitRelativePlayPath() {
         let item = AiyifanItem(
             listPath: "ignored",
@@ -220,6 +236,16 @@ final class AiyifanItemURLTests: XCTestCase {
         let configuration = URLSessionConfiguration.ephemeral
         configuration.protocolClasses = [PosterImageURLProtocol.self]
         return URLSession(configuration: configuration)
+    }
+
+    @MainActor
+    private func renderedPosterSize<Content: View>(content: Content) throws -> CGSize {
+        let renderer = ImageRenderer(
+            content: PosterArtworkContainer { content }
+                .frame(width: 144)
+        )
+        renderer.scale = 1
+        return try XCTUnwrap(renderer.uiImage).size
     }
 }
 
