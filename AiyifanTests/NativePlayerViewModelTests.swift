@@ -474,6 +474,57 @@ final class NativePlayerViewModelTests: XCTestCase {
         viewModel.stop()
     }
 
+    func testLocalTransportSkipButtonsMoveProgramPositionByTenSeconds() async throws {
+        let castManager = MockCastPlaybackManager()
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            castManager: castManager
+        )
+        attachSeekableItem(to: viewModel)
+
+        viewModel.skipForward10Seconds()
+        try await waitUntil { viewModel.player.currentTime().seconds >= 9.5 }
+        viewModel.skipBackward10Seconds()
+        try await waitUntil { viewModel.player.currentTime().seconds <= 0.5 }
+
+        XCTAssertEqual(castManager.updatedPositions, [10, 0])
+        viewModel.stop()
+    }
+
+    func testLocalTransportSkipButtonsAreIgnoredWhileCasting() async throws {
+        let castManager = MockCastPlaybackManager()
+        castManager.isCasting = true
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            castManager: castManager
+        )
+        attachSeekableItem(to: viewModel)
+
+        viewModel.skipForward10Seconds()
+        viewModel.skipBackward10Seconds()
+
+        XCTAssertTrue(castManager.updatedPositions.isEmpty)
+        viewModel.stop()
+    }
+
+    func testManualSeekCancelsPendingAutoplay() async throws {
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "series", title: "Series"),
+            initialEpisodeKey: "episode-3",
+            resolver: EpisodeAwareStubResolver()
+        )
+        viewModel.start()
+        try await waitUntil { viewModel.nextEpisode != nil }
+        attachSeekableItem(to: viewModel)
+
+        viewModel.handlePlaybackEntry(index: 0, position: 100, duration: 100, isPlaying: false)
+        try await waitUntil { viewModel.autoplayCountdown != nil }
+        viewModel.skipBackward10Seconds()
+
+        XCTAssertNil(viewModel.autoplayCountdown)
+        viewModel.stop()
+    }
+
     func testProgramWithoutAdvertisementKeepsResumePendingUntilPlayerIsReady() async throws {
         let (store, defaults, suiteName) = playedStore()
         defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -533,6 +584,14 @@ final class NativePlayerViewModelTests: XCTestCase {
             try await Task.sleep(for: .milliseconds(20))
         }
         XCTFail("Condition was not satisfied before timeout")
+    }
+
+    private func attachSeekableItem(to viewModel: NativePlayerViewModel) {
+        let composition = AVMutableComposition()
+        composition.insertEmptyTimeRange(
+            CMTimeRange(start: .zero, duration: CMTime(seconds: 60, preferredTimescale: 600))
+        )
+        viewModel.player.replaceCurrentItem(with: AVPlayerItem(asset: composition))
     }
 
     private func playbackWithAdvertisement() -> NativePlayback {

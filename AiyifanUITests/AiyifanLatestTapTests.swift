@@ -434,9 +434,12 @@ final class AiyifanLatestTapTests: XCTestCase {
         let more = app.buttons["playbackSettings"]
         XCTAssertTrue(more.exists)
         XCTAssertEqual(app.buttons["showEpisodes"].frame.midY, more.frame.midY, accuracy: 2)
-        more.tap()
         XCTAssertTrue(app.buttons["previousEpisode"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["nextEpisode"].exists)
+        XCTAssertEqual(app.buttons["previousEpisode"].frame.midY, app.buttons["nextEpisode"].frame.midY, accuracy: 2)
+
+        more.tap()
+        XCTAssertTrue(app.buttons["playbackQuality"].waitForExistence(timeout: 2))
     }
 
     func testCatalogOffersProviderFiltersSortAndResultCount() {

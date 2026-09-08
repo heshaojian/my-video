@@ -252,6 +252,14 @@ final class NativePlayerViewModel: ObservableObject {
         selectEpisode(previousEpisode)
     }
 
+    func skipBackward10Seconds() {
+        seekCurrentProgram(by: -10)
+    }
+
+    func skipForward10Seconds() {
+        seekCurrentProgram(by: 10)
+    }
+
     func setPlaybackRate(_ rate: Float) {
         preferences.setPlaybackRate(rate)
         playbackRate = preferences.playbackRate
@@ -284,6 +292,28 @@ final class NativePlayerViewModel: ObservableObject {
 
     func togglePlayback() {
         isPlaying ? pause() : play()
+    }
+
+    private func seekCurrentProgram(by interval: Double) {
+        guard let currentItem = player.currentItem, !castManager.isCasting else {
+            return
+        }
+        let current = currentItem.currentTime().seconds
+        guard current.isFinite else {
+            return
+        }
+        let duration = currentItem.duration.seconds
+        let unclampedTarget = current + interval
+        let target: Double
+        if duration.isFinite, duration > 0 {
+            target = min(max(0, unclampedTarget), duration)
+        } else {
+            target = max(0, unclampedTarget)
+        }
+        cancelAutoplay()
+        player.seek(to: CMTime(seconds: target, preferredTimescale: 600))
+        castManager.updateProgramPosition(target)
+        updateNowPlaying(position: target, duration: duration)
     }
 
     func setQuality(_ quality: PlaybackQualityOption) {
@@ -782,7 +812,8 @@ struct NativePlayerScreen: View {
                             .clipShape(RoundedRectangle(cornerRadius: 6))
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                    .padding(16)
+                    .padding(.trailing, 16)
+                    .padding(.bottom, 164)
                     .accessibilityIdentifier("cancelAutoplay")
                 }
 
@@ -818,6 +849,13 @@ struct NativePlayerScreen: View {
                     ProgressView("Loading video")
                         .tint(.white)
                         .foregroundStyle(.white)
+                }
+
+                if viewModel.errorMessage == nil {
+                    PlaybackTransportOverlay(viewModel: viewModel, isCasting: castManager.isCasting)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+                        .padding(.bottom, 88)
+                        .padding(.horizontal, 16)
                 }
             }
             .background(Color.black)
@@ -871,22 +909,6 @@ struct NativePlayerScreen: View {
 
     private var playbackMenu: some View {
         Menu {
-            if viewModel.shouldShowEpisodeControl {
-                Button(action: viewModel.playPreviousEpisode) {
-                    Label("Previous Episode", systemImage: "backward.end.fill")
-                }
-                .disabled(viewModel.previousEpisode == nil)
-                .accessibilityIdentifier("previousEpisode")
-
-                Button(action: viewModel.playNextEpisode) {
-                    Label("Next Episode", systemImage: "forward.end.fill")
-                }
-                .disabled(viewModel.nextEpisode == nil)
-                .accessibilityIdentifier("nextEpisode")
-
-                Divider()
-            }
-
             Menu("Speed") {
                 ForEach(PlaybackPreferencesStore.supportedRates, id: \.self) { rate in
                     Button {
@@ -967,6 +989,118 @@ struct NativePlayerScreen: View {
         }
         .accessibilityLabel("More")
         .accessibilityIdentifier("playbackSettings")
+    }
+}
+
+private struct PlaybackTransportOverlay: View {
+    @ObservedObject var viewModel: NativePlayerViewModel
+    let isCasting: Bool
+
+    var body: some View {
+        HStack(spacing: 8) {
+            if viewModel.shouldShowEpisodeControl {
+                transportButton(
+                    systemName: "backward.end.fill",
+                    label: "Previous Episode",
+                    identifier: "previousEpisode",
+                    size: .standard,
+                    disabled: viewModel.previousEpisode == nil,
+                    action: viewModel.playPreviousEpisode
+                )
+            }
+
+            transportButton(
+                systemName: "gobackward.10",
+                label: "Rewind 10 seconds",
+                identifier: "skipBackward10Seconds",
+                size: .standard,
+                disabled: isCasting || viewModel.isLoading,
+                action: viewModel.skipBackward10Seconds
+            )
+
+            transportButton(
+                systemName: viewModel.isPlaying ? "pause.fill" : "play.fill",
+                label: viewModel.isPlaying ? "Pause" : "Play",
+                identifier: "toggleNativePlayback",
+                size: .primary,
+                disabled: isCasting || viewModel.isLoading,
+                action: viewModel.togglePlayback
+            )
+
+            transportButton(
+                systemName: "goforward.10",
+                label: "Forward 10 seconds",
+                identifier: "skipForward10Seconds",
+                size: .standard,
+                disabled: isCasting || viewModel.isLoading,
+                action: viewModel.skipForward10Seconds
+            )
+
+            if viewModel.shouldShowEpisodeControl {
+                transportButton(
+                    systemName: "forward.end.fill",
+                    label: "Next Episode",
+                    identifier: "nextEpisode",
+                    size: .standard,
+                    disabled: viewModel.nextEpisode == nil,
+                    action: viewModel.playNextEpisode
+                )
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 10)
+        .background(.black.opacity(0.68))
+        .clipShape(Capsule(style: .continuous))
+        .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
+        .accessibilityElement(children: .contain)
+    }
+
+    private func transportButton(
+        systemName: String,
+        label: String,
+        identifier: String,
+        size: TransportButtonSize,
+        disabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: size.iconSize, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: size.frameSize, height: size.frameSize)
+                .background(disabled ? Color.white.opacity(0.08) : Color.white.opacity(size.backgroundOpacity))
+                .clipShape(Circle())
+        }
+        .disabled(disabled)
+        .opacity(disabled ? 0.42 : 1)
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(identifier)
+    }
+}
+
+private enum TransportButtonSize {
+    case standard
+    case primary
+
+    var frameSize: CGFloat {
+        switch self {
+        case .standard: 44
+        case .primary: 58
+        }
+    }
+
+    var iconSize: CGFloat {
+        switch self {
+        case .standard: 18
+        case .primary: 25
+        }
+    }
+
+    var backgroundOpacity: Double {
+        switch self {
+        case .standard: 0.18
+        case .primary: 0.28
+        }
     }
 }
 
