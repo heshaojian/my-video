@@ -100,6 +100,11 @@ These checks require a signed iPhone build plus reachable receivers on the same 
 
 ## Device Deployment
 
+- Commit `2d0f2ae` was pushed to `origin/master`; its signed Debug device build
+  installed successfully on both the paired iPhone 17 Pro Max and iPhone 14 Pro
+  Max without clearing app data. The iPhone 14 Pro Max launch was confirmed;
+  the iPhone 17 Pro Max launch request was rejected only because the device was
+  locked after installation.
 - John's paired iPhone 17 Pro Max is connected by cable and Developer Mode is enabled.
 - The phone runs iOS 26.6.1 with Xcode 26.2. Developer disk image services and the wired device connection are available.
 - Xcode created a Personal Team provisioning profile for `com.john.aiyifan`; the signed Debug build installed and launched successfully on the phone.
