@@ -8,31 +8,91 @@ struct PlaybackVariantDescriptor: Equatable, Sendable {
     let peakBitRate: Double?
 }
 
+struct PlaybackTrackDescriptor: Equatable, Sendable {
+    let width: Int
+    let height: Int
+    let estimatedBitRate: Double?
+    let isPlayable: Bool
+}
+
 struct PlaybackQualityOption: Equatable, Identifiable, Sendable {
     let width: Int
     let height: Int
     let averageBitRate: Double?
     let peakBitRate: Double?
 
-    var id: Int { height }
-    var title: String { "\(height)p" }
+    var tierHeight: Int {
+        PlaybackQualityProjector.tierHeight(width: width, height: height) ?? height
+    }
+
+    var id: Int { tierHeight }
+    var title: String { "\(tierHeight)p" }
 }
 
 enum PlaybackQualityProjector {
     static func options(from descriptors: [PlaybackVariantDescriptor]) -> [PlaybackQualityOption] {
         let valid = descriptors.compactMap(option(from:))
-        let grouped = Dictionary(grouping: valid, by: \.height)
+        let grouped = Dictionary(grouping: valid, by: \.tierHeight)
         return grouped.values
             .compactMap { variants in
                 variants.max { effectiveBitRate($0) < effectiveBitRate($1) }
             }
-            .sorted { $0.height > $1.height }
+            .sorted { $0.tierHeight > $1.tierHeight }
+    }
+
+    static func options(
+        from descriptors: [PlaybackVariantDescriptor],
+        fallbackTracks: [PlaybackTrackDescriptor]
+    ) -> [PlaybackQualityOption] {
+        let variantOptions = options(from: descriptors)
+        guard variantOptions.isEmpty else {
+            return variantOptions
+        }
+
+        let fallbackDescriptors = fallbackTracks.compactMap { track -> PlaybackVariantDescriptor? in
+            guard track.isPlayable else { return nil }
+            return PlaybackVariantDescriptor(
+                width: track.width,
+                height: track.height,
+                averageBitRate: track.estimatedBitRate,
+                peakBitRate: nil
+            )
+        }
+        return options(from: fallbackDescriptors)
+    }
+
+    static func tierHeight(width: Int, height: Int) -> Int? {
+        let landscapeWidth = max(width, height)
+        let landscapeHeight = min(width, height)
+        guard landscapeHeight >= 144 else { return nil }
+        let aspectRatio = Double(landscapeWidth) / Double(landscapeHeight)
+        guard aspectRatio <= 3 else { return nil }
+
+        switch (landscapeWidth, landscapeHeight) {
+        case let (width, height) where width >= 3_840 || height >= 2_160:
+            return 2_160
+        case let (width, height) where width >= 1_920 || height >= 1_080:
+            return 1_080
+        case let (width, height) where width >= 1_280 || height >= 720:
+            return 720
+        case let (width, height) where width >= 854 || height >= 480:
+            return 480
+        case let (width, height) where width >= 640 || height >= 360:
+            return 360
+        case let (width, height) where width >= 426 || height >= 240:
+            return 240
+        case let (width, height) where width >= 256 || height >= 144:
+            return 144
+        default:
+            return nil
+        }
     }
 
     private static func option(from descriptor: PlaybackVariantDescriptor) -> PlaybackQualityOption? {
         guard
             (1...8_192).contains(descriptor.width),
             (1...4_320).contains(descriptor.height),
+            tierHeight(width: descriptor.width, height: descriptor.height) != nil,
             valid(bitRate: descriptor.averageBitRate),
             valid(bitRate: descriptor.peakBitRate)
         else {
@@ -63,13 +123,13 @@ enum PlaybackQualitySelector {
         fallbackToHighest: Bool = false
     ) -> PlaybackQualityOption? {
         guard !options.isEmpty else { return nil }
-        if let exact = options.first(where: { $0.height == targetHeight }) {
+        if let exact = options.first(where: { $0.tierHeight == targetHeight }) {
             return exact
         }
         if fallbackToHighest {
             return options.first
         }
-        return options.first(where: { $0.height < targetHeight }) ?? options.first
+        return options.first(where: { $0.tierHeight < targetHeight }) ?? options.first
     }
 }
 
@@ -81,28 +141,62 @@ struct AVAssetPlaybackQualityLoader: PlaybackQualityLoading {
     func loadOptions(for url: URL) async throws -> [PlaybackQualityOption] {
         let asset = AVURLAsset(url: url)
         let variants = try await asset.load(.variants)
-        let descriptors = variants.compactMap { variant -> PlaybackVariantDescriptor? in
+        let variantDescriptors = variants.compactMap { variant -> PlaybackVariantDescriptor? in
             guard let size = variant.videoAttributes?.presentationSize else {
                 return nil
             }
-            let width = size.width.rounded()
-            let height = size.height.rounded()
-            guard
-                width.isFinite,
-                height.isFinite,
-                let exactWidth = Int(exactly: width),
-                let exactHeight = Int(exactly: height)
-            else {
-                return nil
-            }
+            guard let dimensions = dimensions(from: size) else { return nil }
             return PlaybackVariantDescriptor(
-                width: exactWidth,
-                height: exactHeight,
+                width: dimensions.width,
+                height: dimensions.height,
                 averageBitRate: variant.averageBitRate,
                 peakBitRate: variant.peakBitRate
             )
         }
-        return PlaybackQualityProjector.options(from: descriptors)
+
+        let variantOptions = PlaybackQualityProjector.options(from: variantDescriptors)
+        guard variantOptions.isEmpty else {
+            return variantOptions
+        }
+
+        let tracks = try await asset.loadTracks(withMediaType: .video)
+        var fallbackTracks: [PlaybackTrackDescriptor] = []
+        for track in tracks {
+            let isPlayable = try await track.load(.isPlayable)
+            guard isPlayable else { continue }
+
+            let naturalSize = try await track.load(.naturalSize)
+            let transform = try await track.load(.preferredTransform)
+            let presentationSize = naturalSize.applying(transform)
+            guard let dimensions = dimensions(from: presentationSize) else { continue }
+
+            let estimatedDataRate = Double(try await track.load(.estimatedDataRate))
+            fallbackTracks.append(PlaybackTrackDescriptor(
+                width: dimensions.width,
+                height: dimensions.height,
+                estimatedBitRate: estimatedDataRate > 0 ? estimatedDataRate : nil,
+                isPlayable: true
+            ))
+        }
+
+        return PlaybackQualityProjector.options(
+            from: variantDescriptors,
+            fallbackTracks: fallbackTracks
+        )
+    }
+
+    private func dimensions(from size: CGSize) -> (width: Int, height: Int)? {
+        let width = abs(size.width).rounded()
+        let height = abs(size.height).rounded()
+        guard
+            width.isFinite,
+            height.isFinite,
+            let exactWidth = Int(exactly: width),
+            let exactHeight = Int(exactly: height)
+        else {
+            return nil
+        }
+        return (exactWidth, exactHeight)
     }
 }
 

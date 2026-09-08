@@ -44,9 +44,14 @@ actor ProviderCertificateCache {
         let expiresAt: Date
     }
 
+    private struct Load {
+        let id: UUID
+        let task: Task<PlaybackCertificate, Error>
+    }
+
     private let lifetime: TimeInterval
     private var entries: [String: Entry] = [:]
-    private var loads: [String: Task<PlaybackCertificate, Error>] = [:]
+    private var loads: [String: Load] = [:]
 
     init(lifetime: TimeInterval = 300) {
         self.lifetime = lifetime
@@ -61,23 +66,42 @@ actor ProviderCertificateCache {
             return entry.certificate
         }
         if let existing = loads[domain] {
-            return try await existing.value
+            let certificate = try await existing.task.value
+            if loads[domain]?.id == existing.id || entries[domain]?.certificate == certificate {
+                return certificate
+            }
+            throw CancellationError()
         }
 
+        let loadID = UUID()
         let task = Task { try await load() }
-        loads = loads.merging([domain: task], uniquingKeysWith: { _, new in new })
+        loads = loads.merging(
+            [domain: Load(id: loadID, task: task)],
+            uniquingKeysWith: { _, new in new }
+        )
         do {
             let certificate = try await task.value
+            guard loads[domain]?.id == loadID else {
+                throw CancellationError()
+            }
             entries = entries.merging(
                 [domain: Entry(certificate: certificate, expiresAt: now.addingTimeInterval(lifetime))],
                 uniquingKeysWith: { _, new in new }
             )
-            loads[domain] = nil
+            loads.removeValue(forKey: domain)
             return certificate
         } catch {
-            loads[domain] = nil
+            if loads[domain]?.id == loadID {
+                loads.removeValue(forKey: domain)
+            }
             throw error
         }
+    }
+
+    func invalidate(for domain: String) {
+        loads[domain]?.task.cancel()
+        loads.removeValue(forKey: domain)
+        entries.removeValue(forKey: domain)
     }
 }
 

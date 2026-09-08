@@ -4,6 +4,11 @@ Date: 2026-09-07
 
 ## Automated Regression
 
+- Final Home/Search/card/quality pass: 170/170 unit and integration tests passed, followed by 9/9 serial release-critical UI scenarios. Reviewer hardening then passed all 58 affected tests, including the new in-flight invalidation and bounded filtered-page cases; the Search UI scenario also passed again.
+- The complete 31-scenario UI feature matrix passed across the major-refactor run and an isolated rerun. One aggregate run initially missed a Played-tab tap at the simulator automation layer; the same scenario passed both in isolation and in the final serial release-critical run.
+- Provider Search is collapsed by default, submits to the signed provider API, skips filtered-empty pages, survives rapid replacement queries, retries once with a fresh certificate, and renders the same adaptive card used by All.
+- Home, Search, Saved, and All share the poster-card system; Played uses the matching progress-card system so elapsed state remains visible without pretending inactive items are playing.
+- Native quality discovery uses actual AVAsset variants or a playable-track fallback, prefers exact 1080p, falls back to the highest real rendition, and rejects impossible aspect ratios rather than repeating a catalog marketing label.
 - Full iPhone 17 Pro simulator run after the continuous-playback, quality, episode-recovery, daily-update, and discovery simplification changes: 167/167 actual test cases passed (137 unit/integration, 30 UI).
 - App-icon, launch-branding, lock-screen metadata, audio-session, interruption recovery, and MediaPlayer background-artwork regression tests: passed.
 - Program-only local/Cast queues, frozen Played timestamps, active-playback-only progress, and fullscreen/Picture in Picture lifecycle tests: passed.
@@ -17,25 +22,25 @@ Date: 2026-09-07
 
 Line coverage is retained only as a diagnostic. The release gate is explicit feature and failure-path coverage.
 
-The long-session scenario repeatedly opens and closes native playback from Latest, Saved, and Played; changes episodes; uses Cast play/pause, seek, and mute controls; traverses all three tabs while the Cast mini controller remains active; then opens the native movie catalog, paginates, saves and plays a page-two title, returns to the same catalog, and verifies the title in Saved.
+The long-session scenario repeatedly opens and closes native playback from Home, Saved, and Played; changes episodes; uses Cast play/pause, seek, and mute controls; traverses all three tabs while the Cast mini controller remains active; then opens the native movie catalog, paginates, saves and plays a page-two title, returns to the same catalog, and verifies the title in Saved.
 
 ## Feature Traceability
 
 | Feature or failure path | Automated evidence | Result | Hardware check |
 | --- | --- | --- | --- |
-| Latest contains only Movies, Series, Variety, and Anime; search and local filtering are absent while All retains provider filters and sorting | `AiyifanLatestTapTests` Latest and catalog scenarios | Passed | No |
-| App-owned interface is English while provider titles, episode names, descriptions, and filter values remain original | Static string scan plus latest/catalog/player UI scenarios | Passed | No |
+| Home contains only Movies, Series, Variety, and Anime; provider Search is collapsed until requested while All retains provider filters and sorting | `AiyifanLatestTapTests` Home, Search, and catalog scenarios | Passed | No |
+| App-owned interface is English while provider titles, episode names, descriptions, and filter values remain original | Static string scan plus Home/catalog/player UI scenarios | Passed | No |
 | Native All catalog for all four categories | Matching catalog navigation UI scenario | Passed | No |
 | Provider filters, per-category persisted sort and direction, result count, pagination, empty/error/retry behavior | Catalog preference, unit, race, relaunch, and UI scenarios | Passed | No |
-| Provider score on Latest and All cards; Likes, Favorites, Score, and Views in native playback | Feed/catalog/resolver unit tests plus score and player-metric UI scenarios | Passed | No |
-| Save/favorite add, remove, persistence, and update tracking | Saved store plus Latest/catalog UI scenarios | Passed | No |
+| Provider score on Home, Search, Saved, and All cards; Likes, Favorites, Score, and Views in native playback | Feed/catalog/search/resolver unit tests plus score and player-metric UI scenarios | Passed | No |
+| Save/favorite add, remove, persistence, and update tracking | Saved store plus Home/catalog UI scenarios | Passed | No |
 | Native movie and serial playback without an implicit web view | Routing, resolver, and playback UI scenarios | Passed | No |
 | Complete episode list, newest-first ordering, selection, autoplay continuity, and legacy Played restoration | Resolver, player model, navigator, and episode-picker scenarios | Passed | No |
 | Known latest episode starts before an independently retried full episode list; incomplete lists cannot silently substitute episode 1 | Resolver and player model recovery tests | Passed | No |
 | Provider advertisement exclusion from local and Cast program queues | Resolver, player, Cast, and UI scenarios | Passed | Receiver confirmation pending |
 | Played third tab, frozen inactive timestamps, resume, completion, watched state, restart, remove, and clear | Played store, player model, and Played UI scenarios | Passed | No |
 | Fullscreen and Picture in Picture transitions preserve the active player session | Player lifecycle and fullscreen UI scenarios | Passed | PiP pending |
-| Back collapses to a retained video mini-player while Latest, Saved, Played, and All remain navigable | Session state tests plus mini-player and power-user UI scenarios | Passed | Continuity pending |
+| Back collapses to a retained video mini-player while Home, Saved, Played, and All remain navigable | Session state tests plus mini-player and power-user UI scenarios | Passed | Continuity pending |
 | Always-visible Automatic quality preferring exact 1080p, highest available fallback, and persistent manual native choices when exposed | Quality projection, preference, player-item, and playback-menu UI tests | Passed | AirPlay quality pending |
 | Background audio, interruption recovery, and lock-screen metadata/controls | Playback feature contract tests | Passed | Lock-screen playback pending |
 | AirPlay and Google Cast controls, handoff metadata, queue, and simulated remote controls | Cast unit and UI scenarios | Passed | Real receivers pending |

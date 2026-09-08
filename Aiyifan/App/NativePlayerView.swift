@@ -103,6 +103,13 @@ final class NativePlayerViewModel: ObservableObject {
         qualityOptions.count > 1 ? qualityOptions : []
     }
 
+    var qualityAvailabilityText: String {
+        guard let onlyQuality = qualityOptions.first, qualityOptions.count == 1 else {
+            return "Stream quality unavailable"
+        }
+        return "\(onlyQuality.title) only"
+    }
+
     var episodeControlTitle: String? {
         guard shouldShowEpisodeControl else {
             return nil
@@ -283,7 +290,7 @@ final class NativePlayerViewModel: ObservableObject {
         guard let available = qualityOptions.first(where: { $0.id == quality.id }) else {
             return
         }
-        qualityPreferences.setTargetHeight(available.height)
+        qualityPreferences.setTargetHeight(available.tierHeight)
         selectedQuality = available
         playbackItems.forEach { apply(available, to: $0) }
     }
@@ -907,7 +914,7 @@ struct NativePlayerScreen: View {
                 .accessibilityIdentifier("automaticPlaybackQuality")
 
                 if viewModel.manualQualityOptions.isEmpty {
-                    Text("No manual options for this stream")
+                    Text(viewModel.qualityAvailabilityText)
                 } else {
                     Divider()
                     ForEach(viewModel.manualQualityOptions) { quality in
@@ -921,7 +928,7 @@ struct NativePlayerScreen: View {
                                 Text(quality.title)
                             }
                         }
-                        .accessibilityIdentifier("playbackQuality-\(quality.height)")
+                        .accessibilityIdentifier("playbackQuality-\(quality.tierHeight)")
                     }
                 }
             }

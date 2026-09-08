@@ -34,19 +34,19 @@ struct PlayedItemsView: View {
                         ScrollView {
                             LazyVStack(spacing: 12) {
                                 ForEach(filteredItems) { record in
-                                PlayedItemRow(
-                                    record: record,
-                                    onPlay: { viewModel.selectPlayed(record) },
-                                    onRemove: { playedItemsStore.remove(record) },
-                                    onRestart: { playedItemsStore.restart(record) },
-                                    onToggleWatched: {
-                                        if record.isCompleted {
-                                            playedItemsStore.markUnwatched(record)
-                                        } else {
-                                            playedItemsStore.markWatched(record)
+                                    PlayedItemRow(
+                                        record: record,
+                                        onPlay: { viewModel.selectPlayed(record) },
+                                        onRemove: { playedItemsStore.remove(record) },
+                                        onRestart: { playedItemsStore.restart(record) },
+                                        onToggleWatched: {
+                                            if record.isCompleted {
+                                                playedItemsStore.markUnwatched(record)
+                                            } else {
+                                                playedItemsStore.markWatched(record)
+                                            }
                                         }
-                                    }
-                                )
+                                    )
                                 }
                             }
                             .padding(16)
@@ -112,78 +112,38 @@ private struct PlayedItemRow: View {
     let onToggleWatched: () -> Void
 
     var body: some View {
-        HStack(spacing: 12) {
-            Button(action: onPlay) {
-                HStack(spacing: 12) {
-                    poster
-
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text(record.item.title)
-                            .font(.headline)
-                            .lineLimit(2)
-
-                        if let episodeTitle = record.episodeTitle {
-                            Text("Episode \(episodeTitle)")
-                                .font(.subheadline)
-                                .foregroundStyle(.white.opacity(0.65))
-                        }
-
-                        ProgressView(value: progress)
-                            .tint(.cyan)
-
-                        Text(PlayedPositionFormatter.label(
-                            position: record.position,
-                            duration: record.duration
-                        ))
-                            .font(.caption)
-                            .monospacedDigit()
-                            .foregroundStyle(.white.opacity(0.48))
-                            .accessibilityIdentifier("playedPosition-\(record.id)")
-                    }
+        ProgressMediaCard(
+            item: record.item,
+            subtitle: record.episodeTitle.map { "Episode \($0)" },
+            progress: progress,
+            progressLabel: PlayedPositionFormatter.label(
+                position: record.position,
+                duration: record.duration
+            ),
+            progressLabelIdentifier: "playedPosition-\(record.id)",
+            itemIdentifier: "playedItem-\(record.id)",
+            onTap: onPlay
+        ) {
+            HStack(spacing: 0) {
+                Button(role: .destructive, action: onRemove) {
+                    Image(systemName: "trash")
+                        .frame(width: 44, height: 44)
                 }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("playedItem-\(record.id)")
+                .accessibilityLabel("Remove from Played")
+                .accessibilityIdentifier("removePlayed-\(record.id)")
 
-            Button(role: .destructive, action: onRemove) {
-                Image(systemName: "trash")
-                    .frame(width: 36, height: 36)
-            }
-            .accessibilityLabel("Remove from Played")
-            .accessibilityIdentifier("removePlayed-\(record.id)")
-
-            Menu {
-                Button(record.isCompleted ? "Mark Unwatched" : "Mark Watched", systemImage: record.isCompleted ? "circle" : "checkmark.circle", action: onToggleWatched)
-                Button("Restart", systemImage: "arrow.counterclockwise", action: onRestart)
-                Button("Remove", systemImage: "trash", role: .destructive, action: onRemove)
-            } label: {
-                Image(systemName: "ellipsis")
-                    .frame(width: 36, height: 36)
-            }
-            .accessibilityLabel("Played Options")
-            .accessibilityIdentifier("playedOptions-\(record.id)")
-        }
-        .padding(10)
-        .foregroundStyle(.white)
-        .background(Color.white.opacity(0.07))
-        .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-    }
-
-    private var poster: some View {
-        AsyncImage(url: record.item.thumbnailURL) { phase in
-            if case .success(let image) = phase {
-                image.resizable().scaledToFill()
-            } else {
-                Image(systemName: "film")
-                    .foregroundStyle(.white.opacity(0.35))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .background(Color.white.opacity(0.06))
+                Menu {
+                    Button(record.isCompleted ? "Mark Unwatched" : "Mark Watched", systemImage: record.isCompleted ? "circle" : "checkmark.circle", action: onToggleWatched)
+                    Button("Restart", systemImage: "arrow.counterclockwise", action: onRestart)
+                    Button("Remove", systemImage: "trash", role: .destructive, action: onRemove)
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .frame(width: 44, height: 44)
+                }
+                .accessibilityLabel("Played Options")
+                .accessibilityIdentifier("playedOptions-\(record.id)")
             }
         }
-        .frame(width: 58, height: 82)
-        .clipped()
-        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
     }
 
     private var progress: Double {

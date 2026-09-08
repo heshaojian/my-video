@@ -28,23 +28,30 @@ These are product invariants, not incidental implementation details.
 
 ### Discovery
 
-- Latest contains exactly Movies, Series, Variety, and Anime.
-- Latest is a fast, unfiltered discovery surface. It has no search bar and no
-  local filter because it contains only a small recent sample.
+- Home contains exactly Movies, Series, Variety, and Anime.
+- Home is a fast, unfiltered discovery surface. Filtering and sorting do not
+  belong on the small recent sample.
+- Global search is collapsed by default and runs only after explicit submit.
+  It queries the signed provider API; it never filters the loaded Home sample.
+- Search results reuse the exact All poster-grid card component and remain
+  playable and saveable without opening a web page.
 - Every All action opens a native full-category catalog, never an implicit web
   page.
 - Filtering, sorting, result counts, pagination, and persistent per-category
   choices belong to the native All catalogs.
 - App-owned interface text is English. Provider titles, episode names, genres,
   regions, languages, descriptions, and filter values remain unchanged.
-- Provider scores appear in Latest and All when valid. Likes, Favorites, Score,
-  and Views appear in native playback details when supplied.
+- Provider scores appear in Home, Search, Saved, and All when valid. Likes,
+  Favorites, Score, and Views appear in native playback details when supplied.
+- Home, Search, Saved, and All share the poster-card component family. Played
+  and Continue Watching use its progress-row variant so workflow-specific
+  information remains visible without visual drift.
 
 ### Saved And Played
 
 - Saving is available from native discovery surfaces and persists locally.
 - Saved serial titles receive direct best-effort daily episode checks. The short
-  Latest feed is not sufficient for update detection.
+  Home feed is not sufficient for update detection.
 - The first successful direct check establishes a baseline without notifying.
   Later episode changes are deduplicated and respect global and per-title alert
   settings.
@@ -62,7 +69,7 @@ These are product invariants, not incidental implementation details.
   the explicit Open Website fallback.
 - One app-owned playback session survives expanded and collapsed presentation.
   Back collapses to the mini-player; it does not stop or recreate playback.
-- Latest, Saved, Played, and All remain navigable while the mini-player is active.
+- Home, Saved, Played, and All remain navigable while the mini-player is active.
 - Fullscreen and Picture in Picture transitions must preserve the same player,
   item, timestamp, and playback state.
 - Close and Open Website are terminal actions that persist progress and stop the
@@ -89,9 +96,12 @@ These are product invariants, not incidental implementation details.
 - Quality is always present in the playback menu.
 - The default is Automatic, preferring exact 1080p. If exact 1080p is absent,
   select the highest valid rendition exposed by AVFoundation.
-- Show manual rendition choices when the HLS asset exposes trustworthy variant
-  dimensions. A single-rendition or opaque stream still shows Automatic and an
-  honest no-manual-options state.
+- Show manual rendition choices only when the delivered asset exposes multiple
+  trustworthy tiers. Inspect a playable video track when AVFoundation exposes
+  no adaptive variants; a single rendition shows `<tier> only`, while unknown
+  dimensions show `Stream quality unavailable`.
+- Catalog quality is provider metadata, not proof of a delivered rendition.
+  Never synthesize a 4K option from `vipResource` or another catalog label.
 - A manual choice persists across videos. Automatic resets the target to 1080p.
 - Apply quality preferences to existing `AVPlayerItem` objects. Do not replace
   the item, restart playback, seek to zero, or create a new Played record.
@@ -114,14 +124,17 @@ These are product invariants, not incidental implementation details.
 | Responsibility | Primary owner |
 | --- | --- |
 | App lifecycle, audio session, interruptions | `Aiyifan/App/AiyifanApp.swift` |
-| Root routing and Latest UI | `Aiyifan/App/BrowserView.swift` |
+| Root routing and Home UI | `Aiyifan/App/BrowserView.swift` |
 | Selection ordering and website fallback state | `Aiyifan/App/BrowserViewModel.swift` |
-| Four-category Latest loading | `Aiyifan/App/AiyifanFeedService.swift` |
+| Four-category Home loading | `Aiyifan/App/AiyifanFeedService.swift` |
 | Feed cache and partial-failure behavior | `Aiyifan/App/FeedRepository.swift` |
 | All catalog queries, filters, decoding, signing | `Aiyifan/App/CategoryCatalogService.swift` |
 | Catalog pagination and query state | `Aiyifan/App/CategoryCatalogViewModel.swift` |
 | Persistent category queries | `Aiyifan/App/CatalogPreferenceStore.swift` |
 | Native catalog presentation | `Aiyifan/App/NativeCategoryCatalogView.swift` |
+| Shared poster and progress cards | `Aiyifan/App/MediaCard.swift` |
+| Global API search transport and decoding | `Aiyifan/App/ProviderSearchService.swift` |
+| Global search cancellation, paging, and UI state | `Aiyifan/App/ProviderSearchViewModel.swift` |
 | Provider sessions, redirects, hosts, certificate cache | `Aiyifan/App/ProviderRequestSigner.swift` |
 | Playback API, episodes, metrics, program/ad decoding | `Aiyifan/App/NativePlaybackResolver.swift` |
 | Player state, progress, episode and quality controls | `Aiyifan/App/NativePlayerView.swift` |
@@ -171,6 +184,11 @@ Treat every provider value and URL as untrusted input.
 - Reject credential-bearing URLs, private-network media URLs, unsupported final
   redirect hosts, malformed identifiers, invalid envelopes, and oversized data.
 - Build signed requests only through the existing request builders and signer.
+- Provider detail and playback requests use one validated two-letter device
+  region with `US` fallback; playback also sends `lang=none`.
+- A structurally invalid playback response may invalidate the cached provider
+  certificate and retry the complete resolution exactly once. Terminal access,
+  preview, host, identifier, media, and cancellation errors are not retried.
 - Keep response-size limits and bounded collection counts in every decoder.
 - Never persist or log certificates, signatures, signed request URLs, cookies,
   HLS URLs, playlists, or response bodies containing short-lived access data.
@@ -193,7 +211,11 @@ Treat every provider value and URL as untrusted input.
 | One network hiccup permanently hides episodes | No bounded retry state | Use four cancelable attempts and Retry Episodes |
 | Quality control disappears | UI conditioned on two or more variants | Always show Automatic; add manual options when known |
 | Quality change restarts playback | Player item replaced | Update preferences on current and queued items in place |
-| Saved older show never notifies | Only Latest sample checked | Check every saved serial title directly |
+| Saved older show never notifies | Only Home sample checked | Check every saved serial title directly |
+| Search misses most titles | Home cards filtered in memory | Submit to the signed provider search API |
+| Search cards drift from All | Similar markup copied into another view | Reuse `PosterMediaCard(.grid)` directly |
+| Catalog says 4K but player cannot select it | Metadata treated as a rendition | Report only measured AVFoundation tiers |
+| Current title returns an invalid response | Stale certificate or provider request context | Use validated region/language and one fresh-certificate retry |
 | Daily notification claimed at an exact hour | `earliestBeginDate` treated as a timer | Describe background refresh as best effort; catch up on launch |
 | All filters unexpectedly reset | One shared or transient query | Persist only successful queries per stable category ID |
 | CocoaPods symbols are missing | `.xcodeproj` opened directly | Build and test `Aiyifan.xcworkspace` |
@@ -303,7 +325,7 @@ Fixtures prove deterministic contracts; they do not prove the provider still
 serves the same current shape. Before a provider-facing release, use bounded,
 read-only checks to verify:
 
-- All four Latest categories return valid native items.
+- All four Home categories return valid native items.
 - All catalog filter metadata and page requests still decode.
 - One current movie resolves to a reachable HTTPS HLS program.
 - One serial title returns multiple newest-first episodes.

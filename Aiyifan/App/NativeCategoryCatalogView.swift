@@ -43,7 +43,7 @@ struct NativeCategoryCatalogView: View {
                         Image(systemName: "chevron.backward")
                             .frame(width: 36, height: 36)
                     }
-                    .accessibilityLabel("Back to Latest")
+                    .accessibilityLabel("Back to Home")
                     .accessibilityIdentifier("closeCategoryCatalog")
                 }
 
@@ -160,11 +160,15 @@ struct NativeCategoryCatalogView: View {
 
                 LazyVGrid(columns: columns, alignment: .center, spacing: 20) {
                     ForEach(viewModel.items) { item in
-                        CatalogItemCard(
+                        PosterMediaCard(
                             item: item,
-                            isSaved: savedItemsStore.contains(item),
+                            layout: .grid,
+                            actionStyle: .save(isSaved: savedItemsStore.contains(item)),
+                            itemIdentifier: "catalogItem-\(item.id)",
+                            actionIdentifier: "saveCatalogItem-\(item.id)",
+                            scoreIdentifier: "catalogScore-\(item.id)",
                             onTap: { onSelectItem(item) },
-                            onToggleSaved: { savedItemsStore.toggle(item) }
+                            onAction: { savedItemsStore.toggle(item) }
                         )
                         .task {
                             await viewModel.loadMoreIfNeeded(currentItem: item)
@@ -375,70 +379,5 @@ private struct CatalogFilterSheet: View {
             }
             .accessibilityIdentifier("catalogFilter-\(title)")
         }
-    }
-}
-
-private struct CatalogItemCard: View {
-    let item: AiyifanItem
-    let isSaved: Bool
-    let onTap: () -> Void
-    let onToggleSaved: () -> Void
-
-    var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Button(action: onTap) {
-                VStack(alignment: .leading, spacing: 7) {
-                    PosterImage(item: item)
-                        .aspectRatio(0.72, contentMode: .fit)
-
-                    Text(item.title)
-                        .font(.system(size: 15, weight: .semibold))
-                        .lineLimit(2)
-                        .foregroundStyle(.white.opacity(0.94))
-
-                    Text(item.updateLabel)
-                        .font(.caption)
-                        .lineLimit(1)
-                        .foregroundStyle(.cyan.opacity(0.82))
-
-                    if !metadata.isEmpty {
-                        Text(metadata)
-                            .font(.caption2)
-                            .lineLimit(1)
-                            .foregroundStyle(.white.opacity(0.48))
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("catalogItem-\(item.id)")
-
-            Button(action: onToggleSaved) {
-                Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(isSaved ? .black : .white)
-                    .frame(width: 34, height: 34)
-                    .background(isSaved ? Color.cyan : Color.black.opacity(0.68))
-                    .clipShape(Circle())
-            }
-            .padding(7)
-            .accessibilityLabel(isSaved ? "Remove from Saved" : "Save for Later")
-            .accessibilityIdentifier("saveCatalogItem-\(item.id)")
-
-            if let score = item.score {
-                ProviderScoreBadge(score: score)
-                    .padding(7)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityIdentifier("catalogScore-\(item.id)")
-            }
-        }
-        .frame(maxWidth: 180, alignment: .leading)
-    }
-
-    private var metadata: String {
-        [item.year, item.region]
-            .compactMap { $0?.isEmpty == false ? $0 : nil }
-            .joined(separator: " · ")
     }
 }

@@ -11,9 +11,9 @@ final class NativePlayerViewModelTests: XCTestCase {
         defer { defaults.removePersistentDomain(forName: suite) }
         let preferences = PlaybackQualityPreferenceStore(defaults: defaults, storageKey: "quality")
         let options = PlaybackQualityProjector.options(from: [
-            PlaybackVariantDescriptor(width: 3_840, height: 2_160, averageBitRate: 12_000_000, peakBitRate: 16_000_000),
-            PlaybackVariantDescriptor(width: 1_920, height: 1_080, averageBitRate: 5_000_000, peakBitRate: 7_000_000),
-            PlaybackVariantDescriptor(width: 1_280, height: 720, averageBitRate: 3_000_000, peakBitRate: 4_000_000)
+            PlaybackVariantDescriptor(width: 3_840, height: 1_608, averageBitRate: 12_000_000, peakBitRate: 16_000_000),
+            PlaybackVariantDescriptor(width: 1_920, height: 804, averageBitRate: 5_000_000, peakBitRate: 7_000_000),
+            PlaybackVariantDescriptor(width: 1_280, height: 536, averageBitRate: 3_000_000, peakBitRate: 4_000_000)
         ])
         let playback = NativePlayback(entries: [
             NativePlaybackEntry(
@@ -32,29 +32,30 @@ final class NativePlayerViewModelTests: XCTestCase {
         )
 
         viewModel.start()
-        try await waitUntil { viewModel.selectedQuality?.height == 1_080 }
+        try await waitUntil { viewModel.selectedQuality?.tierHeight == 1_080 }
 
         let currentItem = try XCTUnwrap(viewModel.preparedPlayerItems.first)
-        XCTAssertEqual(viewModel.qualityOptions.map(\.height), [2_160, 1_080, 720])
-        XCTAssertEqual(currentItem.preferredMaximumResolution, CGSize(width: 1_920, height: 1_080))
+        XCTAssertEqual(viewModel.qualityOptions.map(\.tierHeight), [2_160, 1_080, 720])
+        XCTAssertEqual(viewModel.qualityOptions.map(\.height), [1_608, 804, 536])
+        XCTAssertEqual(currentItem.preferredMaximumResolution, CGSize(width: 1_920, height: 804))
         XCTAssertEqual(currentItem.preferredPeakBitRate, 7_000_000)
 
-        let lower = try XCTUnwrap(viewModel.qualityOptions.first { $0.height == 720 })
+        let lower = try XCTUnwrap(viewModel.qualityOptions.first { $0.tierHeight == 720 })
         viewModel.setQuality(lower)
 
         XCTAssertTrue(viewModel.preparedPlayerItems.first === currentItem)
-        XCTAssertEqual(viewModel.manualQualityOptions.map(\.height), [2_160, 1_080, 720])
+        XCTAssertEqual(viewModel.manualQualityOptions.map(\.tierHeight), [2_160, 1_080, 720])
         XCTAssertFalse(viewModel.usesAutomaticQuality)
-        XCTAssertEqual(viewModel.selectedQuality?.height, 720)
-        XCTAssertEqual(currentItem.preferredMaximumResolution, CGSize(width: 1_280, height: 720))
+        XCTAssertEqual(viewModel.selectedQuality?.tierHeight, 720)
+        XCTAssertEqual(currentItem.preferredMaximumResolution, CGSize(width: 1_280, height: 536))
         XCTAssertEqual(currentItem.preferredPeakBitRate, 4_000_000)
         XCTAssertEqual(preferences.targetHeight, 720)
 
         viewModel.setAutomaticQuality()
         XCTAssertTrue(viewModel.usesAutomaticQuality)
         XCTAssertTrue(viewModel.preparedPlayerItems.first === currentItem)
-        XCTAssertEqual(viewModel.selectedQuality?.height, 1_080)
-        XCTAssertEqual(currentItem.preferredMaximumResolution, CGSize(width: 1_920, height: 1_080))
+        XCTAssertEqual(viewModel.selectedQuality?.tierHeight, 1_080)
+        XCTAssertEqual(currentItem.preferredMaximumResolution, CGSize(width: 1_920, height: 804))
         XCTAssertEqual(currentItem.preferredPeakBitRate, 7_000_000)
         viewModel.stop()
     }
@@ -85,8 +86,71 @@ final class NativePlayerViewModelTests: XCTestCase {
 
         XCTAssertTrue(viewModel.usesAutomaticQuality)
         XCTAssertTrue(viewModel.manualQualityOptions.isEmpty)
+        XCTAssertEqual(viewModel.qualityAvailabilityText, "720p only")
         let preparedItem = try XCTUnwrap(viewModel.preparedPlayerItems.first)
         XCTAssertEqual(preparedItem.preferredMaximumResolution, CGSize(width: 1_280, height: 720))
+        viewModel.stop()
+    }
+
+    func testUnknownStreamReportsQualityUnavailable() async throws {
+        let castManager = MockCastPlaybackManager()
+        castManager.isCasting = true
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            resolver: StubPlaybackResolver(playback: NativePlayback(entries: [
+                NativePlaybackEntry(
+                    url: URL(string: "https://media.example.com/master.m3u8")!,
+                    isAdvertisement: false
+                )
+            ])),
+            castManager: castManager,
+            qualityLoader: StubQualityLoader(options: [])
+        )
+
+        viewModel.start()
+        try await waitUntil { viewModel.preparedEntryCount == 1 }
+
+        XCTAssertTrue(viewModel.manualQualityOptions.isEmpty)
+        XCTAssertEqual(viewModel.qualityAvailabilityText, "Stream quality unavailable")
+        viewModel.stop()
+    }
+
+    func testTeLiDuXingUsesDelivered480pInsteadOfCatalog4KClaim() async throws {
+        let deliveredOptions = PlaybackQualityProjector.options(from: [
+            PlaybackVariantDescriptor(
+                width: 864,
+                height: 362,
+                averageBitRate: 1_000_000,
+                peakBitRate: 1_500_000
+            )
+        ])
+        let castManager = MockCastPlaybackManager()
+        castManager.isCasting = true
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(
+                listPath: "te-li-du-xing",
+                title: "特立独行",
+                quality: "4K"
+            ),
+            resolver: StubPlaybackResolver(playback: NativePlayback(entries: [
+                NativePlaybackEntry(
+                    url: URL(string: "https://media.example.com/te-li-du-xing.m3u8")!,
+                    isAdvertisement: false
+                )
+            ])),
+            castManager: castManager,
+            qualityLoader: StubQualityLoader(options: deliveredOptions)
+        )
+
+        viewModel.start()
+        try await waitUntil { viewModel.selectedQuality != nil }
+
+        XCTAssertEqual(viewModel.item.quality, "4K")
+        XCTAssertEqual(viewModel.selectedQuality?.tierHeight, 480)
+        XCTAssertEqual(viewModel.selectedQuality?.width, 864)
+        XCTAssertEqual(viewModel.selectedQuality?.height, 362)
+        XCTAssertEqual(viewModel.qualityAvailabilityText, "480p only")
+        XCTAssertTrue(viewModel.manualQualityOptions.isEmpty)
         viewModel.stop()
     }
 

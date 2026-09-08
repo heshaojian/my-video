@@ -48,13 +48,14 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertFalse(app.webViews["browserWebView"].exists)
     }
 
-    func testLatestPageContainsOnlyTheFourRequestedSections() {
+    func testHomePageContainsOnlyTheFourRequestedSections() {
         let app = launchFixtureApp()
 
         XCTAssertTrue(app.images["aiyifanBrandMark"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Aiyifan"].exists)
-        XCTAssertTrue(app.staticTexts["Latest"].exists)
-        XCTAssertFalse(app.searchFields.firstMatch.exists)
+        XCTAssertTrue(app.staticTexts["Home"].exists)
+        XCTAssertFalse(app.textFields["providerSearchField"].exists)
+        XCTAssertTrue(app.buttons["showSearch"].exists)
         XCTAssertTrue(app.staticTexts["Latest Movies"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Latest Series"].exists)
         XCTAssertTrue(app.staticTexts["latestScore-fixture-movie"].exists)
@@ -64,7 +65,7 @@ final class AiyifanLatestTapTests: XCTestCase {
 
         XCTAssertTrue(app.staticTexts["Latest Variety"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.staticTexts["Latest Anime"].waitForExistence(timeout: 2))
-        XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Latest'")).count, 5)
+        XCTAssertEqual(app.staticTexts.matching(NSPredicate(format: "label BEGINSWITH 'Latest'")).count, 4)
     }
 
     func testPopupDoesNotReplacePlaybackPage() {
@@ -538,12 +539,36 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(episodeControl.label.contains("4/10"))
     }
 
-    func testLatestKeepsDiscoverySimpleWithoutLocalFilter() {
+    func testHomeKeepsDiscoverySimpleWithCollapsedAPISearch() {
         let app = launchFixtureApp()
-        XCTAssertTrue(app.otherElements["latestHome"].waitForExistence(timeout: 5))
-        XCTAssertFalse(app.searchFields.firstMatch.exists)
+        XCTAssertTrue(app.otherElements["homeView"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.textFields["providerSearchField"].exists)
         XCTAssertFalse(app.buttons["filterLatest"].exists)
+        XCTAssertTrue(app.buttons["showSearch"].exists)
         XCTAssertTrue(app.buttons["browseCategory-anime"].exists)
+    }
+
+    func testGlobalAPISearchUsesTheAllCatalogCardStyle() {
+        let app = launchFixtureApp()
+
+        let showSearch = app.buttons["showSearch"]
+        XCTAssertTrue(showSearch.waitForExistence(timeout: 5))
+        showSearch.tap()
+
+        let searchField = app.textFields["providerSearchField"]
+        XCTAssertTrue(searchField.waitForExistence(timeout: 2))
+        searchField.tap()
+        searchField.typeText("Fixture Search")
+        app.buttons["submitSearch"].tap()
+
+        let result = app.buttons["catalogItem-fixture-search-movie"]
+        XCTAssertTrue(result.waitForExistence(timeout: 5))
+        XCTAssertTrue(app.staticTexts["catalogScore-fixture-search-movie"].exists)
+        XCTAssertTrue(app.buttons["saveCatalogItem-fixture-search-movie"].exists)
+
+        app.buttons["cancelSearch"].tap()
+        XCTAssertFalse(searchField.exists)
+        XCTAssertTrue(app.otherElements["homeView"].exists)
     }
 
     func testPlayerAlwaysOffersAutomaticQualityControl() {
@@ -647,7 +672,7 @@ final class AiyifanLatestTapTests: XCTestCase {
             XCTAssertTrue(playedItem.waitForExistence(timeout: 5))
         }
 
-        app.tabBars.buttons["Latest"].tap()
+        app.tabBars.buttons["Home"].tap()
         app.buttons["expandCastController"].tap()
         XCTAssertTrue(app.otherElements["castExpandedController"].waitForExistence(timeout: 3))
         for _ in 0..<10 {
@@ -667,7 +692,7 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(savedItem.exists)
         app.tabBars.buttons["Played"].tap()
         XCTAssertTrue(playedItem.exists)
-        app.tabBars.buttons["Latest"].tap()
+        app.tabBars.buttons["Home"].tap()
         XCTAssertTrue(latestItem.exists)
         XCTAssertTrue(app.otherElements["castMiniController"].exists)
 

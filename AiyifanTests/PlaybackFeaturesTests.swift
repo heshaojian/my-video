@@ -23,6 +23,69 @@ final class PlaybackFeaturesTests: XCTestCase {
         XCTAssertEqual(options.first(where: { $0.height == 1_080 })?.peakBitRate, 8_000_000)
     }
 
+    func testCinematicDimensionsUseBothAxesForTruthfulQualityTiers() {
+        let options = PlaybackQualityProjector.options(from: [
+            PlaybackVariantDescriptor(width: 3_840, height: 1_608, averageBitRate: 12_000_000, peakBitRate: 16_000_000),
+            PlaybackVariantDescriptor(width: 1_920, height: 804, averageBitRate: 5_000_000, peakBitRate: 7_000_000),
+            PlaybackVariantDescriptor(width: 1_280, height: 536, averageBitRate: 3_000_000, peakBitRate: 4_000_000),
+            PlaybackVariantDescriptor(width: 864, height: 362, averageBitRate: 1_000_000, peakBitRate: 1_500_000)
+        ])
+
+        XCTAssertEqual(options.map(\.tierHeight), [2_160, 1_080, 720, 480])
+        XCTAssertEqual(options.map(\.title), ["2160p", "1080p", "720p", "480p"])
+        XCTAssertEqual(options.map(\.width), [3_840, 1_920, 1_280, 864])
+        XCTAssertEqual(options.map(\.height), [1_608, 804, 536, 362])
+        XCTAssertEqual(options.last?.averageBitRate, 1_000_000)
+        XCTAssertEqual(options.last?.peakBitRate, 1_500_000)
+    }
+
+    func testQualityProjectionRejectsExtremeAspectRatios() {
+        let options = PlaybackQualityProjector.options(from: [
+            PlaybackVariantDescriptor(width: 3_840, height: 1, averageBitRate: 1_000_000, peakBitRate: nil),
+            PlaybackVariantDescriptor(width: 8_192, height: 144, averageBitRate: 1_000_000, peakBitRate: nil)
+        ])
+
+        XCTAssertTrue(options.isEmpty)
+    }
+
+    func testVariantDiscoveryWinsAndPlayableVideoTrackProvidesSingleRenditionFallback() {
+        let variant = PlaybackVariantDescriptor(
+            width: 1_920,
+            height: 804,
+            averageBitRate: 5_000_000,
+            peakBitRate: 7_000_000
+        )
+        let fallbackTracks = [
+            PlaybackTrackDescriptor(
+                width: 3_840,
+                height: 1_608,
+                estimatedBitRate: 12_000_000,
+                isPlayable: true
+            ),
+            PlaybackTrackDescriptor(
+                width: 864,
+                height: 362,
+                estimatedBitRate: 1_000_000,
+                isPlayable: false
+            )
+        ]
+
+        let variantOptions = PlaybackQualityProjector.options(
+            from: [variant],
+            fallbackTracks: fallbackTracks
+        )
+        let fallbackOptions = PlaybackQualityProjector.options(
+            from: [],
+            fallbackTracks: fallbackTracks
+        )
+
+        XCTAssertEqual(variantOptions.map(\.tierHeight), [1_080])
+        XCTAssertEqual(variantOptions.first?.height, 804)
+        XCTAssertEqual(fallbackOptions.map(\.tierHeight), [2_160])
+        XCTAssertEqual(fallbackOptions.first?.height, 1_608)
+        XCTAssertEqual(fallbackOptions.first?.averageBitRate, 12_000_000)
+    }
+
     func testPlaybackQualitySelectionDefaultsToExact1080AndFallsBackPredictably() throws {
         let options = PlaybackQualityProjector.options(from: [
             PlaybackVariantDescriptor(width: 3_840, height: 2_160, averageBitRate: 12_000_000, peakBitRate: 16_000_000),
@@ -30,9 +93,9 @@ final class PlaybackFeaturesTests: XCTestCase {
             PlaybackVariantDescriptor(width: 1_280, height: 720, averageBitRate: 3_000_000, peakBitRate: 4_000_000)
         ])
 
-        XCTAssertEqual(PlaybackQualitySelector.select(from: options, targetHeight: 1_080)?.height, 1_080)
-        XCTAssertEqual(PlaybackQualitySelector.select(from: options, targetHeight: 900)?.height, 720)
-        XCTAssertEqual(PlaybackQualitySelector.select(from: options, targetHeight: 480)?.height, 2_160)
+        XCTAssertEqual(PlaybackQualitySelector.select(from: options, targetHeight: 1_080)?.tierHeight, 1_080)
+        XCTAssertEqual(PlaybackQualitySelector.select(from: options, targetHeight: 900)?.tierHeight, 720)
+        XCTAssertEqual(PlaybackQualitySelector.select(from: options, targetHeight: 480)?.tierHeight, 2_160)
 
         let without1080 = options.filter { $0.height != 1_080 }
         XCTAssertEqual(
@@ -40,7 +103,7 @@ final class PlaybackFeaturesTests: XCTestCase {
                 from: without1080,
                 targetHeight: 1_080,
                 fallbackToHighest: true
-            )?.height,
+            )?.tierHeight,
             2_160
         )
     }

@@ -6,8 +6,7 @@ struct SavedItemsView: View {
     @ObservedObject var appSettings: AppSettingsStore
 
     private let columns = [
-        GridItem(.flexible(), spacing: 14),
-        GridItem(.flexible(), spacing: 14)
+        GridItem(.adaptive(minimum: 145, maximum: 180), spacing: 14)
     ]
 
     var body: some View {
@@ -21,7 +20,7 @@ struct SavedItemsView: View {
                         .foregroundStyle(.white)
                 } else {
                     ScrollView {
-                        LazyVGrid(columns: columns, spacing: 20) {
+                        LazyVGrid(columns: columns, alignment: .center, spacing: 20) {
                             ForEach(savedItemsStore.items) { item in
                                 SavedItemCard(
                                     item: item,
@@ -66,61 +65,25 @@ private struct SavedItemCard: View {
     let onMarkSeen: () -> Void
 
     var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Button(action: onTap) {
-                VStack(alignment: .leading, spacing: 7) {
-                    PosterImage(item: item)
-                        .aspectRatio(0.72, contentMode: .fit)
-
-                    Text(item.title)
-                        .font(.system(size: 15, weight: .semibold))
-                        .lineLimit(2)
-                        .foregroundStyle(.white.opacity(0.92))
-
-                    Text(item.updateLabel)
-                        .font(.caption)
-                        .lineLimit(1)
-                        .foregroundStyle(.white.opacity(0.48))
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
+        PosterMediaCard(
+            item: item,
+            layout: .grid,
+            actionStyle: .removeSaved,
+            itemIdentifier: "savedItem-\(item.id)",
+            actionIdentifier: "removeSavedItem-\(item.id)",
+            scoreIdentifier: "savedScore-\(item.id)",
+            status: hasNewUpdate ? "NEW" : nil,
+            onTap: onTap,
+            onAction: onRemove
+        )
+        .contextMenu {
+            Button(notificationsEnabled ? "Disable Alerts" : "Enable Alerts", systemImage: notificationsEnabled ? "bell.slash" : "bell") {
+                onToggleNotifications()
             }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("savedItem-\(item.id)")
-            .contextMenu {
-                Button(notificationsEnabled ? "Disable Alerts" : "Enable Alerts", systemImage: notificationsEnabled ? "bell.slash" : "bell") {
-                    onToggleNotifications()
-                }
-                if hasNewUpdate {
-                    Button("Mark Update Seen", systemImage: "eye") { onMarkSeen() }
-                }
-                Button("Remove", systemImage: "bookmark.slash", role: .destructive) { onRemove() }
-            }
-
-            Button(action: onRemove) {
-                Image(systemName: "bookmark.slash.fill")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(.black)
-                    .frame(width: 34, height: 34)
-                    .background(Color.cyan)
-                    .clipShape(Circle())
-            }
-            .padding(7)
-            .accessibilityLabel("Remove from Saved")
-            .accessibilityIdentifier("removeSavedItem-\(item.id)")
-
             if hasNewUpdate {
-                Text("NEW")
-                    .font(.caption2.bold())
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 3)
-                    .foregroundStyle(.black)
-                    .background(.cyan)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                    .padding(7)
-                    .allowsHitTesting(false)
+                Button("Mark Update Seen", systemImage: "eye") { onMarkSeen() }
             }
+            Button("Remove", systemImage: "bookmark.slash", role: .destructive) { onRemove() }
         }
     }
 }

@@ -2,7 +2,7 @@ import SwiftUI
 import WebKit
 
 private enum LibraryTab: Hashable {
-    case latest
+    case home
     case saved
     case played
 }
@@ -15,7 +15,7 @@ struct BrowserView: View {
     @StateObject private var playbackSession = PlaybackSessionController()
     @StateObject private var castManager = GoogleCastManager.shared
     @StateObject private var savedUpdateMonitor = SavedUpdateMonitor()
-    @State private var selectedLibraryTab = LibraryTab.latest
+    @State private var selectedLibraryTab = LibraryTab.home
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some View {
@@ -156,7 +156,7 @@ private struct LibraryView: View {
     var body: some View {
         GeometryReader { geometry in
             TabView(selection: $selectedTab) {
-                LatestHomeView(
+                HomeView(
                     viewModel: viewModel,
                     savedItemsStore: savedItemsStore,
                     playedItemsStore: playedItemsStore,
@@ -164,9 +164,9 @@ private struct LibraryView: View {
                     savedUpdateMonitor: savedUpdateMonitor
                 )
                     .tabItem {
-                        Label("Latest", systemImage: "sparkles.tv")
+                        Label("Home", systemImage: "house.fill")
                     }
-                    .tag(LibraryTab.latest)
+                    .tag(LibraryTab.home)
 
                 SavedItemsView(
                     viewModel: viewModel,
@@ -221,13 +221,15 @@ private struct HeaderView: View {
     }
 }
 
-private struct LatestHomeView: View {
+private struct HomeView: View {
     @ObservedObject var viewModel: BrowserViewModel
     @ObservedObject var savedItemsStore: SavedItemsStore
     @ObservedObject var playedItemsStore: PlayedItemsStore
     @ObservedObject var appSettings: AppSettingsStore
     @ObservedObject var savedUpdateMonitor: SavedUpdateMonitor
+    @StateObject private var searchViewModel = ProviderSearchViewModel()
     @State private var isShowingSettings = false
+    @FocusState private var isSearchFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -252,12 +254,28 @@ private struct LatestHomeView: View {
                                         .font(.caption.weight(.semibold))
                                         .foregroundStyle(.cyan)
 
-                                    Text("Latest")
+                                    Text("Home")
                                         .font(.system(size: 30, weight: .bold))
                                         .foregroundStyle(.white)
                                 }
 
                                 Spacer()
+
+                                if !searchViewModel.isExpanded {
+                                    Button {
+                                        searchViewModel.expand()
+                                        DispatchQueue.main.async {
+                                            isSearchFocused = true
+                                        }
+                                    } label: {
+                                        Image(systemName: "magnifyingglass")
+                                            .font(.title2)
+                                            .frame(width: 44, height: 44)
+                                    }
+                                    .foregroundStyle(.white.opacity(0.8))
+                                    .accessibilityLabel("Search")
+                                    .accessibilityIdentifier("showSearch")
+                                }
 
                                 Button {
                                     isShowingSettings = true
@@ -275,58 +293,70 @@ private struct LatestHomeView: View {
                         .padding(.horizontal, 18)
                         .padding(.top, 18)
 
-                        if !continueWatching.isEmpty {
-                            ContinueWatchingSection(
-                                records: continueWatching,
-                                onResume: viewModel.selectPlayed,
-                                onRestart: playedItemsStore.restart,
-                                onMarkWatched: playedItemsStore.markWatched,
-                                onRemove: playedItemsStore.remove
-                            )
+                        if searchViewModel.isExpanded {
+                            searchControls
                         }
 
-                        if !newForYou.isEmpty {
-                            NewForYouSection(
-                                items: newForYou,
-                                onPlay: viewModel.selectItem,
-                                onMarkSeen: savedItemsStore.markUpdateSeen
+                        if searchViewModel.submittedQuery != nil {
+                            ProviderSearchResultsView(
+                                viewModel: searchViewModel,
+                                savedItemsStore: savedItemsStore,
+                                onSelectItem: viewModel.selectItem
                             )
-                        }
-
-                        if viewModel.isLoadingLatest {
-                            ProgressView()
-                                .tint(.white)
-                                .frame(maxWidth: .infinity)
-                                .padding(.top, 80)
-                        } else if let message = viewModel.latestErrorMessage {
-                            ContentUnavailableView("Unable to Load", systemImage: "wifi.exclamationmark", description: Text(message))
-                                .foregroundStyle(.white)
-                                .padding(.horizontal)
                         } else {
-                            ForEach(AiyifanCategory.allCases) { category in
-                                LatestCategorySection(
-                                    category: category,
-                                    items: viewModel.latestItems[category] ?? [],
-                                    onSelectCategory: { viewModel.selectCategory(category) },
-                                    onSelectItem: { viewModel.selectItem($0) },
-                                    isSaved: { savedItemsStore.contains($0) },
-                                    onToggleSaved: toggleSaved
+                            if !continueWatching.isEmpty {
+                                ContinueWatchingSection(
+                                    records: continueWatching,
+                                    onResume: viewModel.selectPlayed,
+                                    onRestart: playedItemsStore.restart,
+                                    onMarkWatched: playedItemsStore.markWatched,
+                                    onRemove: playedItemsStore.remove
                                 )
                             }
-                        }
 
-                        if let status = viewModel.latestStatusMessage {
-                            Label(status, systemImage: "clock.arrow.circlepath")
-                                .font(.caption)
-                                .foregroundStyle(.white.opacity(0.6))
-                                .padding(.horizontal, 18)
+                            if !newForYou.isEmpty {
+                                NewForYouSection(
+                                    items: newForYou,
+                                    onPlay: viewModel.selectItem,
+                                    onMarkSeen: savedItemsStore.markUpdateSeen
+                                )
+                            }
+
+                            if viewModel.isLoadingLatest {
+                                ProgressView()
+                                    .tint(.white)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.top, 80)
+                            } else if let message = viewModel.latestErrorMessage {
+                                ContentUnavailableView("Unable to Load", systemImage: "wifi.exclamationmark", description: Text(message))
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal)
+                            } else {
+                                ForEach(AiyifanCategory.allCases) { category in
+                                    HomeCategorySection(
+                                        category: category,
+                                        items: viewModel.latestItems[category] ?? [],
+                                        onSelectCategory: { viewModel.selectCategory(category) },
+                                        onSelectItem: { viewModel.selectItem($0) },
+                                        isSaved: { savedItemsStore.contains($0) },
+                                        onToggleSaved: toggleSaved
+                                    )
+                                }
+                            }
+
+                            if let status = viewModel.latestStatusMessage {
+                                Label(status, systemImage: "clock.arrow.circlepath")
+                                    .font(.caption)
+                                    .foregroundStyle(.white.opacity(0.6))
+                                    .padding(.horizontal, 18)
+                            }
                         }
                     }
                     .padding(.bottom, 24)
                 }
             }
         }
-        .accessibilityIdentifier("latestHome")
+        .accessibilityIdentifier("homeView")
         .sheet(isPresented: $isShowingSettings) {
             AppSettingsView(
                 settings: appSettings,
@@ -366,6 +396,68 @@ private struct LatestHomeView: View {
             .filter(savedItemsStore.hasNewUpdate)
     }
 
+    private var searchControls: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.white.opacity(0.5))
+
+                    TextField("Search titles", text: $searchViewModel.query)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .submitLabel(.search)
+                        .focused($isSearchFocused)
+                        .onSubmit(submitSearch)
+                        .accessibilityIdentifier("providerSearchField")
+
+                    if !searchViewModel.query.isEmpty {
+                        Button {
+                            searchViewModel.query = ""
+                            isSearchFocused = true
+                        } label: {
+                            Image(systemName: "xmark.circle.fill")
+                                .frame(width: 44, height: 44)
+                        }
+                        .accessibilityLabel("Clear Search Text")
+                    }
+                }
+                .padding(.leading, 12)
+                .background(Color.white.opacity(0.09))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+
+                Button(action: submitSearch) {
+                    Image(systemName: "arrow.right")
+                        .frame(width: 44, height: 44)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityLabel("Submit Search")
+                .accessibilityIdentifier("submitSearch")
+
+                Button("Cancel") {
+                    isSearchFocused = false
+                    searchViewModel.cancel()
+                }
+                .frame(minHeight: 44)
+                .accessibilityIdentifier("cancelSearch")
+            }
+
+            if let message = searchViewModel.validationMessage {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(.yellow)
+                    .accessibilityIdentifier("searchValidation")
+            }
+        }
+        .foregroundStyle(.white)
+        .padding(.horizontal, 18)
+    }
+
+    private func submitSearch() {
+        isSearchFocused = false
+        Task { _ = await searchViewModel.submit() }
+    }
+
     private func toggleSaved(_ item: AiyifanItem) {
         savedItemsStore.toggle(item)
         savedItemsStore.refreshUpdateMarkers(with: viewModel.latestItems)
@@ -389,34 +481,16 @@ private struct ContinueWatchingSection: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(spacing: 12) {
                     ForEach(records) { record in
-                        Button {
-                            onResume(record)
-                        } label: {
-                            HStack(spacing: 10) {
-                                PosterImage(item: record.item)
-                                    .frame(width: 66, height: 92)
-
-                                VStack(alignment: .leading, spacing: 7) {
-                                    Text(record.item.title)
-                                        .font(.headline)
-                                        .lineLimit(2)
-                                    if let episode = record.episodeTitle {
-                                        Text("Episode \(episode)")
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    ProgressView(value: record.duration > 0 ? record.position / record.duration : 0)
-                                        .tint(.cyan)
-                                }
-                                .frame(width: 150, alignment: .leading)
-                            }
-                            .padding(10)
-                            .foregroundStyle(.white)
-                            .background(Color.white.opacity(0.08))
-                            .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityIdentifier("continueItem-\(record.item.id)")
+                        ProgressMediaCard(
+                            item: record.item,
+                            subtitle: record.episodeTitle.map { "Episode \($0)" },
+                            progress: record.duration > 0 ? record.position / record.duration : 0,
+                            progressLabel: nil,
+                            itemIdentifier: "continueItem-\(record.item.id)",
+                            onTap: { onResume(record) },
+                            trailingActions: { EmptyView() }
+                        )
+                        .frame(width: 250)
                         .contextMenu {
                             Button("Restart", systemImage: "arrow.counterclockwise") { onRestart(record) }
                             Button("Mark Watched", systemImage: "checkmark.circle") { onMarkWatched(record) }
@@ -445,22 +519,17 @@ private struct NewForYouSection: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 12) {
                     ForEach(items) { item in
-                        LatestItemCard(
+                        PosterMediaCard(
                             item: item,
-                            isSaved: true,
+                            layout: .compact,
+                            actionStyle: .markSeen,
+                            itemIdentifier: "latestItem-\(item.id)",
+                            actionIdentifier: "saveItem-\(item.id)",
+                            scoreIdentifier: "latestScore-\(item.id)",
+                            status: "NEW",
                             onTap: { onPlay(item) },
-                            onToggleSaved: { onMarkSeen(item) }
+                            onAction: { onMarkSeen(item) }
                         )
-                        .overlay(alignment: .topLeading) {
-                            Text("NEW")
-                                .font(.caption2.bold())
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 4)
-                                .foregroundStyle(.black)
-                                .background(.cyan)
-                                .clipShape(RoundedRectangle(cornerRadius: 4))
-                                .padding(7)
-                        }
                     }
                 }
                 .padding(.horizontal, 18)
@@ -469,7 +538,7 @@ private struct NewForYouSection: View {
     }
 }
 
-private struct LatestCategorySection: View {
+private struct HomeCategorySection: View {
     let category: AiyifanCategory
     let items: [AiyifanItem]
     let onSelectCategory: () -> Void
@@ -501,91 +570,21 @@ private struct LatestCategorySection: View {
             ScrollView(.horizontal, showsIndicators: false) {
                 LazyHStack(alignment: .top, spacing: 12) {
                     ForEach(items) { item in
-                        LatestItemCard(
+                        PosterMediaCard(
                             item: item,
-                            isSaved: isSaved(item),
+                            layout: .compact,
+                            actionStyle: .save(isSaved: isSaved(item)),
+                            itemIdentifier: "latestItem-\(item.id)",
+                            actionIdentifier: "saveItem-\(item.id)",
+                            scoreIdentifier: "latestScore-\(item.id)",
                             onTap: { onSelectItem(item) },
-                            onToggleSaved: { onToggleSaved(item) }
+                            onAction: { onToggleSaved(item) }
                         )
                     }
                 }
                 .padding(.horizontal, 18)
             }
         }
-    }
-}
-
-private struct LatestItemCard: View {
-    let item: AiyifanItem
-    let isSaved: Bool
-    let onTap: () -> Void
-    let onToggleSaved: () -> Void
-
-    var body: some View {
-        ZStack(alignment: .topTrailing) {
-            Button(action: onTap) {
-                VStack(alignment: .leading, spacing: 7) {
-                    AsyncImage(url: item.thumbnailURL) { phase in
-                        switch phase {
-                        case .success(let image):
-                            image
-                                .resizable()
-                                .scaledToFill()
-                        case .failure:
-                            Image(systemName: "photo")
-                                .font(.largeTitle)
-                                .foregroundStyle(.white.opacity(0.25))
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .background(Color.white.opacity(0.08))
-                        case .empty:
-                            ProgressView()
-                                .tint(.white.opacity(0.6))
-                                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                                .background(Color.white.opacity(0.08))
-                        @unknown default:
-                            EmptyView()
-                        }
-                    }
-                    .frame(width: 132, height: 184)
-                    .clipped()
-                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-
-                    Text(item.title)
-                        .font(.system(size: 15, weight: .semibold))
-                        .lineLimit(2)
-                        .foregroundStyle(.white.opacity(0.92))
-
-                    Text(item.updateLabel)
-                        .font(.caption)
-                        .lineLimit(1)
-                        .foregroundStyle(.white.opacity(0.48))
-                }
-                .frame(width: 132, alignment: .leading)
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("latestItem-\(item.id)")
-
-            Button(action: onToggleSaved) {
-                Image(systemName: isSaved ? "bookmark.fill" : "bookmark")
-                    .font(.system(size: 15, weight: .semibold))
-                    .foregroundStyle(isSaved ? .black : .white)
-                    .frame(width: 34, height: 34)
-                    .background(isSaved ? Color.cyan : Color.black.opacity(0.68))
-                    .clipShape(Circle())
-            }
-            .padding(7)
-            .accessibilityLabel(isSaved ? "Remove from Saved" : "Save for Later")
-            .accessibilityIdentifier("saveItem-\(item.id)")
-
-            if let score = item.score {
-                ProviderScoreBadge(score: score)
-                    .padding(7)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityIdentifier("latestScore-\(item.id)")
-            }
-        }
-        .frame(width: 132, alignment: .leading)
     }
 }
 

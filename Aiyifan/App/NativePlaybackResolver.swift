@@ -101,6 +101,26 @@ enum NativePlaybackError: Error, Equatable {
     case unsupportedMedia
 }
 
+enum ProviderRegion {
+    static let fallback = "US"
+
+    static var device: String {
+        normalized(Locale.current.region?.identifier)
+    }
+
+    static func normalized(_ candidate: String?) -> String {
+        guard let candidate else { return fallback }
+        let normalized = candidate.uppercased()
+        guard
+            normalized.utf8.count == 2,
+            normalized.utf8.allSatisfy({ (65...90).contains($0) })
+        else {
+            return fallback
+        }
+        return normalized
+    }
+}
+
 extension NativePlaybackError: LocalizedError {
     var errorDescription: String? {
         switch self {
@@ -157,16 +177,19 @@ enum NativePlaybackRequestBuilder {
         mediaKey: String,
         albumMode: Bool = true,
         siteHost: String,
-        certificate: PlaybackCertificate
+        certificate: PlaybackCertificate,
+        region: String = ProviderRegion.device
     ) throws -> URL {
+        let region = ProviderRegion.normalized(region)
         let parameters = [
             URLQueryItem(name: "cinema", value: "1"),
             URLQueryItem(name: "id", value: mediaKey),
             URLQueryItem(name: "a", value: albumMode ? "1" : "0"),
             URLQueryItem(name: "usersign", value: "1"),
-            URLQueryItem(name: "region", value: "GL."),
+            URLQueryItem(name: "region", value: region),
             URLQueryItem(name: "device", value: "1"),
-            URLQueryItem(name: "isMasterSupport", value: "1")
+            URLQueryItem(name: "isMasterSupport", value: "1"),
+            URLQueryItem(name: "lang", value: "none")
         ]
         try validateMediaKey(mediaKey)
         return try ProviderRequestSigner.makeSignedURL(
@@ -180,8 +203,10 @@ enum NativePlaybackRequestBuilder {
     static func makeDetailURL(
         mediaKey: String,
         siteHost: String,
-        certificate: PlaybackCertificate
+        certificate: PlaybackCertificate,
+        region: String = ProviderRegion.device
     ) throws -> URL {
+        let region = ProviderRegion.normalized(region)
         let parameters = [
             URLQueryItem(name: "ispath", value: "false"),
             URLQueryItem(name: "cinema", value: "1"),
@@ -192,7 +217,7 @@ enum NativePlaybackRequestBuilder {
             URLQueryItem(name: "lang", value: "cns"),
             URLQueryItem(name: "v", value: "1"),
             URLQueryItem(name: "id", value: mediaKey),
-            URLQueryItem(name: "region", value: "GL.")
+            URLQueryItem(name: "region", value: region)
         ]
         try validateMediaKey(mediaKey)
         return try ProviderRequestSigner.makeSignedURL(
@@ -539,15 +564,18 @@ struct NativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving
     private let session: URLSession
     private let playlistRetryDelays: [Duration]
     private let certificateCache: ProviderCertificateCache
+    private let region: String
 
     init(
         session: URLSession? = nil,
         playlistRetryDelays: [Duration] = [.milliseconds(500), .milliseconds(1_500), .seconds(3)],
-        certificateCache: ProviderCertificateCache? = nil
+        certificateCache: ProviderCertificateCache? = nil,
+        region: String = ProviderRegion.device
     ) {
         self.session = session ?? ProviderSessionFactory.make()
         self.playlistRetryDelays = playlistRetryDelays
         self.certificateCache = certificateCache ?? (session == nil ? .shared : ProviderCertificateCache())
+        self.region = ProviderRegion.normalized(region)
     }
 
     static func validatePage(_ item: AiyifanItem) throws -> String {
@@ -567,12 +595,26 @@ struct NativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving
 
     func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
         let pageHost = try Self.validatePage(item)
+        return try await withFreshCertificateRetry(pageHost: pageHost) {
+            try await resolveOnce(
+                item: item,
+                preferredEpisodeKey: preferredEpisodeKey,
+                pageHost: pageHost
+            )
+        }
+    }
 
+    private func resolveOnce(
+        item: AiyifanItem,
+        preferredEpisodeKey: String?,
+        pageHost: String
+    ) async throws -> NativePlayback {
         let certificate = try await certificate(for: item, pageHost: pageHost)
         let detailURL = try NativePlaybackRequestBuilder.makeDetailURL(
             mediaKey: item.listPath,
             siteHost: pageHost,
-            certificate: certificate
+            certificate: certificate,
+            region: region
         )
         let detailData = try await fetch(detailURL, referer: item.playURL)
         let context = try VideoDetailResponseDecoder.decode(detailData)
@@ -626,7 +668,8 @@ struct NativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving
             mediaKey: mediaKey,
             albumMode: !isSerial,
             siteHost: pageHost,
-            certificate: certificate
+            certificate: certificate,
+            region: region
         )
         let playbackData = try await fetch(playbackURL, referer: item.playURL)
         let playback = try NativePlaybackResponseDecoder.decode(playbackData)
@@ -640,11 +683,26 @@ struct NativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving
 
     func loadEpisodes(for item: AiyifanItem, expectedEpisodeKey: String?) async throws -> [Episode] {
         let pageHost = try Self.validatePage(item)
+        return try await withFreshCertificateRetry(pageHost: pageHost) {
+            try await loadEpisodesOnce(
+                for: item,
+                expectedEpisodeKey: expectedEpisodeKey,
+                pageHost: pageHost
+            )
+        }
+    }
+
+    private func loadEpisodesOnce(
+        for item: AiyifanItem,
+        expectedEpisodeKey: String?,
+        pageHost: String
+    ) async throws -> [Episode] {
         let certificate = try await certificate(for: item, pageHost: pageHost)
         let detailURL = try NativePlaybackRequestBuilder.makeDetailURL(
             mediaKey: item.listPath,
             siteHost: pageHost,
-            certificate: certificate
+            certificate: certificate,
+            region: region
         )
         let detailData = try await fetch(detailURL, referer: item.playURL)
         let context = try VideoDetailResponseDecoder.decode(detailData)
@@ -662,6 +720,26 @@ struct NativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving
             referer: item.playURL,
             expectedEpisodeKey: expectedEpisodeKey
         )
+    }
+
+    private func withFreshCertificateRetry<T>(
+        pageHost: String,
+        operation: () async throws -> T
+    ) async throws -> T {
+        do {
+            return try await operation()
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch let error as URLError where error.code == .cancelled {
+            throw error
+        } catch let error as NativePlaybackError where error == .invalidResponse {
+            guard let domain = RemoteResourceHostValidator.matchingProviderDomain(for: pageHost) else {
+                throw NativePlaybackError.unsupportedSite
+            }
+            await certificateCache.invalidate(for: domain)
+            try Task.checkCancellation()
+            return try await operation()
+        }
     }
 
     private func fetchEpisodes(
@@ -747,11 +825,26 @@ struct NativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving
 extension NativePlaybackResolver: SavedEpisodeResolving {
     func latestEpisode(for item: AiyifanItem, expectedEpisodeKey: String?) async throws -> EpisodeSelection? {
         let pageHost = try Self.validatePage(item)
+        return try await withFreshCertificateRetry(pageHost: pageHost) {
+            try await latestEpisodeOnce(
+                for: item,
+                expectedEpisodeKey: expectedEpisodeKey,
+                pageHost: pageHost
+            )
+        }
+    }
+
+    private func latestEpisodeOnce(
+        for item: AiyifanItem,
+        expectedEpisodeKey: String?,
+        pageHost: String
+    ) async throws -> EpisodeSelection? {
         let certificate = try await certificate(for: item, pageHost: pageHost)
         let detailURL = try NativePlaybackRequestBuilder.makeDetailURL(
             mediaKey: item.listPath,
             siteHost: pageHost,
-            certificate: certificate
+            certificate: certificate,
+            region: region
         )
         let detailData = try await fetch(detailURL, referer: item.playURL)
         let context = try VideoDetailResponseDecoder.decode(detailData)
