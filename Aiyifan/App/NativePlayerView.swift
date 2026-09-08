@@ -1581,50 +1581,17 @@ private struct FullScreenNativePlayerScreen: View {
     @ObservedObject var viewModel: NativePlayerViewModel
     let dismiss: () -> Void
 
-    @State private var isShowingFullScreenChrome = false
-
     var body: some View {
-        ZStack(alignment: .topLeading) {
-            NativePlayerController(
-                player: viewModel.player,
-                onFullScreenChanged: viewModel.setFullScreenPresentationActive,
-                onPictureInPictureChanged: viewModel.setPictureInPictureActive,
-                showsPlaybackControls: true
-            )
-            .ignoresSafeArea()
-
-            if !isShowingFullScreenChrome {
-                Color.black.opacity(0.001)
-                    .ignoresSafeArea()
-                    .contentShape(Rectangle())
-                    .onTapGesture(perform: showFullScreenChrome)
-                    .accessibilityHidden(true)
-            }
-
-            if isShowingFullScreenChrome {
-                Button(action: dismiss) {
-                    Image(systemName: "arrow.down.right.and.arrow.up.left")
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundStyle(.white)
-                        .frame(width: 44, height: 44)
-                        .background(.black.opacity(0.42))
-                        .clipShape(Circle())
-                }
-                .padding(16)
-                .accessibilityLabel("Exit Full Screen")
-                .accessibilityIdentifier("exitFullScreen")
-                .transition(.opacity)
-            }
-        }
+        NativePlayerController(
+            player: viewModel.player,
+            onFullScreenChanged: viewModel.setFullScreenPresentationActive,
+            onPictureInPictureChanged: viewModel.setPictureInPictureActive,
+            showsPlaybackControls: true
+        )
+        .ignoresSafeArea()
         .background(Color.black)
         .onDisappear {
             viewModel.setFullScreenPresentationActive(false)
-        }
-    }
-
-    private func showFullScreenChrome() {
-        withAnimation(.easeInOut(duration: 0.18)) {
-            isShowingFullScreenChrome = true
         }
     }
 }

@@ -469,9 +469,11 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertFalse(app.buttons["enterFullScreen"].exists)
         XCTAssertFalse(app.buttons["exitFullScreen"].exists)
         app.otherElements["nativePlayer"].firstMatch.tap()
-        XCTAssertTrue(app.buttons["exitFullScreen"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["exitFullScreen"].waitForExistence(timeout: 1))
         XCTAssertFalse(app.buttons["closeNativePlayer"].isHittable)
-        app.buttons["exitFullScreen"].tap()
+        let nativeClose = app.buttons.matching(NSPredicate(format: "label == %@", "Close")).firstMatch
+        XCTAssertTrue(nativeClose.waitForExistence(timeout: 5), app.debugDescription)
+        nativeClose.tap()
 
         XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["closeNativePlayer"].waitForExistence(timeout: 5))
