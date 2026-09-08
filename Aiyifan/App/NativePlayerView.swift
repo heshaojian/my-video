@@ -967,6 +967,7 @@ struct NativePlayerScreen: View {
     @StateObject private var castManager = GoogleCastManager.shared
     @State private var isShowingEpisodes = false
     @State private var isShowingFullScreenPlayer = false
+    @State private var isShowingPlaybackChrome = false
     @Environment(\.scenePhase) private var scenePhase
 
     init(
@@ -1043,7 +1044,9 @@ struct NativePlayerScreen: View {
                     onPictureInPictureChanged: viewModel.setPictureInPictureActive,
                     showsPlaybackControls: false
                 )
-                    .ignoresSafeArea(edges: .bottom)
+                .ignoresSafeArea(edges: .bottom)
+                .contentShape(Rectangle())
+                .onTapGesture(perform: togglePlaybackChrome)
 
                 if let countdown = viewModel.autoplayCountdown {
                     Button {
@@ -1097,15 +1100,16 @@ struct NativePlayerScreen: View {
                         .foregroundStyle(.white)
                 }
 
-                if viewModel.errorMessage == nil {
+                if viewModel.errorMessage == nil, isShowingPlaybackChrome {
                     PlaybackChromeOverlay(
                         viewModel: viewModel,
                         isCasting: castManager.isCasting,
                         enterFullScreen: enterFullScreen
                     )
-                        .frame(maxWidth: .infinity, maxHeight: .infinity)
-                        .padding(.horizontal, 12)
-                        .padding(.bottom, 12)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .padding(.horizontal, 12)
+                    .padding(.bottom, 12)
+                    .transition(.opacity)
                 }
             }
             .background(Color.black)
@@ -1163,8 +1167,16 @@ struct NativePlayerScreen: View {
         onClose()
     }
 
+    private func togglePlaybackChrome() {
+        guard viewModel.errorMessage == nil else { return }
+        withAnimation(.easeInOut(duration: 0.18)) {
+            isShowingPlaybackChrome.toggle()
+        }
+    }
+
     private func enterFullScreen() {
         viewModel.setFullScreenPresentationActive(true)
+        isShowingPlaybackChrome = false
         isShowingFullScreenPlayer = true
     }
 
@@ -1288,7 +1300,9 @@ private struct PlaybackChromeOverlay: View {
     var body: some View {
         GeometryReader { proxy in
             ZStack {
-                centerTransportControls(in: proxy.size)
+                let videoFrame = videoFrame(in: proxy.size)
+                centerTransportControls(in: videoFrame)
+                topLeftFullScreenButton(in: videoFrame)
 
                 VStack {
                     Spacer()
@@ -1321,14 +1335,6 @@ private struct PlaybackChromeOverlay: View {
 
     private var bottomTimeline: some View {
         HStack(spacing: 4) {
-            iconButton(
-                systemName: "arrow.up.left.and.arrow.down.right",
-                label: "Enter Full Screen",
-                identifier: "enterFullScreen",
-                disabled: false,
-                action: enterFullScreen
-            )
-
             if viewModel.shouldShowEpisodeControl {
                 iconButton(
                     systemName: "backward.end.fill",
@@ -1385,8 +1391,23 @@ private struct PlaybackChromeOverlay: View {
         .clipShape(Capsule(style: .continuous))
     }
 
-    private func centerTransportControls(in availableSize: CGSize) -> some View {
-        let frame = videoFrame(in: availableSize)
+    private func topLeftFullScreenButton(in videoFrame: CGRect) -> some View {
+        let buttonSize: CGFloat = 44
+        let videoInset: CGFloat = 12
+        return iconButton(
+            systemName: "arrow.up.left.and.arrow.down.right",
+            label: "Enter Full Screen",
+            identifier: "enterFullScreen",
+            disabled: false,
+            action: enterFullScreen
+        )
+        .position(
+            x: videoFrame.minX + videoInset + (buttonSize / 2),
+            y: videoFrame.minY + videoInset + (buttonSize / 2)
+        )
+    }
+
+    private func centerTransportControls(in videoFrame: CGRect) -> some View {
         return HStack(spacing: 28) {
             transportButton(
                 systemName: "gobackward.10",
@@ -1415,7 +1436,7 @@ private struct PlaybackChromeOverlay: View {
                 action: viewModel.skipForward10Seconds
             )
         }
-        .position(x: frame.midX, y: frame.midY)
+        .position(x: videoFrame.midX, y: videoFrame.midY)
         .padding(.horizontal, 16)
     }
 
@@ -1475,7 +1496,7 @@ private struct PlaybackChromeOverlay: View {
             Image(systemName: systemName)
                 .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: 40, height: 40)
+                .frame(width: 44, height: 44)
                 .background(disabled ? Color.white.opacity(0.08) : Color.white.opacity(0.16))
                 .clipShape(Circle())
         }
@@ -1560,6 +1581,8 @@ private struct FullScreenNativePlayerScreen: View {
     @ObservedObject var viewModel: NativePlayerViewModel
     let dismiss: () -> Void
 
+    @State private var isShowingFullScreenChrome = false
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             NativePlayerController(
@@ -1570,21 +1593,38 @@ private struct FullScreenNativePlayerScreen: View {
             )
             .ignoresSafeArea()
 
-            Button(action: dismiss) {
-                Image(systemName: "arrow.down.right.and.arrow.up.left")
-                    .font(.system(size: 17, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .frame(width: 44, height: 44)
-                    .background(.black.opacity(0.42))
-                    .clipShape(Circle())
+            if !isShowingFullScreenChrome {
+                Color.black.opacity(0.001)
+                    .ignoresSafeArea()
+                    .contentShape(Rectangle())
+                    .onTapGesture(perform: showFullScreenChrome)
+                    .accessibilityHidden(true)
             }
-            .padding(16)
-            .accessibilityLabel("Exit Full Screen")
-            .accessibilityIdentifier("exitFullScreen")
+
+            if isShowingFullScreenChrome {
+                Button(action: dismiss) {
+                    Image(systemName: "arrow.down.right.and.arrow.up.left")
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 44, height: 44)
+                        .background(.black.opacity(0.42))
+                        .clipShape(Circle())
+                }
+                .padding(16)
+                .accessibilityLabel("Exit Full Screen")
+                .accessibilityIdentifier("exitFullScreen")
+                .transition(.opacity)
+            }
         }
         .background(Color.black)
         .onDisappear {
             viewModel.setFullScreenPresentationActive(false)
+        }
+    }
+
+    private func showFullScreenChrome() {
+        withAnimation(.easeInOut(duration: 0.18)) {
+            isShowingFullScreenChrome = true
         }
     }
 }

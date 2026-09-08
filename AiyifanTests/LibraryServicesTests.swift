@@ -238,6 +238,22 @@ final class HomeFeedFreshnessTests: XCTestCase {
 }
 
 final class AiyifanFeedServiceTests: XCTestCase {
+    func testFixtureLatestFeedReturnsStableCategoryItemWithoutCatalogRequest() async throws {
+        let catalog = LatestCatalogRecordingService()
+        let service = AiyifanFeedService(catalogService: catalog, usesFixtureFeed: true)
+
+        let items = try await service.fetchLatest(category: .drama)
+        let request = await catalog.lastRequest()
+
+        XCTAssertNil(request)
+        XCTAssertEqual(items.map(\.id), ["fixture-drama"])
+        XCTAssertEqual(items.first?.title, "Fixture Series")
+        XCTAssertEqual(items.first?.latestEpisodeKey, "episode-10")
+        XCTAssertEqual(items.first?.latestEpisodeTitle, "10")
+        XCTAssertEqual(items.first?.playURL.scheme, "data")
+        XCTAssertEqual(items.first?.score, 9.4)
+    }
+
     func testLatestUsesEightItemUpdatedDescendingCatalogQuery() async throws {
         let catalog = LatestCatalogRecordingService()
         let service = AiyifanFeedService(catalogService: catalog)

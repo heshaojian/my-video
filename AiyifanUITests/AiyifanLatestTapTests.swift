@@ -440,6 +440,7 @@ final class AiyifanLatestTapTests: XCTestCase {
             XCTAssertEqual(XCTWaiter().wait(for: [ready], timeout: 12), .completed)
         }
 
+        XCTAssertFalse(app.buttons["enterFullScreen"].exists)
         player.tap()
         let enterFullScreen = app.buttons.matching(
             NSPredicate(format: "label CONTAINS[c] 'full screen'")
@@ -447,6 +448,9 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(enterFullScreen.waitForExistence(timeout: 3), app.debugDescription)
         enterFullScreen.tap()
 
+        XCTAssertFalse(app.buttons["enterFullScreen"].exists)
+        XCTAssertFalse(app.buttons["exitFullScreen"].exists)
+        app.otherElements["nativePlayer"].firstMatch.tap()
         XCTAssertTrue(app.buttons["exitFullScreen"].waitForExistence(timeout: 5))
         XCTAssertFalse(app.buttons["closeNativePlayer"].isHittable)
         app.buttons["exitFullScreen"].tap()
@@ -489,6 +493,8 @@ final class AiyifanLatestTapTests: XCTestCase {
         let more = app.buttons["playbackSettings"]
         XCTAssertTrue(more.exists)
         XCTAssertEqual(app.buttons["showEpisodes"].frame.midY, more.frame.midY, accuracy: 2)
+        XCTAssertFalse(app.buttons["enterFullScreen"].exists)
+        app.otherElements["nativePlayer"].tap()
         XCTAssertTrue(app.buttons["previousEpisode"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["nextEpisode"].exists)
         XCTAssertTrue(app.sliders["playbackTimeline"].exists)
@@ -501,8 +507,16 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertLessThan(app.buttons["toggleNativePlayback"].frame.midY, app.sliders["playbackTimeline"].frame.minY)
         let playerFrame = app.otherElements["nativePlayer"].frame
         let expectedVideoHeight = playerFrame.width * 9 / 16
+        let expectedVideoMinY = playerFrame.minY + ((playerFrame.height - expectedVideoHeight) / 2)
         let expectedVideoMidY = playerFrame.minY + ((playerFrame.height - expectedVideoHeight) / 2) + (expectedVideoHeight / 2)
+        let expectedVideoMaxY = expectedVideoMinY + expectedVideoHeight
         XCTAssertEqual(app.buttons["toggleNativePlayback"].frame.midY, expectedVideoMidY, accuracy: 24)
+        XCTAssertLessThan(app.buttons["enterFullScreen"].frame.midY, app.sliders["playbackTimeline"].frame.minY)
+        XCTAssertEqual(app.buttons["enterFullScreen"].frame.midY, expectedVideoMinY + 34, accuracy: 24)
+        XCTAssertGreaterThanOrEqual(app.buttons["enterFullScreen"].frame.minY, expectedVideoMinY - 1)
+        XCTAssertLessThanOrEqual(app.buttons["enterFullScreen"].frame.maxY, expectedVideoMaxY + 1)
+        XCTAssertGreaterThanOrEqual(app.buttons["enterFullScreen"].frame.minX, playerFrame.minX - 1)
+        XCTAssertLessThan(app.buttons["enterFullScreen"].frame.midX, playerFrame.midX)
         XCTAssertGreaterThanOrEqual(app.sliders["playbackTimeline"].frame.width, 88)
         XCTAssertLessThanOrEqual(app.staticTexts["playbackRemainingTime"].frame.height, 20)
         XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label == %@", "More")).count, 1)

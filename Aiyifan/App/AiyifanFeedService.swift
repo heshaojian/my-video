@@ -11,13 +11,18 @@ protocol AiyifanFeedServing: Sendable {
 
 struct AiyifanFeedService: @unchecked Sendable, AiyifanFeedServing {
     private let catalogService: any CategoryCatalogServing
+    private let usesFixtureFeed: Bool
 
-    init(catalogService: any CategoryCatalogServing = CategoryCatalogService()) {
+    init(
+        catalogService: any CategoryCatalogServing = CategoryCatalogService(),
+        usesFixtureFeed: Bool = ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed")
+    ) {
         self.catalogService = catalogService
+        self.usesFixtureFeed = usesFixtureFeed
     }
 
     func fetchLatest(category: AiyifanCategory) async throws -> [AiyifanItem] {
-        if ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed") {
+        if usesFixtureFeed {
             return Self.fixtureItems(for: category)
         }
 
