@@ -112,6 +112,24 @@ final class PlayedItemsStore: ObservableObject {
         replaceRecord(record, position: record.duration, completionOverride: true)
     }
 
+    func markWatched(
+        item: AiyifanItem,
+        episode: Episode?,
+        playedAt: Date = Date()
+    ) {
+        let record = PlayedRecord(
+            item: item,
+            episodeKey: episode?.mediaKey,
+            episodeTitle: episode?.title,
+            position: 0,
+            duration: 0,
+            lastPlayedAt: playedAt,
+            completionOverride: true
+        )
+        replace(with: ([record] + items.filter { $0.id != record.id })
+            .sorted { $0.lastPlayedAt > $1.lastPlayedAt })
+    }
+
     func markUnwatched(_ record: PlayedRecord) {
         replaceRecord(record, position: 0, completionOverride: nil)
     }

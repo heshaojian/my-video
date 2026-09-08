@@ -333,6 +333,60 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(episodeControl.label.contains("4"))
     }
 
+    func testSavedPageShowsReadyToWatchAboveUnchangedSavedGridAndPlaysExactEpisode() {
+        let app = launchFixtureAppWithPlayedHistory()
+        XCTAssertTrue(app.buttons["saveItem-fixture-drama"].waitForExistence(timeout: 5))
+        app.buttons["saveItem-fixture-drama"].tap()
+        app.tabBars.buttons["Saved"].tap()
+
+        let readyHeading = app.staticTexts["readyToWatchHeading"]
+        let allSavedHeading = app.staticTexts["allSavedHeading"]
+        XCTAssertTrue(readyHeading.waitForExistence(timeout: 5))
+        XCTAssertTrue(allSavedHeading.exists)
+        XCTAssertLessThan(readyHeading.frame.minY, allSavedHeading.frame.minY)
+        XCTAssertTrue(app.buttons["savedItem-fixture-drama"].exists)
+
+        let readyItem = app.buttons["readyItem-fixture-drama"]
+        XCTAssertTrue(readyItem.exists)
+        readyItem.tap()
+
+        XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["showEpisodes"].label.contains("4/10"))
+    }
+
+    func testReadyQueueMenuActionsUpdateVisibleEntries() {
+        let app = launchFixtureAppWithPlayedHistory()
+        XCTAssertTrue(app.buttons["saveItem-fixture-movie"].waitForExistence(timeout: 5))
+        app.buttons["saveItem-fixture-movie"].tap()
+        app.buttons["saveItem-fixture-drama"].tap()
+        app.tabBars.buttons["Saved"].tap()
+
+        let savedMovie = app.buttons["savedItem-fixture-movie"]
+        XCTAssertTrue(savedMovie.waitForExistence(timeout: 5))
+        savedMovie.press(forDuration: 1)
+        let addToReady = app.buttons["Add to Ready to Watch"]
+        XCTAssertTrue(addToReady.waitForExistence(timeout: 3))
+        addToReady.tap()
+
+        let seeAll = app.buttons["readyToWatchSeeAll"]
+        XCTAssertTrue(seeAll.waitForExistence(timeout: 3))
+        seeAll.tap()
+        XCTAssertTrue(app.descendants(matching: .any)["readyToWatchQueue"].waitForExistence(timeout: 3))
+
+        let automaticDrama = app.buttons["readyQueueItem-fixture-drama"]
+        let manualMovie = app.buttons["readyQueueItem-fixture-movie"]
+        XCTAssertTrue(automaticDrama.waitForExistence(timeout: 3))
+        XCTAssertTrue(manualMovie.exists)
+
+        app.buttons["readyOptions-fixture-drama"].tap()
+        app.buttons["Mark Watched"].tap()
+        XCTAssertFalse(app.buttons["readyQueueItem-fixture-drama"].waitForExistence(timeout: 1))
+
+        app.buttons["readyOptions-fixture-movie"].tap()
+        app.buttons["Remove from Up Next"].tap()
+        XCTAssertFalse(app.buttons["readyQueueItem-fixture-movie"].waitForExistence(timeout: 1))
+    }
+
     func testEpisodePickerShowsNewestFirstAndSwitchesEpisode() {
         let app = launchFixtureApp()
         let item = app.buttons["latestItem-fixture-drama"]
@@ -393,8 +447,9 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(enterFullScreen.waitForExistence(timeout: 3), app.debugDescription)
         enterFullScreen.tap()
 
-        XCTAssertFalse(app.buttons["closeNativePlayer"].exists)
-        app.swipeDown()
+        XCTAssertTrue(app.buttons["exitFullScreen"].waitForExistence(timeout: 5))
+        XCTAssertFalse(app.buttons["closeNativePlayer"].isHittable)
+        app.buttons["exitFullScreen"].tap()
 
         XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["closeNativePlayer"].waitForExistence(timeout: 5))
@@ -436,7 +491,21 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertEqual(app.buttons["showEpisodes"].frame.midY, more.frame.midY, accuracy: 2)
         XCTAssertTrue(app.buttons["previousEpisode"].waitForExistence(timeout: 2))
         XCTAssertTrue(app.buttons["nextEpisode"].exists)
-        XCTAssertEqual(app.buttons["previousEpisode"].frame.midY, app.buttons["nextEpisode"].frame.midY, accuracy: 2)
+        XCTAssertTrue(app.sliders["playbackTimeline"].exists)
+        XCTAssertEqual(app.buttons["previousEpisode"].frame.midY, app.sliders["playbackTimeline"].frame.midY, accuracy: 4)
+        XCTAssertEqual(app.buttons["nextEpisode"].frame.midY, app.sliders["playbackTimeline"].frame.midY, accuracy: 4)
+        XCTAssertTrue(app.buttons["enterFullScreen"].exists)
+        XCTAssertTrue(app.buttons["skipBackward10Seconds"].exists)
+        XCTAssertTrue(app.buttons["toggleNativePlayback"].exists)
+        XCTAssertTrue(app.buttons["skipForward10Seconds"].exists)
+        XCTAssertLessThan(app.buttons["toggleNativePlayback"].frame.midY, app.sliders["playbackTimeline"].frame.minY)
+        let playerFrame = app.otherElements["nativePlayer"].frame
+        let expectedVideoHeight = playerFrame.width * 9 / 16
+        let expectedVideoMidY = playerFrame.minY + ((playerFrame.height - expectedVideoHeight) / 2) + (expectedVideoHeight / 2)
+        XCTAssertEqual(app.buttons["toggleNativePlayback"].frame.midY, expectedVideoMidY, accuracy: 24)
+        XCTAssertGreaterThanOrEqual(app.sliders["playbackTimeline"].frame.width, 88)
+        XCTAssertLessThanOrEqual(app.staticTexts["playbackRemainingTime"].frame.height, 20)
+        XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label == %@", "More")).count, 1)
 
         more.tap()
         XCTAssertTrue(app.buttons["playbackQuality"].waitForExistence(timeout: 2))

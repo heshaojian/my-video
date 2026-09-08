@@ -58,8 +58,12 @@ final class NativePlayerViewModel: ObservableObject {
     @Published private(set) var qualityOptions: [PlaybackQualityOption] = []
     @Published private(set) var selectedQuality: PlaybackQualityOption?
     @Published private(set) var isPlaying = false
+    @Published private(set) var playbackPosition = 0.0
+    @Published private(set) var playbackDuration = 0.0
     @Published private(set) var isLoadingEpisodes = false
     @Published private(set) var episodeErrorMessage: String?
+    @Published private(set) var skipOpportunity: SkipOpportunity?
+    @Published private(set) var canUndoSkip = false
 
     let item: AiyifanItem
     var preparedPlayerItems: [AVPlayerItem] { playbackItems }
@@ -70,6 +74,7 @@ final class NativePlayerViewModel: ObservableObject {
     private let preferences: PlaybackPreferencesStore
     private let qualityLoader: any PlaybackQualityLoading
     private let qualityPreferences: PlaybackQualityPreferenceStore
+    private let skipMarkerStore: SkipMarkerStore
     private var playbackItems: [AVPlayerItem] = []
     private var playbackEntries: [NativePlaybackEntry] = []
     private var loadTask: Task<Void, Never>?
@@ -79,6 +84,12 @@ final class NativePlayerViewModel: ObservableObject {
     private var lastRecordedPosition: Double?
     private var autoplayTask: Task<Void, Never>?
     private var monitorTask: Task<Void, Never>?
+    private var timeObserver: Any?
+    private var undoSkipPosition: Double?
+    private var undoSkipTask: Task<Void, Never>?
+    private var fingerprintSampler: SkipFingerprintSampler?
+    private var fingerprintCaptureTask: Task<Void, Never>?
+    private var isApplicationActive = true
     private var progressState = PlaybackProgressState()
     private var presentationState = PlayerPresentationState()
     private var sessionStarted = false
@@ -110,6 +121,10 @@ final class NativePlayerViewModel: ObservableObject {
         return "\(onlyQuality.title) only"
     }
 
+    var supportsSkip: Bool {
+        expectsEpisodes
+    }
+
     var episodeControlTitle: String? {
         guard shouldShowEpisodeControl else {
             return nil
@@ -139,7 +154,8 @@ final class NativePlayerViewModel: ObservableObject {
         castManager: any CastPlaybackManaging = GoogleCastManager.shared,
         preferences: PlaybackPreferencesStore = PlaybackPreferencesStore(),
         qualityLoader: any PlaybackQualityLoading = AVAssetPlaybackQualityLoader(),
-        qualityPreferences: PlaybackQualityPreferenceStore = PlaybackQualityPreferenceStore()
+        qualityPreferences: PlaybackQualityPreferenceStore = PlaybackQualityPreferenceStore(),
+        skipMarkerStore: SkipMarkerStore = SkipMarkerStore()
     ) {
         self.item = item
         expectsEpisodes = SerialPlaybackIntent.infer(
@@ -154,6 +170,7 @@ final class NativePlayerViewModel: ObservableObject {
         self.preferences = preferences
         self.qualityLoader = qualityLoader
         self.qualityPreferences = qualityPreferences
+        self.skipMarkerStore = skipMarkerStore
         playbackRate = preferences.playbackRate
         autoplayNext = preferences.autoplayNext
         player.defaultRate = preferences.playbackRate
@@ -175,6 +192,7 @@ final class NativePlayerViewModel: ObservableObject {
                 await self?.monitorPlayback()
             }
         }
+        attachTimeObserver()
         beginLoad()
     }
 
@@ -198,6 +216,7 @@ final class NativePlayerViewModel: ObservableObject {
 
     func stop() {
         persistProgress()
+        finishFingerprintSampling()
         loadTask?.cancel()
         loadTask = nil
         qualityTask?.cancel()
@@ -206,9 +225,15 @@ final class NativePlayerViewModel: ObservableObject {
         episodeLoadTask = nil
         monitorTask?.cancel()
         monitorTask = nil
+        detachTimeObserver()
+        clearUndoSkip()
+        fingerprintCaptureTask?.cancel()
+        fingerprintCaptureTask = nil
         cancelAutoplay()
         player.pause()
         isPlaying = false
+        playbackPosition = 0
+        playbackDuration = 0
         player.removeAllItems()
         playbackItems = []
         playbackEntries = []
@@ -230,6 +255,7 @@ final class NativePlayerViewModel: ObservableObject {
             return
         }
         persistProgress()
+        finishFingerprintSampling()
         requestedEpisodeKey = episode.mediaKey
         beginLoad()
     }
@@ -250,14 +276,6 @@ final class NativePlayerViewModel: ObservableObject {
             return
         }
         selectEpisode(previousEpisode)
-    }
-
-    func skipBackward10Seconds() {
-        seekCurrentProgram(by: -10)
-    }
-
-    func skipForward10Seconds() {
-        seekCurrentProgram(by: 10)
     }
 
     func setPlaybackRate(_ rate: Float) {
@@ -294,6 +312,31 @@ final class NativePlayerViewModel: ObservableObject {
         isPlaying ? pause() : play()
     }
 
+    func skipBackward10Seconds() {
+        seekCurrentProgram(by: -10)
+    }
+
+    func skipForward10Seconds() {
+        seekCurrentProgram(by: 10)
+    }
+
+    func seekCurrentProgram(to position: Double) {
+        guard let currentItem = player.currentItem, !castManager.isCasting else { return }
+        let duration = currentItem.duration.seconds
+        let target: Double
+        if duration.isFinite, duration > 0 {
+            target = min(max(0, position), duration)
+        } else {
+            target = max(0, position)
+        }
+        guard target.isFinite else { return }
+        cancelAutoplay()
+        playbackPosition = target
+        player.seek(to: CMTime(seconds: target, preferredTimescale: 600))
+        castManager.updateProgramPosition(target)
+        updateNowPlaying(position: target, duration: duration)
+    }
+
     private func seekCurrentProgram(by interval: Double) {
         guard let currentItem = player.currentItem, !castManager.isCasting else {
             return
@@ -302,18 +345,61 @@ final class NativePlayerViewModel: ObservableObject {
         guard current.isFinite else {
             return
         }
-        let duration = currentItem.duration.seconds
-        let unclampedTarget = current + interval
-        let target: Double
-        if duration.isFinite, duration > 0 {
-            target = min(max(0, unclampedTarget), duration)
-        } else {
-            target = max(0, unclampedTarget)
+        seekCurrentProgram(to: current + interval)
+    }
+
+    func performSkip() {
+        guard let opportunity = skipOpportunity else { return }
+        let origin = playbackPosition
+        seekCurrentProgram(to: opportunity.target)
+        undoSkipPosition = origin
+        canUndoSkip = true
+        undoSkipTask?.cancel()
+        undoSkipTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(SkipDetectionPolicy.standard.undoDuration))
+            guard !Task.isCancelled else { return }
+            self?.clearUndoSkip()
         }
-        cancelAutoplay()
-        player.seek(to: CMTime(seconds: target, preferredTimescale: 600))
-        castManager.updateProgramPosition(target)
-        updateNowPlaying(position: target, duration: duration)
+    }
+
+    func undoSkip() {
+        guard let origin = undoSkipPosition else { return }
+        clearUndoSkip()
+        seekCurrentProgram(to: origin)
+    }
+
+    func setIntroEndHere() {
+        guard supportsSkip, playbackPosition > 0 else { return }
+        _ = skipMarkerStore.setIntroEnd(
+            seriesID: item.id,
+            time: playbackPosition,
+            referenceDuration: playbackDuration > 0 ? playbackDuration : nil
+        )
+        updateSkipOpportunity()
+    }
+
+    func setOutroStartHere() {
+        guard supportsSkip, playbackDuration > playbackPosition else { return }
+        _ = skipMarkerStore.setOutroStart(
+            seriesID: item.id,
+            secondsRemaining: playbackDuration - playbackPosition,
+            referenceDuration: playbackDuration
+        )
+        updateSkipOpportunity()
+    }
+
+    func disableSkipForSeries() {
+        guard supportsSkip else { return }
+        _ = skipMarkerStore.disable(seriesID: item.id)
+        clearUndoSkip()
+        updateSkipOpportunity()
+    }
+
+    func resetLearnedSkipTiming() {
+        guard supportsSkip else { return }
+        _ = skipMarkerStore.reset(seriesID: item.id)
+        clearUndoSkip()
+        updateSkipOpportunity()
     }
 
     func setQuality(_ quality: PlaybackQualityOption) {
@@ -368,6 +454,16 @@ final class NativePlayerViewModel: ObservableObject {
 
     func setPictureInPictureActive(_ active: Bool) {
         presentationState.setPictureInPictureActive(active)
+        if active {
+            pauseFingerprintSampling()
+        }
+    }
+
+    func setApplicationActive(_ active: Bool) {
+        isApplicationActive = active
+        if !active {
+            pauseFingerprintSampling()
+        }
     }
 
     func handleScreenDisappear() {
@@ -615,6 +711,10 @@ final class NativePlayerViewModel: ObservableObject {
         guard playbackEntries.indices.contains(index) else {
             return
         }
+        if position.isFinite, duration.isFinite, duration > 0 {
+            isLoading = false
+            errorMessage = nil
+        }
         if !hasAppliedResume, pendingResumePosition > 0 {
             if position + 0.5 >= pendingResumePosition {
                 hasAppliedResume = true
@@ -672,8 +772,42 @@ final class NativePlayerViewModel: ObservableObject {
         cancelAutoplay()
     }
 
+    private func attachTimeObserver() {
+        detachTimeObserver()
+        timeObserver = player.addPeriodicTimeObserver(
+            forInterval: CMTime(seconds: 0.5, preferredTimescale: 600),
+            queue: .main
+        ) { [weak self] time in
+            Task { @MainActor in
+                self?.updatePlaybackTimeline(position: time.seconds)
+            }
+        }
+    }
+
+    private func detachTimeObserver() {
+        guard let timeObserver else {
+            return
+        }
+        player.removeTimeObserver(timeObserver)
+        self.timeObserver = nil
+    }
+
+    private func updatePlaybackTimeline(position: Double) {
+        guard position.isFinite else {
+            return
+        }
+        playbackPosition = max(0, position)
+        let duration = player.currentItem?.duration.seconds ?? 0
+        playbackDuration = duration.isFinite ? max(0, duration) : 0
+        updateSkipOpportunity()
+        captureFingerprintIfNeeded()
+    }
+
     private func updateNowPlaying(position: Double, duration: Double) {
         let isPlaying = player.timeControlStatus == .playing
+        playbackPosition = position.isFinite ? max(0, position) : playbackPosition
+        playbackDuration = duration.isFinite ? max(0, duration) : playbackDuration
+        updateSkipOpportunity()
         PlaybackAudioSessionCoordinator.shared.recordPlaybackState(
             isPlaying: isPlaying,
             rate: playbackRate
@@ -690,6 +824,116 @@ final class NativePlayerViewModel: ObservableObject {
             hasPrevious: previousEpisode != nil,
             hasNext: nextEpisode != nil
         )
+    }
+
+    private func updateSkipOpportunity() {
+        skipOpportunity = SkipOpportunityProjector.project(
+            profile: skipMarkerStore.profile(for: item.id),
+            playback: SkipPlaybackState(
+                isSerial: supportsSkip,
+                isAdvertisement: false,
+                isLoading: isLoading,
+                isSeeking: false,
+                isSeekable: !castManager.isCasting,
+                position: playbackPosition,
+                duration: playbackDuration
+            )
+        )
+    }
+
+    private func clearUndoSkip() {
+        undoSkipTask?.cancel()
+        undoSkipTask = nil
+        undoSkipPosition = nil
+        canUndoSkip = false
+    }
+
+    private func captureFingerprintIfNeeded() {
+        guard
+            supportsSkip,
+            let selectedEpisode,
+            let currentItem = player.currentItem,
+            playbackDuration > 0,
+            fingerprintCaptureTask == nil,
+            !skipMarkerStore.isDisabled(seriesID: item.id)
+        else {
+            return
+        }
+
+        if fingerprintSampler == nil {
+            fingerprintSampler = SkipFingerprintSampler(
+                seriesID: item.id,
+                episodeID: selectedEpisode.mediaKey,
+                duration: playbackDuration,
+                playerItem: currentItem,
+                hasher: DefaultSkipFrameHasher()
+            )
+        }
+
+        let state = SkipSamplingRuntimeState(
+            isProgram: true,
+            isReadyToPlay: currentItem.status == .readyToPlay,
+            isLoading: isLoading,
+            isSeeking: false,
+            isPictureInPictureActive: presentationState.isPictureInPictureActive,
+            isPictureInPictureTransitioning: false,
+            isCasting: castManager.isCasting,
+            isAppSuspended: !isApplicationActive,
+            isLowPowerModeEnabled: ProcessInfo.processInfo.isLowPowerModeEnabled,
+            isUnderMemoryPressure: false
+        )
+        let position = playbackPosition
+        fingerprintCaptureTask = Task { [weak self] in
+            guard let self, let sampler = self.fingerprintSampler else { return }
+            _ = await sampler.capture(at: position, state: state)
+            self.fingerprintCaptureTask = nil
+        }
+    }
+
+    private func pauseFingerprintSampling() {
+        fingerprintCaptureTask?.cancel()
+        fingerprintCaptureTask = nil
+        fingerprintSampler?.updateRuntimeState(SkipSamplingRuntimeState(
+            isProgram: true,
+            isReadyToPlay: false,
+            isLoading: true,
+            isSeeking: false,
+            isPictureInPictureActive: presentationState.isPictureInPictureActive,
+            isPictureInPictureTransitioning: false,
+            isCasting: castManager.isCasting,
+            isAppSuspended: !isApplicationActive,
+            isLowPowerModeEnabled: ProcessInfo.processInfo.isLowPowerModeEnabled,
+            isUnderMemoryPressure: false
+        ))
+    }
+
+    private func finishFingerprintSampling() {
+        let hadCaptureInFlight = fingerprintCaptureTask != nil
+        fingerprintCaptureTask?.cancel()
+        fingerprintCaptureTask = nil
+        guard let sampler = fingerprintSampler else { return }
+        fingerprintSampler = nil
+        if hadCaptureInFlight {
+            sampler.cancel()
+            return
+        }
+        guard let fingerprint = try? sampler.complete() else { return }
+        _ = skipMarkerStore.save(fingerprint: fingerprint)
+        let fingerprints = skipMarkerStore.fingerprints(for: item.id)
+        let seriesID = item.id
+        let detectionStartedAt = Date()
+        let detection = Task.detached(priority: .utility) {
+            SkipMarkerDetector().detect(
+                seriesID: seriesID,
+                fingerprints: fingerprints,
+                detectedAt: detectionStartedAt
+            )
+        }
+        Task { [weak self] in
+            guard let self, let profile = await detection.value else { return }
+            _ = self.skipMarkerStore.save(profile: profile)
+            self.updateSkipOpportunity()
+        }
     }
 
     private func recordProgress(position: Double, duration: Double, force: Bool) {
@@ -722,6 +966,7 @@ struct NativePlayerScreen: View {
     @ObservedObject private var viewModel: NativePlayerViewModel
     @StateObject private var castManager = GoogleCastManager.shared
     @State private var isShowingEpisodes = false
+    @State private var isShowingFullScreenPlayer = false
     @Environment(\.scenePhase) private var scenePhase
 
     init(
@@ -795,7 +1040,8 @@ struct NativePlayerScreen: View {
                 NativePlayerController(
                     player: viewModel.player,
                     onFullScreenChanged: viewModel.setFullScreenPresentationActive,
-                    onPictureInPictureChanged: viewModel.setPictureInPictureActive
+                    onPictureInPictureChanged: viewModel.setPictureInPictureActive,
+                    showsPlaybackControls: false
                 )
                     .ignoresSafeArea(edges: .bottom)
 
@@ -813,7 +1059,7 @@ struct NativePlayerScreen: View {
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
                     .padding(.trailing, 16)
-                    .padding(.bottom, 164)
+                    .padding(.bottom, 108)
                     .accessibilityIdentifier("cancelAutoplay")
                 }
 
@@ -852,16 +1098,22 @@ struct NativePlayerScreen: View {
                 }
 
                 if viewModel.errorMessage == nil {
-                    PlaybackTransportOverlay(viewModel: viewModel, isCasting: castManager.isCasting)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
-                        .padding(.bottom, 88)
-                        .padding(.horizontal, 16)
+                    PlaybackChromeOverlay(
+                        viewModel: viewModel,
+                        isCasting: castManager.isCasting,
+                        enterFullScreen: enterFullScreen
+                    )
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.horizontal, 12)
+                        .padding(.bottom, 12)
                 }
             }
             .background(Color.black)
         }
         .background(Color.black)
+        .accessibilityHidden(isShowingFullScreenPlayer)
         .onChange(of: scenePhase) { _, phase in
+            viewModel.setApplicationActive(phase == .active)
             if phase != .active {
                 viewModel.persistProgress()
             }
@@ -870,6 +1122,9 @@ struct NativePlayerScreen: View {
             if isCasting {
                 viewModel.persistProgress()
                 viewModel.pause()
+                viewModel.setApplicationActive(false)
+            } else {
+                viewModel.setApplicationActive(scenePhase == .active)
             }
         }
         .sheet(isPresented: $isShowingEpisodes) {
@@ -896,10 +1151,26 @@ struct NativePlayerScreen: View {
             }
             .presentationDetents([.medium, .large])
         }
+        .fullScreenCover(isPresented: $isShowingFullScreenPlayer) {
+            FullScreenNativePlayerScreen(
+                viewModel: viewModel,
+                dismiss: exitFullScreen
+            )
+        }
     }
 
     private func closePlayer() {
         onClose()
+    }
+
+    private func enterFullScreen() {
+        viewModel.setFullScreenPresentationActive(true)
+        isShowingFullScreenPlayer = true
+    }
+
+    private func exitFullScreen() {
+        isShowingFullScreenPlayer = false
+        viewModel.setFullScreenPresentationActive(false)
     }
 
     private func openWebsite() {
@@ -975,6 +1246,23 @@ struct NativePlayerScreen: View {
                         systemImage: viewModel.autoplayNext ? "autostartstop.slash" : "autostartstop"
                     )
                 }
+
+                if viewModel.supportsSkip {
+                    Divider()
+
+                    Button("Set Intro End Here", systemImage: "forward.end") {
+                        viewModel.setIntroEndHere()
+                    }
+                    Button("Set Outro Start Here", systemImage: "backward.end") {
+                        viewModel.setOutroStartHere()
+                    }
+                    Button("Disable Skip for This Series", systemImage: "nosign") {
+                        viewModel.disableSkipForSeries()
+                    }
+                    Button("Reset Learned Timing", systemImage: "arrow.counterclockwise", role: .destructive) {
+                        viewModel.resetLearnedSkipTiming()
+                    }
+                }
             }
 
             Divider()
@@ -992,28 +1280,119 @@ struct NativePlayerScreen: View {
     }
 }
 
-private struct PlaybackTransportOverlay: View {
+private struct PlaybackChromeOverlay: View {
     @ObservedObject var viewModel: NativePlayerViewModel
     let isCasting: Bool
+    let enterFullScreen: () -> Void
 
     var body: some View {
-        HStack(spacing: 8) {
+        GeometryReader { proxy in
+            ZStack {
+                centerTransportControls(in: proxy.size)
+
+                VStack {
+                    Spacer()
+
+                    if viewModel.canUndoSkip || viewModel.skipOpportunity != nil {
+                        Button(viewModel.canUndoSkip ? "Undo Skip" : skipButtonTitle) {
+                            if viewModel.canUndoSkip {
+                                viewModel.undoSkip()
+                            } else {
+                                viewModel.performSkip()
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.cyan)
+                        .foregroundStyle(.black)
+                        .accessibilityIdentifier(viewModel.canUndoSkip ? "undoSkip" : "performSkip")
+                        .padding(.bottom, 8)
+                    }
+
+                    bottomTimeline
+                }
+            }
+        }
+        .accessibilityElement(children: .contain)
+    }
+
+    private var skipButtonTitle: String {
+        viewModel.skipOpportunity?.kind == .outro ? "Skip Outro" : "Skip Intro"
+    }
+
+    private var bottomTimeline: some View {
+        HStack(spacing: 4) {
+            iconButton(
+                systemName: "arrow.up.left.and.arrow.down.right",
+                label: "Enter Full Screen",
+                identifier: "enterFullScreen",
+                disabled: false,
+                action: enterFullScreen
+            )
+
             if viewModel.shouldShowEpisodeControl {
-                transportButton(
+                iconButton(
                     systemName: "backward.end.fill",
                     label: "Previous Episode",
                     identifier: "previousEpisode",
-                    size: .standard,
                     disabled: viewModel.previousEpisode == nil,
                     action: viewModel.playPreviousEpisode
                 )
             }
 
+            Text(timeLabel(viewModel.playbackPosition))
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(.white.opacity(0.72))
+                .lineLimit(1)
+                .minimumScaleFactor(0.82)
+                .frame(width: 42, alignment: .trailing)
+                .accessibilityIdentifier("playbackElapsedTime")
+
+            Slider(
+                value: Binding(
+                    get: { viewModel.playbackPosition },
+                    set: { viewModel.seekCurrentProgram(to: $0) }
+                ),
+                in: 0...max(viewModel.playbackDuration, 1)
+            )
+            .tint(.white)
+            .disabled(isCasting || viewModel.isLoading || viewModel.playbackDuration <= 0)
+            .accessibilityLabel("Playback Timeline")
+            .accessibilityIdentifier("playbackTimeline")
+
+            Text(remainingTimeLabel)
+                .font(.caption2.monospacedDigit())
+                .foregroundStyle(.white.opacity(0.72))
+                .lineLimit(1)
+                .minimumScaleFactor(0.76)
+                .frame(width: 52, alignment: .leading)
+                .fixedSize(horizontal: true, vertical: false)
+                .accessibilityIdentifier("playbackRemainingTime")
+
+            if viewModel.shouldShowEpisodeControl {
+                iconButton(
+                    systemName: "forward.end.fill",
+                    label: "Next Episode",
+                    identifier: "nextEpisode",
+                    disabled: viewModel.nextEpisode == nil,
+                    action: viewModel.playNextEpisode
+                )
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 6)
+        .background(.black.opacity(0.72))
+        .clipShape(Capsule(style: .continuous))
+    }
+
+    private func centerTransportControls(in availableSize: CGSize) -> some View {
+        let frame = videoFrame(in: availableSize)
+        HStack(spacing: 28) {
             transportButton(
                 systemName: "gobackward.10",
                 label: "Rewind 10 seconds",
                 identifier: "skipBackward10Seconds",
-                size: .standard,
+                size: 48,
                 disabled: isCasting || viewModel.isLoading,
                 action: viewModel.skipBackward10Seconds
             )
@@ -1022,7 +1401,7 @@ private struct PlaybackTransportOverlay: View {
                 systemName: viewModel.isPlaying ? "pause.fill" : "play.fill",
                 label: viewModel.isPlaying ? "Pause" : "Play",
                 identifier: "toggleNativePlayback",
-                size: .primary,
+                size: 58,
                 disabled: isCasting || viewModel.isLoading,
                 action: viewModel.togglePlayback
             )
@@ -1031,44 +1410,73 @@ private struct PlaybackTransportOverlay: View {
                 systemName: "goforward.10",
                 label: "Forward 10 seconds",
                 identifier: "skipForward10Seconds",
-                size: .standard,
+                size: 48,
                 disabled: isCasting || viewModel.isLoading,
                 action: viewModel.skipForward10Seconds
             )
-
-            if viewModel.shouldShowEpisodeControl {
-                transportButton(
-                    systemName: "forward.end.fill",
-                    label: "Next Episode",
-                    identifier: "nextEpisode",
-                    size: .standard,
-                    disabled: viewModel.nextEpisode == nil,
-                    action: viewModel.playNextEpisode
-                )
-            }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 10)
-        .background(.black.opacity(0.68))
-        .clipShape(Capsule(style: .continuous))
-        .shadow(color: .black.opacity(0.35), radius: 12, y: 4)
-        .accessibilityElement(children: .contain)
+        .position(x: frame.midX, y: frame.midY)
+        .padding(.horizontal, 16)
     }
 
-    private func transportButton(
+    private func videoFrame(in availableSize: CGSize) -> CGRect {
+        guard availableSize.width > 0, availableSize.height > 0 else {
+            return CGRect(origin: .zero, size: availableSize)
+        }
+        let videoAspectRatio = 16.0 / 9.0
+        let containerAspectRatio = availableSize.width / availableSize.height
+        let videoSize: CGSize
+        if containerAspectRatio > videoAspectRatio {
+            videoSize = CGSize(
+                width: availableSize.height * videoAspectRatio,
+                height: availableSize.height
+            )
+        } else {
+            videoSize = CGSize(
+                width: availableSize.width,
+                height: availableSize.width / videoAspectRatio
+            )
+        }
+        return CGRect(
+            x: (availableSize.width - videoSize.width) / 2,
+            y: (availableSize.height - videoSize.height) / 2,
+            width: videoSize.width,
+            height: videoSize.height
+        )
+    }
+
+    private var remainingTimeLabel: String {
+        guard viewModel.playbackDuration > 0 else {
+            return "-0:00"
+        }
+        let remaining = max(0, viewModel.playbackDuration - viewModel.playbackPosition)
+        return "-\(timeLabel(remaining))"
+    }
+
+    private func timeLabel(_ seconds: Double) -> String {
+        let totalSeconds = max(0, Int(seconds.rounded(.down)))
+        let hours = totalSeconds / 3600
+        let minutes = (totalSeconds % 3600) / 60
+        let seconds = totalSeconds % 60
+        if hours > 0 {
+            return "\(hours):\(String(format: "%02d", minutes)):\(String(format: "%02d", seconds))"
+        }
+        return "\(minutes):\(String(format: "%02d", seconds))"
+    }
+
+    private func iconButton(
         systemName: String,
         label: String,
         identifier: String,
-        size: TransportButtonSize,
         disabled: Bool,
         action: @escaping () -> Void
     ) -> some View {
         Button(action: action) {
             Image(systemName: systemName)
-                .font(.system(size: size.iconSize, weight: .semibold))
+                .font(.system(size: 15, weight: .semibold))
                 .foregroundStyle(.white)
-                .frame(width: size.frameSize, height: size.frameSize)
-                .background(disabled ? Color.white.opacity(0.08) : Color.white.opacity(size.backgroundOpacity))
+                .frame(width: 40, height: 40)
+                .background(disabled ? Color.white.opacity(0.08) : Color.white.opacity(0.16))
                 .clipShape(Circle())
         }
         .disabled(disabled)
@@ -1076,32 +1484,29 @@ private struct PlaybackTransportOverlay: View {
         .accessibilityLabel(label)
         .accessibilityIdentifier(identifier)
     }
-}
 
-private enum TransportButtonSize {
-    case standard
-    case primary
-
-    var frameSize: CGFloat {
-        switch self {
-        case .standard: 44
-        case .primary: 58
+    private func transportButton(
+        systemName: String,
+        label: String,
+        identifier: String,
+        size: CGFloat,
+        disabled: Bool,
+        action: @escaping () -> Void
+    ) -> some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: size == 58 ? 24 : 20, weight: .semibold))
+                .foregroundStyle(.white)
+                .frame(width: size, height: size)
+                .background(.black.opacity(disabled ? 0.34 : 0.54))
+                .clipShape(Circle())
         }
+        .disabled(disabled)
+        .opacity(disabled ? 0.42 : 1)
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(identifier)
     }
 
-    var iconSize: CGFloat {
-        switch self {
-        case .standard: 18
-        case .primary: 25
-        }
-    }
-
-    var backgroundOpacity: Double {
-        switch self {
-        case .standard: 0.18
-        case .primary: 0.28
-        }
-    }
 }
 
 enum EpisodeDisplayFormatter {
@@ -1151,10 +1556,44 @@ private struct ViewerMetricsBar: View {
     }
 }
 
+private struct FullScreenNativePlayerScreen: View {
+    @ObservedObject var viewModel: NativePlayerViewModel
+    let dismiss: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            NativePlayerController(
+                player: viewModel.player,
+                onFullScreenChanged: viewModel.setFullScreenPresentationActive,
+                onPictureInPictureChanged: viewModel.setPictureInPictureActive,
+                showsPlaybackControls: true
+            )
+            .ignoresSafeArea()
+
+            Button(action: dismiss) {
+                Image(systemName: "arrow.down.right.and.arrow.up.left")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .frame(width: 44, height: 44)
+                    .background(.black.opacity(0.42))
+                    .clipShape(Circle())
+            }
+            .padding(16)
+            .accessibilityLabel("Exit Full Screen")
+            .accessibilityIdentifier("exitFullScreen")
+        }
+        .background(Color.black)
+        .onDisappear {
+            viewModel.setFullScreenPresentationActive(false)
+        }
+    }
+}
+
 private struct NativePlayerController: UIViewControllerRepresentable {
     let player: AVPlayer
     let onFullScreenChanged: (Bool) -> Void
     let onPictureInPictureChanged: (Bool) -> Void
+    let showsPlaybackControls: Bool
 
     func makeCoordinator() -> Coordinator {
         Coordinator(
@@ -1168,6 +1607,7 @@ private struct NativePlayerController: UIViewControllerRepresentable {
         controller.player = player
         controller.delegate = context.coordinator
         controller.view.accessibilityIdentifier = "nativePlayer"
+        controller.showsPlaybackControls = showsPlaybackControls
         controller.allowsPictureInPicturePlayback = true
         controller.canStartPictureInPictureAutomaticallyFromInline = true
         controller.entersFullScreenWhenPlaybackBegins = false
@@ -1178,6 +1618,7 @@ private struct NativePlayerController: UIViewControllerRepresentable {
         if controller.player !== player {
             controller.player = player
         }
+        controller.showsPlaybackControls = showsPlaybackControls
     }
 
     final class Coordinator: NSObject, @MainActor AVPlayerViewControllerDelegate {

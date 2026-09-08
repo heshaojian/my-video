@@ -99,6 +99,48 @@ final class LibraryServicesTests: XCTestCase {
         XCTAssertFalse(DailySavedUpdatePolicy.isDue(lastChecked: now.addingTimeInterval(-86_399), now: now))
         XCTAssertTrue(DailySavedUpdatePolicy.isDue(lastChecked: now.addingTimeInterval(-86_400), now: now))
     }
+
+    func testCancellingSavedUpdateCheckDoesNotScheduleMoreItems() async throws {
+        let resolver = BlockingSavedEpisodeResolver()
+        let items = (1...3).map {
+            AiyifanItem(listPath: "series-\($0)", title: "Series \($0)", isSerial: true)
+        }
+        let task = Task {
+            await SavedUpdateChecker.check(
+                items: items,
+                resolver: resolver,
+                maximumConcurrentChecks: 1
+            )
+        }
+        for _ in 0..<100 where await resolver.startedCount() == 0 {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+
+        task.cancel()
+        let result = await task.value
+        let startedCount = await resolver.startedCount()
+
+        XCTAssertEqual(startedCount, 1)
+        XCTAssertEqual(result.completedCount, 0)
+        XCTAssertFalse(result.isComplete)
+    }
+}
+
+private actor BlockingSavedEpisodeResolver: SavedEpisodeResolving {
+    private var startedItemIDs: [String] = []
+
+    func episodesForSavedUpdate(
+        for item: AiyifanItem,
+        expectedEpisodeKey: String?
+    ) async throws -> [EpisodeSelection]? {
+        startedItemIDs.append(item.id)
+        try await Task.sleep(for: .seconds(30))
+        return nil
+    }
+
+    func startedCount() -> Int {
+        startedItemIDs.count
+    }
 }
 
 final class FeedRepositoryTests: XCTestCase {

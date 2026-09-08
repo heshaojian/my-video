@@ -112,19 +112,19 @@ final class BrowserViewModel: ObservableObject {
     }
 
     func selectItem(_ item: AiyifanItem) {
+        selectItem(item, episodeKey: nil)
+    }
+
+    func selectItem(_ item: AiyifanItem, episodeKey: String?) {
         selectedTitle = item.title
         selectedURL = nil
-        selectedEpisodeKey = nil
+        selectedEpisodeKey = episodeKey
         errorMessage = nil
         selectedItem = item
     }
 
     func selectPlayed(_ record: PlayedRecord) {
-        selectedTitle = record.item.title
-        selectedURL = nil
-        selectedEpisodeKey = record.episodeKey
-        errorMessage = nil
-        selectedItem = record.item
+        selectItem(record.item, episodeKey: record.episodeKey)
     }
 
     func closePlayer() {
@@ -208,11 +208,7 @@ final class BrowserViewModel: ObservableObject {
     }
 
     func openDeepLink(_ destination: AiyifanDeepLinkDestination) {
-        selectedTitle = destination.item.title
-        selectedURL = nil
-        selectedItem = destination.item
         selectedCategory = nil
-        selectedEpisodeKey = destination.episodeKey
-        errorMessage = nil
+        selectItem(destination.item, episodeKey: destination.episodeKey)
     }
 }

@@ -6,3 +6,4 @@ Pods/
 xcuserdata/
 *.xcuserstate
 .DS_Store
+.superpowers/

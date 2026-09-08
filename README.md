@@ -17,6 +17,7 @@ changing navigation, playback, provider requests, persistence, or casting.
 - Uses one poster-card system for Home, Search, Saved, and All, plus a matching progress-row variant for Continue Watching and Played.
 - Remembers independently selected filters, sort order, and sort direction for each category across navigation and app relaunches.
 - Saves titles for later, directly checks every saved serial title daily on a best-effort schedule, and supports per-title update alerts with episode deep links.
+- Adds a Saved-only Ready to Watch queue above the unchanged Saved grid. It combines exact new episodes, genuinely unfinished Saved episodes, and manually pinned titles; users can reorder pins, dismiss entries, mark them watched, or play the exact episode.
 - Resolves supported streams into native `AVPlayer` playback with Picture in Picture, background audio, and provider Likes, Favorites, Score, and Views.
 - Excludes separately supplied front advertisements from native and Cast playback queues while leaving the full program stream untouched.
 - Lists multi-episode shows newest-first, autoplays the next episode, and remembers progress per episode.
@@ -24,6 +25,7 @@ changing navigation, playback, provider requests, persistence, or casting.
 - Always exposes Quality with Automatic preferring exact 1080p, falls back to the highest delivered rendition, and remembers manual choices when the stream exposes them. A catalog `4K` label never fabricates a 4K stream option.
 - Keeps one player session alive when Back is tapped, with a video mini-player for browsing Home, Saved, Played, and All without interrupting playback.
 - Continues audio while the screen is locked and provides playback speed, sleep timer, lock-screen Now Playing controls, interruption recovery, and transient-load retry.
+- Offers local Skip Intro/Skip Outro suggestions for serial content, with an eight-second Undo and manual timing corrections. Learned fingerprints stay on device, never gate playback, and skip is always user-triggered rather than automatic.
 - Provides a third Played tab with resume, watched/unwatched, restart, remove, filter, and clear controls.
 - Supports AirPlay plus Google Cast with persistent and expanded TV playback controls.
 - Caches each feed independently, refreshes in the background, and optionally syncs Saved and Played through iCloud.

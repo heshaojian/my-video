@@ -2,7 +2,22 @@ import Foundation
 
 struct SavedEpisodeSnapshot: Equatable, Sendable {
     let itemID: String
-    let episode: EpisodeSelection
+    let episodes: [EpisodeSelection]
+
+    var episode: EpisodeSelection {
+        episodes[0]
+    }
+
+    init?(itemID: String, episodes: [EpisodeSelection]) {
+        guard !episodes.isEmpty else { return nil }
+        self.itemID = itemID
+        self.episodes = episodes
+    }
+
+    init(itemID: String, episode: EpisodeSelection) {
+        self.itemID = itemID
+        episodes = [episode]
+    }
 }
 
 struct SavedEpisodeUpdate: Equatable, Sendable {
@@ -19,7 +34,10 @@ struct SavedUpdateCheckResult: Equatable, Sendable {
 }
 
 protocol SavedEpisodeResolving: Sendable {
-    func latestEpisode(for item: AiyifanItem, expectedEpisodeKey: String?) async throws -> EpisodeSelection?
+    func episodesForSavedUpdate(
+        for item: AiyifanItem,
+        expectedEpisodeKey: String?
+    ) async throws -> [EpisodeSelection]?
 }
 
 enum DailySavedUpdatePolicy {
@@ -35,6 +53,7 @@ enum SavedUpdateChecker {
     private enum Outcome: Sendable {
         case completed(SavedEpisodeSnapshot?)
         case failed
+        case cancelled
     }
 
     static func check(
@@ -62,7 +81,11 @@ enum SavedUpdateChecker {
 
             var snapshots: [SavedEpisodeSnapshot] = []
             var completedCount = 0
-            while let result = await group.next() {
+            resultLoop: while let result = await group.next() {
+                if Task.isCancelled {
+                    group.cancelAll()
+                    break
+                }
                 switch result {
                 case let .completed(snapshot):
                     completedCount += 1
@@ -71,8 +94,11 @@ enum SavedUpdateChecker {
                     }
                 case .failed:
                     break
+                case .cancelled:
+                    group.cancelAll()
+                    break resultLoop
                 }
-                if let item = iterator.next() {
+                if !Task.isCancelled, let item = iterator.next() {
                     addCheck(
                         for: item,
                         expectedEpisodeKey: expectedEpisodeKeys[item.id],
@@ -97,14 +123,19 @@ enum SavedUpdateChecker {
     ) {
         group.addTask {
             do {
-                guard let episode = try await resolver.latestEpisode(
+                guard let episodes = try await resolver.episodesForSavedUpdate(
                     for: item,
                     expectedEpisodeKey: expectedEpisodeKey
-                ) else {
+                ), let snapshot = SavedEpisodeSnapshot(itemID: item.id, episodes: episodes) else {
                     return .completed(nil)
                 }
-                return .completed(SavedEpisodeSnapshot(itemID: item.id, episode: episode))
+                return .completed(snapshot)
+            } catch is CancellationError {
+                return .cancelled
+            } catch let error as URLError where error.code == .cancelled {
+                return .cancelled
             } catch {
+                if Task.isCancelled { return .cancelled }
                 return .failed
             }
         }
@@ -154,7 +185,8 @@ final class SavedUpdateMonitor: ObservableObject {
         )
         let updates = savedItemsStore.recordEpisodeChecks(
             result.snapshots,
-            checkedAt: result.isComplete ? checkedAt : nil
+            checkedAt: result.isComplete ? checkedAt : nil,
+            observedAt: checkedAt
         )
         statusMessage = result.isComplete
             ? "All saved titles checked"

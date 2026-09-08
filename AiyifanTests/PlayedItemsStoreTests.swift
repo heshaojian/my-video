@@ -144,6 +144,21 @@ final class PlayedItemsStoreTests: XCTestCase {
         XCTAssertTrue(PlayedItemsStore(defaults: defaults).items.isEmpty)
     }
 
+    func testMarkUnstartedExactEpisodeWatchedPersistsCompletionOverride() {
+        let (defaults, suiteName) = isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let item = AiyifanItem(listPath: "series", title: "Series", isSerial: true)
+        let episode = Episode(mediaKey: "episode-8", title: "08", updateDate: nil)
+        let store = PlayedItemsStore(defaults: defaults)
+
+        store.markWatched(item: item, episode: episode)
+
+        let record = PlayedItemsStore(defaults: defaults).record(for: item, episodeKey: episode.mediaKey)
+        XCTAssertEqual(record?.episodeTitle, "08")
+        XCTAssertEqual(record?.completionOverride, true)
+        XCTAssertTrue(record?.isCompleted == true)
+    }
+
     private func isolatedDefaults() -> (UserDefaults, String) {
         let suiteName = "PlayedItemsStoreTests.\(UUID().uuidString)"
         return (UserDefaults(suiteName: suiteName)!, suiteName)

@@ -9,6 +9,7 @@ enum PosterMediaCardActionStyle {
     case save(isSaved: Bool)
     case removeSaved
     case markSeen
+    case play
 
     var systemImage: String {
         switch self {
@@ -18,6 +19,8 @@ enum PosterMediaCardActionStyle {
             "bookmark.slash.fill"
         case .markSeen:
             "eye.fill"
+        case .play:
+            "play.fill"
         }
     }
 
@@ -29,6 +32,8 @@ enum PosterMediaCardActionStyle {
             "Remove from Saved"
         case .markSeen:
             "Mark Update Seen"
+        case .play:
+            "Play"
         }
     }
 
@@ -36,7 +41,7 @@ enum PosterMediaCardActionStyle {
         switch self {
         case .save(let isSaved):
             isSaved
-        case .removeSaved, .markSeen:
+        case .removeSaved, .markSeen, .play:
             true
         }
     }

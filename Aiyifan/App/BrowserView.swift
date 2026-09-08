@@ -11,6 +11,7 @@ struct BrowserView: View {
     @StateObject private var viewModel = BrowserViewModel()
     @StateObject private var savedItemsStore = SavedItemsStore()
     @StateObject private var playedItemsStore = PlayedItemsStore()
+    @StateObject private var readyToWatchStore = ReadyToWatchOverridesStore()
     @StateObject private var appSettings = AppSettingsStore()
     @StateObject private var playbackSession = PlaybackSessionController()
     @StateObject private var castManager = GoogleCastManager.shared
@@ -101,6 +102,7 @@ struct BrowserView: View {
                     viewModel: viewModel,
                     savedItemsStore: savedItemsStore,
                     playedItemsStore: playedItemsStore,
+                    readyToWatchStore: readyToWatchStore,
                     appSettings: appSettings,
                     savedUpdateMonitor: savedUpdateMonitor,
                     selectedTab: $selectedLibraryTab,
@@ -167,6 +169,7 @@ private struct LibraryView: View {
     @ObservedObject var viewModel: BrowserViewModel
     @ObservedObject var savedItemsStore: SavedItemsStore
     @ObservedObject var playedItemsStore: PlayedItemsStore
+    @ObservedObject var readyToWatchStore: ReadyToWatchOverridesStore
     @ObservedObject var appSettings: AppSettingsStore
     @ObservedObject var savedUpdateMonitor: SavedUpdateMonitor
     @Binding var selectedTab: LibraryTab
@@ -193,6 +196,8 @@ private struct LibraryView: View {
                 SavedItemsView(
                     viewModel: viewModel,
                     savedItemsStore: savedItemsStore,
+                    playedItemsStore: playedItemsStore,
+                    readyToWatchStore: readyToWatchStore,
                     appSettings: appSettings
                 )
                     .tabItem {

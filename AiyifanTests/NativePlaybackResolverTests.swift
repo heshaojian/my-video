@@ -561,13 +561,60 @@ final class NativePlaybackResolverTests: XCTestCase {
             isSerial: true
         )
 
-        let selection = try await NativePlaybackResolver(
+        let episodes = try await NativePlaybackResolver(
             session: session,
             playlistRetryDelays: []
-        ).latestEpisode(for: item, expectedEpisodeKey: "episode-2")
+        ).episodesForSavedUpdate(for: item, expectedEpisodeKey: "episode-2")
 
-        XCTAssertEqual(selection, EpisodeSelection(mediaKey: "episode-2", title: "2"))
+        XCTAssertEqual(episodes, [
+            EpisodeSelection(mediaKey: "episode-2", title: "2"),
+            EpisodeSelection(mediaKey: "episode-1", title: "1")
+        ])
         XCTAssertEqual(pageLoads.value, 2)
+    }
+
+    func testSavedUpdateUsesOnePlaylistRequestForTheRetainedSnapshot() async throws {
+        let requests = LockedRequests()
+        ResolverURLProtocol.setHandler { request in
+            requests.append(request)
+            let url = try XCTUnwrap(request.url)
+            let data: Data
+            switch url.path {
+            case "/play/series-key":
+                data = Data("""
+                <script>var injectJson = {"config":[{"pConfig":{"publicKey":"public-test","privateKey":["private-test"]}}]};</script>
+                """.utf8)
+            case "/v3/video/detail":
+                data = Data(#"{"ret":200,"data":{"code":0,"info":[{"cid":"0,1,4,152","isSerial":true}]}}"#.utf8)
+            case "/v3/video/languagesplaylist":
+                data = Data(#"{"ret":200,"data":{"code":0,"info":[{"playList":[{"key":"episode-3","name":"3"},{"key":"episode-2","name":"2"},{"key":"episode-1","name":"1"}]}]}}"#.utf8)
+            default:
+                XCTFail("Unexpected resolver request path: \(url.path)")
+                data = Data()
+            }
+            return (HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!, data)
+        }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ResolverURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let item = AiyifanItem(
+            listPath: "series-key",
+            title: "Series",
+            url: "https://m.yfsp.tv/play/series-key",
+            isSerial: true
+        )
+
+        let episodes = try await NativePlaybackResolver(
+            session: session,
+            playlistRetryDelays: []
+        ).episodesForSavedUpdate(for: item, expectedEpisodeKey: nil)
+
+        XCTAssertEqual(episodes?.map(\.mediaKey), ["episode-3", "episode-2", "episode-1"])
+        XCTAssertEqual(
+            requests.values.filter { $0.url?.path == "/v3/video/languagesplaylist" }.count,
+            1
+        )
     }
 
     func testResolverDoesNotRetryTerminalPlaybackError() async throws {

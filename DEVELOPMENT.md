@@ -70,6 +70,41 @@ These are product invariants, not incidental implementation details.
 - Incomplete records resume from their saved media time. Completed records start
   from the beginning. The Played label is fixed media time, not elapsed wall time.
 
+### Ready To Watch
+
+- Ready to Watch exists only on Saved, above the unchanged All Saved grid. Do not
+  add it to Home or turn it into a calendar/release forecast.
+- Project the queue from Saved items, retained episode snapshots, Played records,
+  and sparse user overrides. Never persist a materialized queue snapshot.
+- Keep at most one entry per Saved title. Manual pins come first; then new exact
+  episodes; then unfinished playback. An unfinished episode wins over a new
+  episode for the same title until it is completed or dismissed.
+- Exact episode keys are mandatory for serial queue actions. Never guess episode
+  1. Movies may use a title-level entry with no episode key.
+- Persist pins, ordering, dismissals, and tombstones. Prune them when a title is
+  unsaved. Provider failures retain the last valid episode snapshot and queue.
+- Queue actions must update immediately: Play uses `selectItem(_:episodeKey:)`,
+  Mark Watched records an explicit completion override, and Not Now suppresses
+  only the matching episode so a later update can reappear.
+
+### Skip Intro And Outro
+
+- Skip is local-first, serial-only, button-only, and advisory. Never seek without
+  a user tap, and always expose a short Undo after a skip.
+- Marker precedence is user-corrected, trusted provider metadata, then learned
+  visual fingerprints. Low-confidence or duration-outlier profiles stay hidden.
+- Sample frames only from the active program `AVPlayerItem`; never create a second
+  player, fetch a second rendition, inspect signed playlists, or delay playback.
+- Use bounded visual hashes from the first eight and final six minutes. Keep at
+  most three episodes and 500 hashes per episode. Frames and hashes remain local;
+  signed URLs, cookies, provider responses, and media bytes are never persisted.
+- Detection and sampling are optional side work. Cancel stale work on episode
+  changes, casting, memory pressure, or teardown. Any failure must leave ordinary
+  playback, fullscreen, Picture in Picture, and background audio unchanged.
+- Learned markers require at least two agreeing episodes. Manual corrections are
+  the fallback and must survive relaunch. A reset tombstone must defeat an older
+  learned profile.
+
 ### Native Playback
 
 - Selecting a native card routes to `NativePlayerViewModel`. `WKWebView` is only
@@ -152,6 +187,10 @@ These are product invariants, not incidental implementation details.
 | Lock-screen metadata and controls | `Aiyifan/App/NowPlayingCoordinator.swift` |
 | Saved persistence and update baselines | `Aiyifan/App/SavedItemsStore.swift` |
 | Direct saved-title checking | `Aiyifan/App/SavedUpdateService.swift` |
+| Ready queue projection and sparse intent | `Aiyifan/App/ReadyToWatch.swift`, `Aiyifan/App/ReadyToWatchOverridesStore.swift` |
+| Ready queue presentation | `Aiyifan/App/ReadyToWatchView.swift`, `Aiyifan/App/SavedItemsView.swift` |
+| Skip models, projection, and persistence | `Aiyifan/App/SkipIntroOutroModels.swift`, `Aiyifan/App/SkipOpportunityProjector.swift`, `Aiyifan/App/SkipMarkerStore.swift` |
+| Visual skip hashing, detection, and sampling | `Aiyifan/App/PerceptualFrameHasher.swift`, `Aiyifan/App/SkipMarkerDetector.swift`, `Aiyifan/App/SkipFingerprintSampler.swift` |
 | Background refresh scheduling | `Aiyifan/App/BackgroundRefresh.swift` |
 | Notifications, deep links, optional iCloud | `Aiyifan/App/LibraryServices.swift` |
 | Played persistence and completion semantics | `Aiyifan/App/PlayedItemsStore.swift` |
@@ -182,6 +221,27 @@ These are product invariants, not incidental implementation details.
 5. `NotificationBatch` includes an app deep link to the exact episode.
 6. Partial batches keep successful baselines but do not advance the global
    completed-check time, allowing foreground catch-up.
+
+### Saved Title To Ready Playback
+
+1. The daily checker retains a bounded, newest-first episode snapshot from its
+   existing provider request; it does not make a second queue-specific request.
+2. `SavedItemsStore` exposes unseen exact episodes with their detection dates.
+3. `ReadyToWatchProjector` combines those updates with incomplete Played records
+   and `ReadyToWatchOverridesStore` intent.
+4. SwiftUI renders the pure result and sends exact commands back to the stores.
+5. Playback selection writes the episode key before publishing the item.
+
+### Episode To Learned Skip Marker
+
+1. The current program item supplies throttled video frames during bounded
+   sampling windows; ads and remote playback are excluded.
+2. `PerceptualFrameHasher` converts frames to compact visual hashes.
+3. `SkipMarkerStore` atomically retains bounded per-episode fingerprints.
+4. `SkipMarkerDetector` compares at least two episodes and emits a profile only
+   when agreement, duration, and confidence thresholds pass.
+5. `SkipOpportunityProjector` decides whether a Skip button is currently valid.
+   The player seeks only after the user taps it and offers Undo.
 
 ## Provider And Security Boundaries
 
@@ -226,6 +286,11 @@ Treat every provider value and URL as untrusted input.
 | Catalog says 4K but player cannot select it | Metadata treated as a rendition | Report only measured AVFoundation tiers |
 | Current title returns an invalid response | Stale certificate or provider request context | Use validated region/language and one fresh-certificate retry |
 | Daily notification claimed at an exact hour | `earliestBeginDate` treated as a timer | Describe background refresh as best effort; catch up on launch |
+| Ready queue starts the wrong episode | Queue stores only a title or guesses episode 1 | Retain exact episode keys and publish them before the selected item |
+| Ready entries disappear after one failed check | Latest provider attempt replaces valid state | Retain the last valid bounded snapshot on partial failure |
+| Ready queue actions persist but rows stay visible | Destination captured a static entry snapshot | Observe Saved, Played, and override stores in the destination and project entries live |
+| Skip timing breaks playback | Detection owns or blocks the player | Observe the active item as cancelable side work; playback remains authoritative |
+| Skip learns from ads or leaks stream data | Unbounded samples or provider payloads persisted | Hash bounded program frames locally and persist no URLs/media/provider bodies |
 | All filters unexpectedly reset | One shared or transient query | Persist only successful queries per stable category ID |
 | CocoaPods symbols are missing | `.xcodeproj` opened directly | Build and test `Aiyifan.xcworkspace` |
 | Huge unrelated project-file diff | Generator run for an ordinary source edit | Regenerate only for source membership, targets, or build settings |

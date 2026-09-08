@@ -474,6 +474,21 @@ final class NativePlayerViewModelTests: XCTestCase {
         viewModel.stop()
     }
 
+    func testPlaybackEntryUpdatesTimelineState() async throws {
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            resolver: StubPlaybackResolver(playback: playbackWithAdvertisement())
+        )
+
+        viewModel.start()
+        try await waitUntil { viewModel.preparedEntryCount == 1 }
+        viewModel.handlePlaybackEntry(index: 0, position: 32, duration: 100, isPlaying: true)
+
+        XCTAssertEqual(viewModel.playbackPosition, 32)
+        XCTAssertEqual(viewModel.playbackDuration, 100)
+        viewModel.stop()
+    }
+
     func testLocalTransportSkipButtonsMoveProgramPositionByTenSeconds() async throws {
         let castManager = MockCastPlaybackManager()
         let viewModel = NativePlayerViewModel(
@@ -491,7 +506,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         viewModel.stop()
     }
 
-    func testLocalTransportSkipButtonsAreIgnoredWhileCasting() async throws {
+    func testLocalTransportSkipButtonsAreIgnoredWhileCasting() {
         let castManager = MockCastPlaybackManager()
         castManager.isCasting = true
         let viewModel = NativePlayerViewModel(
@@ -522,6 +537,99 @@ final class NativePlayerViewModelTests: XCTestCase {
         viewModel.skipBackward10Seconds()
 
         XCTAssertNil(viewModel.autoplayCountdown)
+        viewModel.stop()
+    }
+
+    func testSkipIntroOpportunityPerformsAbsoluteSeekAndOffersUndo() async throws {
+        let skipStore = makeSkipStore()
+        XCTAssertTrue(skipStore.save(profile: try SeriesSkipProfile(
+            validatingSeriesID: "series",
+            intro: SkipIntroMarker(start: nil, end: 60),
+            outroStartSecondsRemaining: nil,
+            confidence: 1,
+            agreeingEpisodeCount: 1,
+            source: .userCorrected,
+            referenceDuration: 100,
+            updatedAt: Date(timeIntervalSince1970: 1),
+            disabled: false
+        )))
+        let castManager = MockCastPlaybackManager()
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "series", title: "Series", isSerial: true),
+            resolver: StubPlaybackResolver(playback: playbackWithAdvertisement()),
+            castManager: castManager,
+            skipMarkerStore: skipStore
+        )
+        viewModel.start()
+        try await waitUntil { viewModel.preparedEntryCount == 1 }
+        attachSeekableItem(to: viewModel)
+        viewModel.handlePlaybackEntry(index: 0, position: 10, duration: 100, isPlaying: true)
+
+        XCTAssertEqual(viewModel.skipOpportunity, SkipOpportunity(kind: .intro, target: 60))
+        viewModel.performSkip()
+        XCTAssertTrue(viewModel.canUndoSkip)
+        XCTAssertEqual(castManager.updatedPositions.last, 60)
+
+        viewModel.undoSkip()
+        XCTAssertFalse(viewModel.canUndoSkip)
+        XCTAssertEqual(castManager.updatedPositions.last, 10)
+        viewModel.stop()
+    }
+
+    func testManualSkipCorrectionsPersistAndMoviesNeverOfferSkip() async throws {
+        let skipStore = makeSkipStore()
+        let series = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "series", title: "Series", isSerial: true),
+            resolver: StubPlaybackResolver(playback: playbackWithAdvertisement()),
+            skipMarkerStore: skipStore
+        )
+        series.start()
+        try await waitUntil { series.preparedEntryCount == 1 }
+        attachSeekableItem(to: series)
+        series.handlePlaybackEntry(index: 0, position: 42, duration: 100, isPlaying: true)
+        series.setIntroEndHere()
+        XCTAssertEqual(skipStore.profile(for: "series")?.intro?.end, 42)
+        series.handlePlaybackEntry(index: 0, position: 80, duration: 100, isPlaying: true)
+        series.setOutroStartHere()
+        XCTAssertEqual(skipStore.profile(for: "series")?.outroStartSecondsRemaining, 20)
+
+        let movie = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "movie", title: "Movie", isSerial: false),
+            resolver: StubPlaybackResolver(playback: NativePlayback(entries: [
+                NativePlaybackEntry(
+                    url: URL(string: "https://media.example.com/movie.m3u8")!,
+                    isAdvertisement: false
+                )
+            ])),
+            skipMarkerStore: skipStore
+        )
+        movie.start()
+        try await waitUntil { movie.preparedEntryCount == 1 }
+        attachSeekableItem(to: movie)
+        movie.handlePlaybackEntry(index: 0, position: 10, duration: 100, isPlaying: true)
+        XCTAssertNil(movie.skipOpportunity)
+        series.stop()
+        movie.stop()
+    }
+
+    func testPreferredEpisodeInfersSerialSkipSupportWithoutProviderFlag() async throws {
+        let skipStore = makeSkipStore()
+        let item = AiyifanItem(listPath: "inferred-series", title: "Inferred Series", isSerial: false)
+        let viewModel = NativePlayerViewModel(
+            item: item,
+            initialEpisodeKey: "episode-4",
+            resolver: StubPlaybackResolver(playback: playbackWithAdvertisement()),
+            skipMarkerStore: skipStore
+        )
+
+        viewModel.start()
+        try await waitUntil { viewModel.preparedEntryCount == 1 }
+        attachSeekableItem(to: viewModel)
+        viewModel.handlePlaybackEntry(index: 0, position: 36, duration: 100, isPlaying: true)
+        viewModel.setIntroEndHere()
+
+        XCTAssertTrue(viewModel.supportsSkip)
+        XCTAssertEqual(skipStore.profile(for: item.id)?.intro?.end, 36)
         viewModel.stop()
     }
 
@@ -606,6 +714,21 @@ final class NativePlayerViewModelTests: XCTestCase {
         let suiteName = "NativePlayerViewModelTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         return (PlayedItemsStore(defaults: defaults), defaults, suiteName)
+    }
+
+    private func makeSkipStore() -> SkipMarkerStore {
+        var profileData: Data?
+        var fingerprintData: Data?
+        return SkipMarkerStore(
+            profilePersistence: SkipDataPersistence(
+                load: { profileData },
+                save: { profileData = $0 }
+            ),
+            fingerprintPersistence: SkipDataPersistence(
+                load: { fingerprintData },
+                save: { fingerprintData = $0 }
+            )
+        )
     }
 }
 

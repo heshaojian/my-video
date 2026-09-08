@@ -65,7 +65,7 @@ enum SerialPlaybackIntent {
     }
 }
 
-struct EpisodeSelection: Equatable, Sendable {
+struct EpisodeSelection: Codable, Equatable, Sendable {
     let mediaKey: String
     let title: String
 }
@@ -823,10 +823,13 @@ struct NativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving
 }
 
 extension NativePlaybackResolver: SavedEpisodeResolving {
-    func latestEpisode(for item: AiyifanItem, expectedEpisodeKey: String?) async throws -> EpisodeSelection? {
+    func episodesForSavedUpdate(
+        for item: AiyifanItem,
+        expectedEpisodeKey: String?
+    ) async throws -> [EpisodeSelection]? {
         let pageHost = try Self.validatePage(item)
         return try await withFreshCertificateRetry(pageHost: pageHost) {
-            try await latestEpisodeOnce(
+            try await episodesForSavedUpdateOnce(
                 for: item,
                 expectedEpisodeKey: expectedEpisodeKey,
                 pageHost: pageHost
@@ -834,11 +837,11 @@ extension NativePlaybackResolver: SavedEpisodeResolving {
         }
     }
 
-    private func latestEpisodeOnce(
+    private func episodesForSavedUpdateOnce(
         for item: AiyifanItem,
         expectedEpisodeKey: String?,
         pageHost: String
-    ) async throws -> EpisodeSelection? {
+    ) async throws -> [EpisodeSelection]? {
         let certificate = try await certificate(for: item, pageHost: pageHost)
         let detailURL = try NativePlaybackRequestBuilder.makeDetailURL(
             mediaKey: item.listPath,
@@ -862,10 +865,10 @@ extension NativePlaybackResolver: SavedEpisodeResolving {
             referer: item.playURL,
             expectedEpisodeKey: expectedEpisodeKey
         )
-        guard let latest = episodes.first else {
+        guard !episodes.isEmpty else {
             throw NativePlaybackError.unsupportedMedia
         }
-        return EpisodeSelection(mediaKey: latest.mediaKey, title: latest.title)
+        return episodes.map { EpisodeSelection(mediaKey: $0.mediaKey, title: $0.title) }
     }
 }
 
@@ -899,9 +902,13 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistRe
         )
     }
 
-    func latestEpisode(for item: AiyifanItem, expectedEpisodeKey: String?) async throws -> EpisodeSelection? {
+    func episodesForSavedUpdate(
+        for item: AiyifanItem,
+        expectedEpisodeKey: String?
+    ) async throws -> [EpisodeSelection]? {
         guard item.isSerial == true || item.latestEpisodeKey != nil else { return nil }
-        return EpisodeSelection(mediaKey: "episode-10", title: "10")
+        return try await loadEpisodes(for: item, expectedEpisodeKey: expectedEpisodeKey)
+            .map { EpisodeSelection(mediaKey: $0.mediaKey, title: $0.title) }
     }
 
     func loadEpisodes(for item: AiyifanItem, expectedEpisodeKey: String?) async throws -> [Episode] {

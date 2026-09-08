@@ -1,6 +1,8 @@
+import Combine
 import XCTest
 @testable import Aiyifan
 
+@MainActor
 final class LibraryFeaturesTests: XCTestCase {
     func testContinueWatchingKeepsLatestIncompleteEpisodePerTitle() {
         let show = AiyifanItem(listPath: "show", title: "Show")
@@ -45,6 +47,21 @@ final class LibraryFeaturesTests: XCTestCase {
         XCTAssertEqual(EpisodeNavigator.previous(in: episodes, current: episodes[1])?.mediaKey, "2")
         XCTAssertNil(EpisodeNavigator.next(in: episodes, current: episodes[0]))
         XCTAssertNil(EpisodeNavigator.previous(in: episodes, current: episodes[2]))
+    }
+
+    func testExactEpisodeSelectionPublishesEpisodeKeyBeforeItem() {
+        let viewModel = BrowserViewModel()
+        let item = AiyifanItem(listPath: "series", title: "Series", isSerial: true)
+        var observedEpisodeKey: String?
+        let observation = viewModel.$selectedItem
+            .dropFirst()
+            .sink { _ in observedEpisodeKey = viewModel.selectedEpisodeKey }
+
+        viewModel.selectItem(item, episodeKey: "episode-8")
+
+        XCTAssertEqual(observedEpisodeKey, "episode-8")
+        XCTAssertEqual(viewModel.selectedItem, item)
+        withExtendedLifetime(observation) {}
     }
 
     private func record(
