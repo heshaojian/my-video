@@ -73,11 +73,16 @@ struct BrowserView: View {
         .onChange(of: scenePhase) { _, phase in
             guard phase == .active else { return }
             Task {
+                await refreshHome(force: false)
                 await savedUpdateMonitor.check(
                     savedItemsStore: savedItemsStore,
                     settings: appSettings
                 )
             }
+        }
+        .onChange(of: selectedLibraryTab) { _, tab in
+            guard tab == .home else { return }
+            Task { await refreshHome(force: false) }
         }
     }
 
@@ -98,7 +103,8 @@ struct BrowserView: View {
                     playedItemsStore: playedItemsStore,
                     appSettings: appSettings,
                     savedUpdateMonitor: savedUpdateMonitor,
-                    selectedTab: $selectedLibraryTab
+                    selectedTab: $selectedLibraryTab,
+                    onRefreshHome: refreshHome
                 )
             } else {
                 VStack(spacing: 0) {
@@ -141,6 +147,20 @@ struct BrowserView: View {
     private var showsLibrary: Bool {
         viewModel.selectedCategory == nil && !viewModel.isBrowsing
     }
+
+    private func refreshHome(force: Bool) async {
+        let didRefresh = await viewModel.loadLatestIfNeeded(force: force)
+        guard didRefresh else { return }
+
+        let changedItems = savedItemsStore.refreshUpdateMarkers(with: viewModel.latestItems)
+        if appSettings.updateAlertsEnabled,
+           let batch = NotificationBatch.make(
+               items: changedItems,
+               notificationsEnabled: { savedItemsStore.notificationsEnabled(for: $0) }
+           ) {
+            await NotificationCoordinator.shared.schedule(batch)
+        }
+    }
 }
 
 private struct LibraryView: View {
@@ -150,6 +170,7 @@ private struct LibraryView: View {
     @ObservedObject var appSettings: AppSettingsStore
     @ObservedObject var savedUpdateMonitor: SavedUpdateMonitor
     @Binding var selectedTab: LibraryTab
+    let onRefreshHome: (Bool) async -> Void
     @StateObject private var castManager = GoogleCastManager.shared
     @State private var isShowingCastControls = false
 
@@ -161,7 +182,8 @@ private struct LibraryView: View {
                     savedItemsStore: savedItemsStore,
                     playedItemsStore: playedItemsStore,
                     appSettings: appSettings,
-                    savedUpdateMonitor: savedUpdateMonitor
+                    savedUpdateMonitor: savedUpdateMonitor,
+                    onRefreshHome: onRefreshHome
                 )
                     .tabItem {
                         Label("Home", systemImage: "house.fill")
@@ -227,6 +249,7 @@ private struct HomeView: View {
     @ObservedObject var playedItemsStore: PlayedItemsStore
     @ObservedObject var appSettings: AppSettingsStore
     @ObservedObject var savedUpdateMonitor: SavedUpdateMonitor
+    let onRefreshHome: (Bool) async -> Void
     @StateObject private var searchViewModel = ProviderSearchViewModel()
     @State private var isShowingSettings = false
     @FocusState private var isSearchFocused: Bool
@@ -322,7 +345,26 @@ private struct HomeView: View {
                                 )
                             }
 
-                            if viewModel.isLoadingLatest {
+                            if let status = viewModel.latestStatusMessage {
+                                Label(status, systemImage: "clock.arrow.circlepath")
+                                    .font(.caption)
+                                    .foregroundStyle(.white.opacity(0.65))
+                                    .padding(.horizontal, 18)
+                            }
+
+                            if viewModel.isLoadingLatest && !viewModel.latestItems.isEmpty {
+                                HStack(spacing: 8) {
+                                    ProgressView()
+                                        .tint(.cyan)
+                                    Text("Updating Home")
+                                        .font(.caption.weight(.semibold))
+                                        .foregroundStyle(.white.opacity(0.65))
+                                }
+                                .padding(.horizontal, 18)
+                                .accessibilityIdentifier("homeRefreshProgress")
+                            }
+
+                            if viewModel.isLoadingLatest && viewModel.latestItems.isEmpty {
                                 ProgressView()
                                     .tint(.white)
                                     .frame(maxWidth: .infinity)
@@ -343,16 +385,13 @@ private struct HomeView: View {
                                     )
                                 }
                             }
-
-                            if let status = viewModel.latestStatusMessage {
-                                Label(status, systemImage: "clock.arrow.circlepath")
-                                    .font(.caption)
-                                    .foregroundStyle(.white.opacity(0.6))
-                                    .padding(.horizontal, 18)
-                            }
                         }
                     }
                     .padding(.bottom, 24)
+                }
+                .refreshable {
+                    guard searchViewModel.submittedQuery == nil else { return }
+                    await onRefreshHome(true)
                 }
             }
         }
@@ -367,15 +406,7 @@ private struct HomeView: View {
             )
         }
         .task {
-            await viewModel.loadLatestIfNeeded()
-            let changedItems = savedItemsStore.refreshUpdateMarkers(with: viewModel.latestItems)
-            if appSettings.updateAlertsEnabled,
-               let batch = NotificationBatch.make(
-                items: changedItems,
-                notificationsEnabled: { item in savedItemsStore.notificationsEnabled(for: item) }
-               ) {
-                await NotificationCoordinator.shared.schedule(batch)
-            }
+            await onRefreshHome(false)
             BackgroundRefreshScheduler.schedule()
         }
         .task {
@@ -421,24 +452,31 @@ private struct HomeView: View {
                         }
                         .accessibilityLabel("Clear Search Text")
                     }
+
+                    Button(action: submitSearch) {
+                        Image(systemName: "arrow.right")
+                            .frame(width: 44, height: 44)
+                    }
+                    .foregroundStyle(.cyan)
+                    .accessibilityLabel("Submit Search")
+                    .accessibilityIdentifier("submitSearch")
                 }
                 .padding(.leading, 12)
+                .frame(maxWidth: .infinity, minHeight: 50)
                 .background(Color.white.opacity(0.09))
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier("expandedSearchFieldContainer")
 
-                Button(action: submitSearch) {
-                    Image(systemName: "arrow.right")
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.borderedProminent)
-                .accessibilityLabel("Submit Search")
-                .accessibilityIdentifier("submitSearch")
-
-                Button("Cancel") {
+                Button {
                     isSearchFocused = false
                     searchViewModel.cancel()
+                } label: {
+                    Image(systemName: "xmark")
+                        .frame(width: 44, height: 44)
                 }
-                .frame(minHeight: 44)
+                .foregroundStyle(.white.opacity(0.8))
+                .accessibilityLabel("Close Search")
                 .accessibilityIdentifier("cancelSearch")
             }
 

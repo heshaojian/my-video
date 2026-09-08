@@ -136,6 +136,65 @@ final class FeedRepositoryTests: XCTestCase {
     }
 }
 
+@MainActor
+final class HomeFeedFreshnessTests: XCTestCase {
+    func testRefreshPolicyTreatsMissingAndExpiredFeedsAsStale() {
+        let now = Date(timeIntervalSince1970: 10_000)
+
+        XCTAssertTrue(HomeFeedRefreshPolicy.shouldRefresh(
+            hasContent: false,
+            lastRefreshedAt: now,
+            now: now
+        ))
+        XCTAssertTrue(HomeFeedRefreshPolicy.shouldRefresh(
+            hasContent: true,
+            lastRefreshedAt: nil,
+            now: now
+        ))
+        XCTAssertFalse(HomeFeedRefreshPolicy.shouldRefresh(
+            hasContent: true,
+            lastRefreshedAt: now.addingTimeInterval(-899),
+            now: now
+        ))
+        XCTAssertTrue(HomeFeedRefreshPolicy.shouldRefresh(
+            hasContent: true,
+            lastRefreshedAt: now.addingTimeInterval(-900),
+            now: now
+        ))
+    }
+
+    func testViewModelSkipsFreshFeedAndRefreshesStaleOrForcedFeed() async {
+        let suite = "HomeFeedFreshnessTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let service = CountingFeedService()
+        let repository = FeedRepository(
+            service: service,
+            cache: FeedCacheStore(defaults: defaults)
+        )
+        let viewModel = BrowserViewModel(feedRepository: repository)
+        let now = Date(timeIntervalSince1970: 10_000)
+        viewModel.latestItems = [.movie: [AiyifanItem(listPath: "existing", title: "Existing")]]
+        viewModel.lastFeedRefresh = now.addingTimeInterval(-899)
+
+        let refreshedFreshFeed = await viewModel.loadLatestIfNeeded(now: now)
+        let freshRequestCount = await service.requestCount()
+        XCTAssertFalse(refreshedFreshFeed)
+        XCTAssertEqual(freshRequestCount, 0)
+
+        viewModel.lastFeedRefresh = now.addingTimeInterval(-900)
+        let refreshedStaleFeed = await viewModel.loadLatestIfNeeded(now: now)
+        let staleRequestCount = await service.requestCount()
+        XCTAssertTrue(refreshedStaleFeed)
+        XCTAssertEqual(staleRequestCount, AiyifanCategory.allCases.count)
+
+        let forcedRefresh = await viewModel.loadLatestIfNeeded(force: true, now: now)
+        let forcedRequestCount = await service.requestCount()
+        XCTAssertTrue(forcedRefresh)
+        XCTAssertEqual(forcedRequestCount, AiyifanCategory.allCases.count * 2)
+    }
+}
+
 final class AiyifanFeedServiceTests: XCTestCase {
     func testLatestUsesEightItemUpdatedDescendingCatalogQuery() async throws {
         let catalog = LatestCatalogRecordingService()
@@ -186,5 +245,18 @@ private struct StubFeedService: AiyifanFeedServing {
             throw URLError(.notConnectedToInternet)
         }
         return [AiyifanItem(listPath: "live-\(category.id)", title: category.title)]
+    }
+}
+
+private actor CountingFeedService: AiyifanFeedServing {
+    private var count = 0
+
+    func fetchLatest(category: AiyifanCategory) async throws -> [AiyifanItem] {
+        count += 1
+        return [AiyifanItem(listPath: "fresh-\(category.id)", title: "Fresh \(category.title)")]
+    }
+
+    func requestCount() -> Int {
+        count
     }
 }

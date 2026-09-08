@@ -2,6 +2,21 @@ import Foundation
 import SwiftUI
 import WebKit
 
+enum HomeFeedRefreshPolicy {
+    static let freshnessInterval: TimeInterval = 15 * 60
+
+    static func shouldRefresh(
+        hasContent: Bool,
+        lastRefreshedAt: Date?,
+        now: Date = Date()
+    ) -> Bool {
+        guard hasContent, let lastRefreshedAt else {
+            return true
+        }
+        return now.timeIntervalSince(lastRefreshedAt) >= freshnessInterval
+    }
+}
+
 @MainActor
 final class BrowserViewModel: ObservableObject {
     @Published var selectedTitle: String?
@@ -152,9 +167,17 @@ final class BrowserViewModel: ObservableObject {
         UIApplication.shared.open(url)
     }
 
-    func loadLatestIfNeeded(force: Bool = false) async {
-        guard (force || latestItems.isEmpty), !isLoadingLatest else {
-            return
+    @discardableResult
+    func loadLatestIfNeeded(force: Bool = false, now: Date = Date()) async -> Bool {
+        guard !isLoadingLatest else {
+            return false
+        }
+        guard force || HomeFeedRefreshPolicy.shouldRefresh(
+            hasContent: !latestItems.isEmpty,
+            lastRefreshedAt: lastFeedRefresh,
+            now: now
+        ) else {
+            return false
         }
 
         isLoadingLatest = true
@@ -162,12 +185,20 @@ final class BrowserViewModel: ObservableObject {
         latestStatusMessage = nil
 
         let result = await feedRepository.refresh()
-        latestItems = result.items
-        latestErrorMessage = result.totalFailureMessage
+        if !result.items.isEmpty {
+            latestItems = result.items
+        }
+        latestErrorMessage = latestItems.isEmpty ? result.totalFailureMessage : nil
         latestStatusMessage = result.statusMessage
-        lastFeedRefresh = result.refreshedAt
+            ?? (result.totalFailureMessage == nil || latestItems.isEmpty
+                ? nil
+                : "Unable to refresh. Showing saved results.")
+        if let refreshedAt = result.refreshedAt {
+            lastFeedRefresh = refreshedAt
+        }
 
         isLoadingLatest = false
+        return true
     }
 
     func clearFeedCache() async {

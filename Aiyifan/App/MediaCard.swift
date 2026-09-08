@@ -137,7 +137,7 @@ struct PosterMediaCard: View {
             .allowsHitTesting(false)
         }
         .frame(width: layout == .compact ? 132 : nil, alignment: .leading)
-        .frame(maxWidth: layout == .grid ? 180 : nil, alignment: .leading)
+        .frame(maxWidth: layout == .grid ? .infinity : nil, alignment: .leading)
     }
 
     @ViewBuilder
@@ -145,6 +145,7 @@ struct PosterMediaCard: View {
         PosterImage(item: item)
             .aspectRatio(0.72, contentMode: .fit)
             .frame(width: layout == .compact ? 132 : nil)
+            .frame(maxWidth: layout == .grid ? .infinity : nil)
     }
 
     private var metadata: String {

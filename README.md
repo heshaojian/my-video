@@ -9,7 +9,8 @@ changing navigation, playback, provider requests, persistence, or casting.
 
 - Starts on an English native Home page for Movies, Series, Variety, and Anime while preserving provider titles and metadata in their original language.
 - Uses the established Aiyifan folded-mark identity for the app icon, launch screen, in-app header, and Now Playing artwork.
-- Fetches the latest signed Aiyifan category results and shows provider scores on poster rows.
+- Fetches the latest signed Aiyifan category results, refreshes stale Home data
+  after 15 minutes or on demand, and shows provider scores on poster rows.
 - Opens All as a native, pull-to-refresh catalog with 24-item pagination, score badges, Save/Favorite controls, and direct native playback.
 - Keeps Home focused on discovery, with Continue Watching and New for You sections; filtering and sorting live in each native All catalog.
 - Provides a collapsed global search that queries Aiyifan's signed catalog API and returns native, playable, saveable cards rather than filtering the small Home sample.

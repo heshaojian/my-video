@@ -4,6 +4,17 @@ Date: 2026-09-07
 
 ## Automated Regression
 
+- Card-action/Home-freshness/Search-layout pass: 174/174 unit and integration
+  tests and 32/32 serial UI scenarios passed. The right-column Save and expanded
+  Search geometry checks also passed on exact iPhone 14 Pro Max and iPhone 17
+  Pro Max simulator profiles. Static analysis and the Release simulator build
+  passed after the final review adjustment.
+- Home now refreshes provider results after 15 minutes on Home return or app
+  activation, supports forced pull-to-refresh without blanking existing cards,
+  and retains clearly identified cached content on provider failure.
+- All poster-grid cards fill their assigned cells, keeping the 44-point Save or
+  Remove action onscreen regardless of title length, score presence, or artwork
+  dimensions.
 - Final Home/Search/card/quality pass: 170/170 unit and integration tests passed, followed by 9/9 serial release-critical UI scenarios. Reviewer hardening then passed all 58 affected tests, including the new in-flight invalidation and bounded filtered-page cases; the Search UI scenario also passed again.
 - The complete 31-scenario UI feature matrix passed across the major-refactor run and an isolated rerun. One aggregate run initially missed a Played-tab tap at the simulator automation layer; the same scenario passed both in isolation and in the final serial release-critical run.
 - Provider Search is collapsed by default, submits to the signed provider API, skips filtered-empty pages, survives rapid replacement queries, retries once with a fresh certificate, and renders the same adaptive card used by All.
@@ -28,6 +39,9 @@ The long-session scenario repeatedly opens and closes native playback from Home,
 
 | Feature or failure path | Automated evidence | Result | Hardware check |
 | --- | --- | --- | --- |
+| Every catalog card exposes an onscreen Save action across Max-width devices | Right-column geometry UI scenario on iPhone 14 Pro Max and iPhone 17 Pro Max simulators | Passed | No |
+| Home uses provider update ordering and refreshes stale results after 15 minutes, foreground activation, Home return, or forced pull-to-refresh | Home freshness policy and view-model tests plus live four-feed smoke check | Passed | No |
+| Expanded Search is at least 50 points high, uses available width, and keeps submit/close controls hittable | Search geometry and provider-result UI scenario on both Max profiles | Passed | No |
 | Home contains only Movies, Series, Variety, and Anime; provider Search is collapsed until requested while All retains provider filters and sorting | `AiyifanLatestTapTests` Home, Search, and catalog scenarios | Passed | No |
 | App-owned interface is English while provider titles, episode names, descriptions, and filter values remain original | Static string scan plus Home/catalog/player UI scenarios | Passed | No |
 | Native All catalog for all four categories | Matching catalog navigation UI scenario | Passed | No |
@@ -52,6 +66,9 @@ The long-session scenario repeatedly opens and closes native playback from Home,
 ## Live Provider Checks
 
 - `电影`, `电视剧`, `综艺`, and `动漫` feeds each returned HTTP 200 and eight current items.
+- The final Home request used page one, size eight, last-updated descending. At
+  verification time the first Variety result was `开讲啦`, update `20260907`;
+  only sanitized result metadata was printed.
 - The signed latest-results response exposed provider score data without per-card detail requests.
 - The current detail response exposed `good`, `favoriteCount`, `score`, and `view`; malformed individual values are omitted without blocking playback.
 - Native catalog pages one and two returned 24 valid items per page for all four categories using the current signed `/api/list/Search` contract.

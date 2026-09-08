@@ -207,6 +207,23 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(app.buttons["savedItem-fixture-catalog-movie-1"].waitForExistence(timeout: 5))
     }
 
+    func testCatalogGridKeepsRightColumnSaveActionInsideItsCard() {
+        let app = launchFixtureApp()
+        app.buttons["browseCategory-variety"].tap()
+
+        for index in 1...2 {
+            let item = app.buttons["catalogItem-fixture-catalog-variety-\(index)"]
+            let save = app.buttons["saveCatalogItem-fixture-catalog-variety-\(index)"]
+            XCTAssertTrue(item.waitForExistence(timeout: 5))
+            XCTAssertTrue(save.waitForExistence(timeout: 5))
+            XCTAssertTrue(save.isHittable)
+            XCTAssertGreaterThanOrEqual(save.frame.minX, item.frame.minX - 1)
+            XCTAssertLessThanOrEqual(save.frame.maxX, item.frame.maxX + 1)
+            XCTAssertGreaterThanOrEqual(save.frame.minY, item.frame.minY - 1)
+            XCTAssertLessThanOrEqual(save.frame.maxY, item.frame.maxY + 1)
+        }
+    }
+
     func testCatalogSavedItemSurvivesRelaunch() {
         var app = launchFixtureApp(resetSavedItems: true)
         app.buttons["browseCategory-movie"].tap()
@@ -557,6 +574,12 @@ final class AiyifanLatestTapTests: XCTestCase {
 
         let searchField = app.textFields["providerSearchField"]
         XCTAssertTrue(searchField.waitForExistence(timeout: 2))
+        let searchContainer = app.otherElements["expandedSearchFieldContainer"]
+        XCTAssertTrue(searchContainer.waitForExistence(timeout: 2))
+        XCTAssertGreaterThanOrEqual(searchContainer.frame.height, 50)
+        XCTAssertGreaterThan(searchContainer.frame.width, app.frame.width * 0.65)
+        XCTAssertTrue(app.buttons["submitSearch"].isHittable)
+        XCTAssertTrue(app.buttons["cancelSearch"].isHittable)
         searchField.tap()
         searchField.typeText("Fixture Search")
         app.buttons["submitSearch"].tap()

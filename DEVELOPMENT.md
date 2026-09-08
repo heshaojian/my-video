@@ -31,6 +31,10 @@ These are product invariants, not incidental implementation details.
 - Home contains exactly Movies, Series, Variety, and Anime.
 - Home is a fast, unfiltered discovery surface. Filtering and sorting do not
   belong on the small recent sample.
+- Home trusts the provider's last-updated descending order and refreshes when
+  its last successful result is at least 15 minutes old. Re-entering Home and
+  foreground activation use this stale-data rule; pull-to-refresh always forces
+  a request while keeping existing cards visible.
 - Global search is collapsed by default and runs only after explicit submit.
   It queries the signed provider API; it never filters the loaded Home sample.
 - Search results reuse the exact All poster-grid card component and remain
@@ -46,6 +50,9 @@ These are product invariants, not incidental implementation details.
 - Home, Search, Saved, and All share the poster-card component family. Played
   and Continue Watching use its progress-row variant so workflow-specific
   information remains visible without visual drift.
+- Poster score/status and contextual actions are anchored to a deterministic
+  poster surface. Card text and provider artwork dimensions must never move a
+  Save or Remove control outside its grid cell.
 
 ### Saved And Played
 
@@ -203,6 +210,8 @@ Treat every provider value and URL as untrusted input.
 | Symptom | Root cause | Correct pattern |
 | --- | --- | --- |
 | Card opens an HTML page and loses Save/Episodes | Web view used as primary routing | Route cards to native catalog/player; keep web explicit |
+| Some right-column cards lose Save | Overlay anchored to variable intrinsic card width | Fill the assigned grid cell and bind overlays to the poster surface |
+| Home keeps yesterday's updates | Nonempty in-memory feed treated as permanently fresh | Refresh stale data on Home return/foreground and support forced pull-to-refresh |
 | Wrong episode starts from Played or notification | Item published before episode key | Assign episode key first, item second |
 | Back or fullscreen stops playback | Player owned by a transient view | Retain one session-owned view model and player |
 | Played time advances while nothing plays | Wall-clock timer treated as progress | Persist AVPlayer media time only while `.playing` |
