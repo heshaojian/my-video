@@ -14,7 +14,7 @@ This change also completes the pending provider-request compatibility correction
 - Keep Home focused on Continue Watching, saved-title updates, and the four latest categories: Movies, Series, Variety, and Anime.
 - Put a search icon in the Home header. Search is collapsed by default and expands inline when requested.
 - Search all four supported categories with a server-side provider query. Do not filter the eight Home results in memory.
-- Reuse one media-card component family across Home, Saved, Played, and All while preserving workflow-specific information and actions.
+- Reuse one media-card component family across Home, Search, Saved, Played, and All while preserving workflow-specific information and actions.
 - Treat provider catalog quality, such as `4K`, as provider metadata. Treat HLS/DASH rendition dimensions as the authoritative playback-quality source.
 - Show selectable resolutions only when the delivered stream contains multiple renditions. Show the actual single available quality when only one rendition exists.
 - Update provider request parameters to the current regional/playback contract and retry one invalid provider response with a fresh certificate.
@@ -63,10 +63,10 @@ All cards use:
 The component has three layout variants:
 
 - `compactPoster`: Home category rails and New for You, with a fixed width that does not shift while images load.
-- `posterGrid`: All and Saved, using the existing adaptive catalog width and metadata density.
+- `posterGrid`: All, Search, and Saved, using the existing adaptive catalog width and metadata density.
 - `progressRow`: Played and Continue Watching, with poster, title, episode, progress, elapsed time, and a trailing menu.
 
-Saved cards use the same poster-grid presentation as All and add saved-specific alert/update actions through a context menu. Played cards keep their progress-first horizontal form but use the same poster, typography, spacing, corner, metadata, and action conventions. Destructive actions remain in menus or explicit confirmation flows.
+Search cards use the All page's poster-grid presentation without visual exceptions. Saved cards use the same poster-grid presentation and add saved-specific alert/update actions through a context menu. Played cards keep their progress-first horizontal form but use the same poster, typography, spacing, corner, metadata, and action conventions. Destructive actions remain in menus or explicit confirmation flows.
 
 ## Provider API Search
 
@@ -167,7 +167,7 @@ Required UI flows:
 
 - Home is the first tab and contains only the intended four latest category rails plus personalized sections when applicable.
 - Search is initially collapsed, expands from the icon, submits to the stubbed API, paginates, plays and saves a result, handles empty/error states, and collapses on Cancel.
-- Home, Saved, Played, and All render the shared card language without overlapping badges or controls on iPhone 14 Pro Max and a smaller iPhone viewport.
+- Home, Search, Saved, Played, and All render the shared card language without overlapping badges or controls on iPhone 14 Pro Max and a smaller iPhone viewport.
 - Played filtering, progress, resume, restart, mark watched, removal, and clear confirmation remain functional.
 - Single-quality and multi-quality player menus report correct states.
 
@@ -176,7 +176,7 @@ The major regression includes all unit tests, all UI tests, static analysis, a R
 ## Acceptance Criteria
 
 - The first tab is named Home everywhere visible to the user.
-- Home, Saved, Played, and All share one coherent card system while preserving each workflow's necessary information and actions.
+- Home, Search, Saved, Played, and All share one coherent card system while preserving each workflow's necessary information and actions.
 - Search is collapsed by default and returns paginated, playable, saveable results from the provider API across all four supported categories.
 - Search never filters only the currently loaded Home rows.
 - Every player exposes Automatic quality status; manual choices appear only for real delivered alternatives.
