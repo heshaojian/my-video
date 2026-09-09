@@ -16,6 +16,10 @@ already found during development.
   and `docs/releases/` as dated verification evidence.
 - Preserve unrelated working-tree changes. Inspect `git status` and the relevant
   source before editing.
+- After each user ask, screenshot critique, product correction, or design
+  feedback, reflect on the taste and judgement lesson before shipping. Name what
+  should have caught the issue earlier, then preserve the durable principle in
+  this guide or the relevant dated spec when it changes future work.
 
 ```sh
 pod install
@@ -351,9 +355,12 @@ Treat every provider value and URL as untrusted input.
    run the complete regression and release gates once after the code stabilizes.
 8. Review the diff for generated churn, secrets, unsafe URL handling, stale tasks,
    and unsupported claims.
-9. Update this file when an invariant, architecture boundary, or required gate
+9. For feedback-driven changes, write the short reflection before commit: what
+   user-facing quality was missed, what similar hidden problems should be
+   searched for, and which principle now prevents repeating it.
+10. Update this file when an invariant, architecture boundary, or required gate
    changes. Put volatile test counts and live titles in a dated release record.
-10. Commit with a conventional message and push only after verification.
+11. Commit with a conventional message and push only after verification.
 
 ### Project Generation
 
