@@ -1,5 +1,28 @@
 import SwiftUI
 
+enum LibraryScreenChrome {
+    static let background = Color(red: 0.055, green: 0.052, blue: 0.073)
+    static let primaryText = Color.white
+    static let secondaryText = Color.white.opacity(0.65)
+}
+
+private struct LibraryNavigationChrome: ViewModifier {
+    func body(content: Content) -> some View {
+        content
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarBackground(LibraryScreenChrome.background, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .tint(.cyan)
+            .preferredColorScheme(.dark)
+    }
+}
+
+extension View {
+    func libraryNavigationChrome() -> some View {
+        modifier(LibraryNavigationChrome())
+    }
+}
+
 struct SavedItemsView: View {
     @ObservedObject var viewModel: BrowserViewModel
     @ObservedObject var savedItemsStore: SavedItemsStore
@@ -15,13 +38,13 @@ struct SavedItemsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(red: 0.055, green: 0.052, blue: 0.073)
+                LibraryScreenChrome.background
                     .ignoresSafeArea()
 
                 if savedItemsStore.items.isEmpty {
                     ScrollView {
                         ContentUnavailableView("Nothing saved yet", systemImage: "bookmark")
-                            .foregroundStyle(.white)
+                            .foregroundStyle(LibraryScreenChrome.primaryText)
                             .frame(maxWidth: .infinity, minHeight: 420)
                     }
                     .refreshable { await refreshSaved() }
@@ -36,7 +59,7 @@ struct SavedItemsView: View {
                             } else if let status = savedUpdateMonitor.statusMessage {
                                 Text(status)
                                     .font(.caption)
-                                    .foregroundStyle(.white.opacity(0.65))
+                                    .foregroundStyle(LibraryScreenChrome.secondaryText)
                                     .accessibilityIdentifier("savedRefreshStatus")
                             }
 
@@ -50,7 +73,7 @@ struct SavedItemsView: View {
 
                             Text("All Saved")
                                 .font(.title3.bold())
-                                .foregroundStyle(.white)
+                                .foregroundStyle(LibraryScreenChrome.primaryText)
                                 .accessibilityIdentifier("allSavedHeading")
 
                             LazyVGrid(columns: columns, alignment: .center, spacing: 20) {
@@ -75,6 +98,7 @@ struct SavedItemsView: View {
                 }
             }
             .navigationTitle("Saved")
+            .libraryNavigationChrome()
             .onChange(of: savedItemsStore.items.map(\.id)) { _, ids in
                 readyToWatchStore.prune(savedTitleIDs: Set(ids))
             }

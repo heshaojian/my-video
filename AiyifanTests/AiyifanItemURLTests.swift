@@ -5,6 +5,16 @@ import UIKit
 
 final class AiyifanItemURLTests: XCTestCase {
     @MainActor
+    func testLibraryChromeTextMeetsContrastOnDarkBackground() {
+        let background = RGBAColor(LibraryScreenChrome.background)
+        let primary = RGBAColor(LibraryScreenChrome.primaryText)
+        let secondary = RGBAColor(LibraryScreenChrome.secondaryText, compositedOver: background)
+
+        XCTAssertGreaterThanOrEqual(primary.contrastRatio(with: background), 7.0)
+        XCTAssertGreaterThanOrEqual(secondary.contrastRatio(with: background), 4.5)
+    }
+
+    @MainActor
     func testPosterArtworkContainerKeepsUniformFrameForWideAndTallArtwork() throws {
         let wideSize = try renderedPosterSize(
             content: Color.red.frame(width: 900, height: 100)
@@ -272,6 +282,53 @@ final class AiyifanItemURLTests: XCTestCase {
         )
         renderer.scale = 1
         return try XCTUnwrap(renderer.uiImage).size
+    }
+}
+
+private struct RGBAColor {
+    let red: Double
+    let green: Double
+    let blue: Double
+    let alpha: Double
+
+    @MainActor
+    init(_ color: Color) {
+        let uiColor = UIColor(color)
+        var red = CGFloat.zero
+        var green = CGFloat.zero
+        var blue = CGFloat.zero
+        var alpha = CGFloat.zero
+        uiColor.getRed(&red, green: &green, blue: &blue, alpha: &alpha)
+        self.red = Double(red)
+        self.green = Double(green)
+        self.blue = Double(blue)
+        self.alpha = Double(alpha)
+    }
+
+    @MainActor
+    init(_ color: Color, compositedOver background: RGBAColor) {
+        let foreground = RGBAColor(color)
+        red = foreground.red * foreground.alpha + background.red * (1 - foreground.alpha)
+        green = foreground.green * foreground.alpha + background.green * (1 - foreground.alpha)
+        blue = foreground.blue * foreground.alpha + background.blue * (1 - foreground.alpha)
+        alpha = 1
+    }
+
+    func contrastRatio(with other: RGBAColor) -> Double {
+        let lighter = max(relativeLuminance, other.relativeLuminance)
+        let darker = min(relativeLuminance, other.relativeLuminance)
+        return (lighter + 0.05) / (darker + 0.05)
+    }
+
+    private var relativeLuminance: Double {
+        0.2126 * linear(red) + 0.7152 * linear(green) + 0.0722 * linear(blue)
+    }
+
+    private func linear(_ value: Double) -> Double {
+        if value <= 0.03928 {
+            return value / 12.92
+        }
+        return pow((value + 0.055) / 1.055, 2.4)
     }
 }
 

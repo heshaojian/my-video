@@ -131,8 +131,9 @@ struct ReadyToWatchQueueView: View {
             }
         }
         .scrollContentBackground(.hidden)
-        .background(Color(red: 0.055, green: 0.052, blue: 0.073))
+        .background(LibraryScreenChrome.background)
         .navigationTitle("Ready to Watch")
+        .libraryNavigationChrome()
         .toolbar {
             if pinnedEntries.count > 1 {
                 EditButton()

@@ -10,7 +10,7 @@ struct PlayedItemsView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(red: 0.055, green: 0.052, blue: 0.073)
+                LibraryScreenChrome.background
                     .ignoresSafeArea()
 
                 if playedItemsStore.items.isEmpty {
@@ -19,7 +19,7 @@ struct PlayedItemsView: View {
                         systemImage: "clock.arrow.circlepath",
                         description: Text("Movies and episodes you start will appear here.")
                     )
-                    .foregroundStyle(.white)
+                    .foregroundStyle(LibraryScreenChrome.primaryText)
                 } else {
                     VStack(spacing: 0) {
                         Picker("Played Filter", selection: $filter) {
@@ -55,6 +55,7 @@ struct PlayedItemsView: View {
                 }
             }
             .navigationTitle("Played")
+            .libraryNavigationChrome()
             .toolbar {
                 if !playedItemsStore.items.isEmpty {
                     ToolbarItem(placement: .topBarTrailing) {
