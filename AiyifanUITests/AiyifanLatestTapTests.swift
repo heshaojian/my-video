@@ -112,15 +112,21 @@ final class AiyifanLatestTapTests: XCTestCase {
 
         app.tabBars.buttons["Saved"].tap()
         let savedTitle = app.staticTexts["savedScreenTitle"]
+        let savedBrandMark = app.images["savedScreenTitle-brandMark"]
         XCTAssertTrue(savedTitle.waitForExistence(timeout: 5))
+        XCTAssertTrue(savedBrandMark.exists)
         XCTAssertGreaterThan(savedTitle.frame.width, 40)
         XCTAssertGreaterThan(savedTitle.frame.height, 20)
+        XCTAssertLessThan(abs(savedTitle.frame.midY - savedBrandMark.frame.midY), 20)
 
         app.tabBars.buttons["Played"].tap()
         let playedTitle = app.staticTexts["playedScreenTitle"]
+        let playedBrandMark = app.images["playedScreenTitle-brandMark"]
         XCTAssertTrue(playedTitle.waitForExistence(timeout: 5))
+        XCTAssertTrue(playedBrandMark.exists)
         XCTAssertGreaterThan(playedTitle.frame.width, 40)
         XCTAssertGreaterThan(playedTitle.frame.height, 20)
+        XCTAssertLessThan(abs(playedTitle.frame.midY - playedBrandMark.frame.midY), 20)
     }
 
     func testSavedGridKeepsAdjacentCardsInUniformNonOverlappingColumns() {

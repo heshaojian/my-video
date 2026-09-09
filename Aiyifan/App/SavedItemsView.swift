@@ -23,16 +23,44 @@ extension View {
     }
 }
 
-struct LibraryScreenTitle: View {
+struct LibraryScreenHeader<Trailing: View>: View {
     let title: String
     let accessibilityIdentifier: String
+    @ViewBuilder var trailing: () -> Trailing
 
     var body: some View {
-        Text(title)
-            .font(.largeTitle.bold())
-            .foregroundStyle(LibraryScreenChrome.primaryText)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .accessibilityIdentifier(accessibilityIdentifier)
+        HStack(spacing: 12) {
+            Image("BrandMark")
+                .resizable()
+                .scaledToFit()
+                .frame(width: 44, height: 44)
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .accessibilityLabel("Aiyifan logo")
+                .accessibilityIdentifier("\(accessibilityIdentifier)-brandMark")
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text("Aiyifan")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.cyan)
+
+                Text(title)
+                    .font(.system(size: 30, weight: .bold))
+                    .foregroundStyle(LibraryScreenChrome.primaryText)
+                    .accessibilityIdentifier(accessibilityIdentifier)
+            }
+
+            Spacer()
+
+            trailing()
+        }
+    }
+}
+
+extension LibraryScreenHeader where Trailing == EmptyView {
+    init(title: String, accessibilityIdentifier: String) {
+        self.title = title
+        self.accessibilityIdentifier = accessibilityIdentifier
+        trailing = { EmptyView() }
     }
 }
 
@@ -56,8 +84,8 @@ struct SavedItemsView: View {
 
                 if savedItemsStore.items.isEmpty {
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 40) {
-                            LibraryScreenTitle(title: "Saved", accessibilityIdentifier: "savedScreenTitle")
+                        LazyVStack(alignment: .leading, spacing: 28) {
+                            LibraryScreenHeader(title: "Saved", accessibilityIdentifier: "savedScreenTitle")
 
                             ContentUnavailableView("Nothing saved yet", systemImage: "bookmark")
                                 .foregroundStyle(LibraryScreenChrome.primaryText)
@@ -68,8 +96,8 @@ struct SavedItemsView: View {
                     .refreshable { await refreshSaved() }
                 } else {
                     ScrollView {
-                        LazyVStack(alignment: .leading, spacing: 24) {
-                            LibraryScreenTitle(title: "Saved", accessibilityIdentifier: "savedScreenTitle")
+                        LazyVStack(alignment: .leading, spacing: 28) {
+                            LibraryScreenHeader(title: "Saved", accessibilityIdentifier: "savedScreenTitle")
 
                             if savedUpdateMonitor.isChecking {
                                 Label("Checking saved titles", systemImage: "arrow.triangle.2.circlepath")
@@ -117,7 +145,8 @@ struct SavedItemsView: View {
                     .refreshable { await refreshSaved() }
                 }
             }
-            .navigationTitle("Saved")
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .libraryNavigationChrome()
             .onChange(of: savedItemsStore.items.map(\.id)) { _, ids in
                 readyToWatchStore.prune(savedTitleIDs: Set(ids))

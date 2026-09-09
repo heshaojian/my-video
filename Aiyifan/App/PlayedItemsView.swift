@@ -15,8 +15,8 @@ struct PlayedItemsView: View {
 
                 if playedItemsStore.items.isEmpty {
                     ScrollView {
-                        VStack(alignment: .leading, spacing: 40) {
-                            LibraryScreenTitle(title: "Played", accessibilityIdentifier: "playedScreenTitle")
+                        LazyVStack(alignment: .leading, spacing: 28) {
+                            LibraryScreenHeader(title: "Played", accessibilityIdentifier: "playedScreenTitle")
 
                             ContentUnavailableView(
                                 "Nothing played yet",
@@ -30,7 +30,18 @@ struct PlayedItemsView: View {
                     }
                 } else {
                     VStack(spacing: 0) {
-                        LibraryScreenTitle(title: "Played", accessibilityIdentifier: "playedScreenTitle")
+                        LibraryScreenHeader(title: "Played", accessibilityIdentifier: "playedScreenTitle") {
+                            Button(role: .destructive) {
+                                isConfirmingClear = true
+                            } label: {
+                                Image(systemName: "trash")
+                                    .font(.title2)
+                                    .frame(width: 44, height: 44)
+                            }
+                            .foregroundStyle(.white.opacity(0.8))
+                            .accessibilityLabel("Clear Played History")
+                            .accessibilityIdentifier("clearPlayed")
+                        }
                             .padding(.horizontal, 18)
                             .padding(.top, 18)
 
@@ -66,21 +77,9 @@ struct PlayedItemsView: View {
                     }
                 }
             }
-            .navigationTitle("Played")
+            .navigationTitle("")
+            .navigationBarTitleDisplayMode(.inline)
             .libraryNavigationChrome()
-            .toolbar {
-                if !playedItemsStore.items.isEmpty {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        Button(role: .destructive) {
-                            isConfirmingClear = true
-                        } label: {
-                            Image(systemName: "trash")
-                        }
-                        .accessibilityLabel("Clear Played History")
-                        .accessibilityIdentifier("clearPlayed")
-                    }
-                }
-            }
             .alert("Clear Played History?", isPresented: $isConfirmingClear) {
                 Button("Cancel", role: .cancel) {}
                 Button("Clear All", role: .destructive, action: playedItemsStore.removeAll)
