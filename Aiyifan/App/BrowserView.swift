@@ -283,61 +283,38 @@ private struct HomeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(red: 0.055, green: 0.052, blue: 0.073)
+                LibraryScreenChrome.background
                     .ignoresSafeArea()
 
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 28) {
-                        VStack(alignment: .leading, spacing: 6) {
-                            HStack(spacing: 12) {
-                                Image("BrandMark")
-                                    .resizable()
-                                    .scaledToFit()
-                                    .frame(width: 44, height: 44)
-                                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                                    .accessibilityLabel("Aiyifan logo")
-                                    .accessibilityIdentifier("aiyifanBrandMark")
-
-                                VStack(alignment: .leading, spacing: 1) {
-                                    Text("Aiyifan")
-                                        .font(.caption.weight(.semibold))
-                                        .foregroundStyle(.cyan)
-
-                                    Text("Home")
-                                        .font(.system(size: 30, weight: .bold))
-                                        .foregroundStyle(.white)
-                                }
-
-                                Spacer()
-
-                                if !searchViewModel.isExpanded {
-                                    Button {
-                                        searchViewModel.expand()
-                                        DispatchQueue.main.async {
-                                            isSearchFocused = true
-                                        }
-                                    } label: {
-                                        Image(systemName: "magnifyingglass")
-                                            .font(.title2)
-                                            .frame(width: 44, height: 44)
-                                    }
-                                    .foregroundStyle(.white.opacity(0.8))
-                                    .accessibilityLabel("Search")
-                                    .accessibilityIdentifier("showSearch")
-                                }
-
+                        LibraryScreenHeader(title: "Home", accessibilityIdentifier: "homeScreenTitle") {
+                            if !searchViewModel.isExpanded {
                                 Button {
-                                    isShowingSettings = true
+                                    searchViewModel.expand()
+                                    DispatchQueue.main.async {
+                                        isSearchFocused = true
+                                    }
                                 } label: {
-                                    Image(systemName: "gearshape")
+                                    Image(systemName: "magnifyingglass")
                                         .font(.title2)
                                         .frame(width: 44, height: 44)
                                 }
                                 .foregroundStyle(.white.opacity(0.8))
-                                .accessibilityLabel("Settings")
-                                .accessibilityIdentifier("appSettings")
+                                .accessibilityLabel("Search")
+                                .accessibilityIdentifier("showSearch")
                             }
 
+                            Button {
+                                isShowingSettings = true
+                            } label: {
+                                Image(systemName: "gearshape")
+                                    .font(.title2)
+                                    .frame(width: 44, height: 44)
+                            }
+                            .foregroundStyle(.white.opacity(0.8))
+                            .accessibilityLabel("Settings")
+                            .accessibilityIdentifier("appSettings")
                         }
                         .padding(.horizontal, 18)
                         .padding(.top, 18)

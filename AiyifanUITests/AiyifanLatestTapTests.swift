@@ -51,9 +51,11 @@ final class AiyifanLatestTapTests: XCTestCase {
     func testHomePageContainsOnlyTheFourRequestedSections() {
         let app = launchFixtureApp()
 
-        XCTAssertTrue(app.images["aiyifanBrandMark"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.images["homeScreenTitle-brandMark"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.staticTexts["Aiyifan"].exists)
         XCTAssertTrue(app.staticTexts["Home"].exists)
+        XCTAssertTrue(app.staticTexts["homeScreenTitle"].exists)
+        XCTAssertTrue(app.images["homeScreenTitle-brandMark"].exists)
         XCTAssertFalse(app.textFields["providerSearchField"].exists)
         XCTAssertTrue(app.buttons["showSearch"].exists)
         XCTAssertTrue(app.staticTexts["Latest Movies"].waitForExistence(timeout: 5))

@@ -27,16 +27,14 @@ struct NativeCategoryCatalogView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                Color(red: 0.055, green: 0.052, blue: 0.073)
+                LibraryScreenChrome.background
                     .ignoresSafeArea()
 
                 content
             }
             .navigationTitle(viewModel.category.title)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarBackground(Color(red: 0.055, green: 0.052, blue: 0.073), for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .libraryNavigationChrome()
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(action: onClose) {
