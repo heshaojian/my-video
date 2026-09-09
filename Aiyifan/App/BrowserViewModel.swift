@@ -135,6 +135,10 @@ final class BrowserViewModel: ObservableObject {
     }
 
     func openWebsiteFallback(for item: AiyifanItem) {
+        guard ProviderWebURLPolicy.isAllowed(item.playURL) else {
+            errorMessage = "Website fallback is unavailable for this address."
+            return
+        }
         selectedTitle = item.title
         selectedItem = nil
         selectedEpisodeKey = nil

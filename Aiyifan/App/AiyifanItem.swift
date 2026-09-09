@@ -1,5 +1,29 @@
 import Foundation
 
+enum ProviderWebURLPolicy {
+    static func isAllowed(
+        _ url: URL,
+        processArguments: [String] = ProcessInfo.processInfo.arguments
+    ) -> Bool {
+#if DEBUG
+        if url.scheme?.lowercased() == "data" {
+            return processArguments.contains("-AiyifanUseFixtureFeed")
+        }
+#endif
+        guard
+            url.scheme?.lowercased() == "https",
+            let host = url.host,
+            url.user == nil,
+            url.password == nil,
+            url.port == nil
+        else {
+            return false
+        }
+
+        return RemoteResourceHostValidator.matchingProviderDomain(for: host) != nil
+    }
+}
+
 struct AiyifanItem: Codable, Equatable, Identifiable, Sendable {
     let listPath: String
     let title: String

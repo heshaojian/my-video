@@ -60,7 +60,11 @@ struct WebView: UIViewRepresentable {
     }
 
     private func loadCurrentURL(in webView: WKWebView, coordinator: Coordinator) {
-        guard let url = viewModel.currentURL, coordinator.loadTracker.shouldLoad(url) else {
+        guard
+            let url = viewModel.currentURL,
+            ProviderWebURLPolicy.isAllowed(url),
+            coordinator.loadTracker.shouldLoad(url)
+        else {
             return
         }
 
@@ -110,6 +114,21 @@ struct WebView: UIViewRepresentable {
 
         func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
             viewModel?.markLoadingFailed(error)
+        }
+
+        func webView(
+            _ webView: WKWebView,
+            decidePolicyFor navigationAction: WKNavigationAction,
+            decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void
+        ) {
+            guard navigationAction.targetFrame?.isMainFrame != false else {
+                decisionHandler(.allow)
+                return
+            }
+            let isAllowed = navigationAction.request.url.map {
+                ProviderWebURLPolicy.isAllowed($0)
+            } ?? false
+            decisionHandler(isAllowed ? .allow : .cancel)
         }
 
         func webView(

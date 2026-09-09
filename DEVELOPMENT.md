@@ -123,6 +123,12 @@ These are product invariants, not incidental implementation details.
 
 - Selecting a native card routes to `NativePlayerViewModel`. `WKWebView` is only
   the explicit Open Website fallback.
+- Validate website fallback and top-level WebView navigation with
+  `ProviderWebURLPolicy`: HTTPS only, an approved provider domain, no embedded
+  credentials, and no custom port. Never load `http`, `about`, or an arbitrary
+  provider-supplied host. A `data:` URL is permitted only in DEBUG builds started
+  with `-AiyifanUseFixtureFeed`; this exception exists solely for deterministic
+  UI fixtures and must never be widened to normal browsing.
 - Embed one `AVPlayerViewController` and keep it alive for both inline and native
   fullscreen presentation. Do not replace it with a second fullscreen player.
 - Leave play/pause, seeking, timeline, fullscreen, Picture in Picture, volume,

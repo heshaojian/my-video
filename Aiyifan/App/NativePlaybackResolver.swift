@@ -60,13 +60,20 @@ enum SerialPlaybackIntent {
         if providerIsSerial || item.isSerial == true || preferredEpisodeKey != nil {
             return true
         }
+        if isSerialCategory(item.categoryPath) {
+            return true
+        }
         if item.isSerial == false {
             return false
         }
         if item.latestEpisodeKey != nil {
             return true
         }
-        let categoryParts = item.categoryPath?.split(separator: ",").map(String.init) ?? []
+        return false
+    }
+
+    private static func isSerialCategory(_ categoryPath: String?) -> Bool {
+        let categoryParts = categoryPath?.split(separator: ",").map(String.init) ?? []
         return categoryParts.count >= 3 && ["4", "5", "6"].contains(categoryParts[2])
     }
 }

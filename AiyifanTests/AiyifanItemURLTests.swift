@@ -230,6 +230,32 @@ final class AiyifanItemURLTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedURL, item.playURL)
     }
 
+    @MainActor
+    func testWebsiteFallbackRejectsUnsafeProviderURLValues() {
+        let unsafeURLs = [
+            "http://m.yfsp.tv/play/media-key",
+            "https://example.com/play/media-key",
+            "https://user:password@m.yfsp.tv/play/media-key",
+            "https://m.yfsp.tv:8443/play/media-key",
+            "data:text/html,<script>alert(1)</script>",
+            "about:blank"
+        ]
+
+        for unsafeURL in unsafeURLs {
+            let item = AiyifanItem(
+                listPath: "safe-media-key",
+                title: "Fallback Movie",
+                url: unsafeURL
+            )
+            let viewModel = BrowserViewModel()
+
+            viewModel.openWebsiteFallback(for: item)
+
+            XCTAssertNil(viewModel.selectedURL)
+            XCTAssertEqual(viewModel.errorMessage, "Website fallback is unavailable for this address.")
+        }
+    }
+
     private static let onePixelPNGBase64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
 
     private static func makePosterImageTestSession() -> URLSession {

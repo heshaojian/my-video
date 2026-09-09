@@ -21,6 +21,15 @@ final class NativePlaybackResolverTests: XCTestCase {
             providerIsSerial: false,
             item: AiyifanItem(listPath: "anime", title: "Anime", categoryPath: "0,1,6,24")
         ))
+        XCTAssertTrue(SerialPlaybackIntent.infer(
+            providerIsSerial: false,
+            item: AiyifanItem(
+                listPath: "stale-provider-serial-flag",
+                title: "Series With Stale Provider Flag",
+                isSerial: false,
+                categoryPath: "0,1,4,152"
+            )
+        ))
         XCTAssertFalse(SerialPlaybackIntent.infer(
             providerIsSerial: false,
             item: AiyifanItem(listPath: "movie", title: "Movie", categoryPath: "0,1,3,8")
@@ -383,7 +392,7 @@ final class NativePlaybackResolverTests: XCTestCase {
                 ]}
                 """)
             default:
-                XCTFail("Unexpected resolver request: \(url.absoluteString)")
+                XCTFail("Unexpected resolver request path: \(url.path)")
                 data = Data()
             }
 
@@ -457,7 +466,7 @@ final class NativePlaybackResolverTests: XCTestCase {
                 ]}
                 """)
             default:
-                XCTFail("Unexpected resolver request: \(url.absoluteString)")
+                XCTFail("Unexpected resolver request path: \(url.path)")
                 data = Data()
             }
             return (HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!, data)
@@ -792,7 +801,7 @@ final class NativePlaybackResolverTests: XCTestCase {
                 ]}
                 """)
             default:
-                XCTFail("Unexpected resolver request: \(url.absoluteString)")
+                XCTFail("Unexpected resolver request path: \(url.path)")
                 data = Data()
             }
             return (HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!, data)
@@ -844,7 +853,7 @@ final class NativePlaybackResolverTests: XCTestCase {
                 ]}
                 """)
             default:
-                XCTFail("Unexpected resolver request: \(url.absoluteString)")
+                XCTFail("Unexpected resolver request path: \(url.path)")
                 data = Data()
             }
             return (HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!, data)
