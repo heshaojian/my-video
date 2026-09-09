@@ -29,6 +29,14 @@ struct PlaybackQualityOption: Equatable, Identifiable, Sendable {
     var title: String { "\(tierHeight)p" }
 }
 
+struct PlaybackQualityMenuOption: Equatable, Identifiable, Sendable {
+    let tierHeight: Int
+    let isPlayable: Bool
+
+    var id: Int { tierHeight }
+    var title: String { "\(tierHeight)p" }
+}
+
 enum PlaybackQualityProjector {
     static func options(from descriptors: [PlaybackVariantDescriptor]) -> [PlaybackQualityOption] {
         let valid = descriptors.compactMap(option(from:))
@@ -75,6 +83,8 @@ enum PlaybackQualityProjector {
             return 1_080
         case let (width, height) where width >= 1_280 || height >= 720:
             return 720
+        case let (width, height) where width >= 1_024 && height >= 576:
+            return 576
         case let (width, height) where width >= 854 || height >= 480:
             return 480
         case let (width, height) where width >= 640 || height >= 360:
@@ -113,6 +123,47 @@ enum PlaybackQualityProjector {
 
     private static func effectiveBitRate(_ option: PlaybackQualityOption) -> Double {
         option.peakBitRate ?? option.averageBitRate ?? 0
+    }
+}
+
+enum PlaybackQualityMenuProjector {
+    private static let advertisedTiers = [2_160, 1_080, 720, 576, 480, 360, 240, 144]
+
+    static func options(
+        playableOptions: [PlaybackQualityOption],
+        catalogQuality: String?
+    ) -> [PlaybackQualityMenuOption] {
+        guard !playableOptions.isEmpty else { return [] }
+        let playableTiers = Set(playableOptions.map(\.tierHeight))
+        let knownTiers = playableTiers.union(advertisedTiers(upTo: maximumTier(from: catalogQuality), playableTiers: playableTiers))
+        return knownTiers
+            .sorted(by: >)
+            .map { tier in
+                PlaybackQualityMenuOption(tierHeight: tier, isPlayable: playableTiers.contains(tier))
+            }
+    }
+
+    private static func advertisedTiers(upTo maximumTier: Int?, playableTiers: Set<Int>) -> Set<Int> {
+        guard let maximumTier else { return [] }
+        let minimumPlayableTier = playableTiers.min()
+        return Set(advertisedTiers.filter { tier in
+            tier <= maximumTier && (minimumPlayableTier.map { tier >= $0 } ?? true)
+        })
+    }
+
+    private static func maximumTier(from catalogQuality: String?) -> Int? {
+        guard let catalogQuality else { return nil }
+        let normalized = catalogQuality
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .uppercased()
+        if normalized.contains("4K") {
+            return 2_160
+        }
+        let digits = normalized.filter(\.isNumber)
+        guard let height = Int(digits), height > 0 else {
+            return nil
+        }
+        return PlaybackQualityProjector.tierHeight(width: Int((Double(height) * 16 / 9).rounded()), height: height)
     }
 }
 

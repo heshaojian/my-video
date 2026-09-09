@@ -468,12 +468,14 @@ final class AiyifanLatestTapTests: XCTestCase {
 
         XCTAssertFalse(app.buttons["enterFullScreen"].exists)
         XCTAssertFalse(app.buttons["exitFullScreen"].exists)
-        app.otherElements["nativePlayer"].firstMatch.tap()
         XCTAssertFalse(app.buttons["exitFullScreen"].waitForExistence(timeout: 1))
         XCTAssertFalse(app.buttons["closeNativePlayer"].isHittable)
-        let nativeClose = app.buttons.matching(NSPredicate(format: "label == %@", "Close")).firstMatch
-        XCTAssertTrue(nativeClose.waitForExistence(timeout: 5), app.debugDescription)
-        nativeClose.tap()
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).tap()
+        let nativeExit = app.buttons.matching(
+            NSPredicate(format: "label == %@ OR label CONTAINS[c] %@", "Close", "full screen")
+        ).firstMatch
+        XCTAssertTrue(nativeExit.waitForExistence(timeout: 5), app.debugDescription)
+        nativeExit.tap()
 
         XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["closeNativePlayer"].waitForExistence(timeout: 5))
@@ -491,12 +493,15 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Nothing played yet"].waitForExistence(timeout: 3))
     }
 
-    func testPlayerOffersAirPlayAndGoogleCastControls() {
+    func testPlayerKeepsAppSpecificControlsOutsideNativePlaybackChrome() {
         let app = launchFixtureApp()
         app.buttons["latestItem-fixture-movie"].tap()
 
-        XCTAssertTrue(app.buttons["airPlayButton"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
+        XCTAssertTrue(app.buttons["closeNativePlayer"].exists)
         XCTAssertTrue(app.buttons["googleCastButton"].exists)
+        XCTAssertTrue(app.buttons["playbackSettings"].exists)
+        XCTAssertFalse(app.buttons["airPlayButton"].exists)
         XCTAssertEqual(app.otherElements["viewerMetric-likes"].label, "76 Likes")
         XCTAssertEqual(app.otherElements["viewerMetric-favorites"].label, "221 Favorites")
         XCTAssertEqual(app.otherElements["viewerMetric-score"].label, "9.6 Score")
@@ -508,37 +513,18 @@ final class AiyifanLatestTapTests: XCTestCase {
         app.buttons["latestItem-fixture-drama"].tap()
 
         XCTAssertTrue(app.buttons["showEpisodes"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.buttons["airPlayButton"].exists)
         XCTAssertTrue(app.buttons["googleCastButton"].exists)
         let more = app.buttons["playbackSettings"]
         XCTAssertTrue(more.exists)
         XCTAssertEqual(app.buttons["showEpisodes"].frame.midY, more.frame.midY, accuracy: 2)
+        XCTAssertFalse(app.buttons["airPlayButton"].exists)
+        XCTAssertFalse(app.buttons["previousEpisode"].exists)
+        XCTAssertFalse(app.buttons["nextEpisode"].exists)
+        XCTAssertFalse(app.sliders["playbackTimeline"].exists)
         XCTAssertFalse(app.buttons["enterFullScreen"].exists)
-        app.otherElements["nativePlayer"].tap()
-        XCTAssertTrue(app.buttons["previousEpisode"].waitForExistence(timeout: 2))
-        XCTAssertTrue(app.buttons["nextEpisode"].exists)
-        XCTAssertTrue(app.sliders["playbackTimeline"].exists)
-        XCTAssertEqual(app.buttons["previousEpisode"].frame.midY, app.sliders["playbackTimeline"].frame.midY, accuracy: 4)
-        XCTAssertEqual(app.buttons["nextEpisode"].frame.midY, app.sliders["playbackTimeline"].frame.midY, accuracy: 4)
-        XCTAssertTrue(app.buttons["enterFullScreen"].exists)
-        XCTAssertTrue(app.buttons["skipBackward10Seconds"].exists)
-        XCTAssertTrue(app.buttons["toggleNativePlayback"].exists)
-        XCTAssertTrue(app.buttons["skipForward10Seconds"].exists)
-        XCTAssertLessThan(app.buttons["toggleNativePlayback"].frame.midY, app.sliders["playbackTimeline"].frame.minY)
-        let playerFrame = app.otherElements["nativePlayer"].frame
-        let expectedVideoHeight = playerFrame.width * 9 / 16
-        let expectedVideoMinY = playerFrame.minY + ((playerFrame.height - expectedVideoHeight) / 2)
-        let expectedVideoMidY = playerFrame.minY + ((playerFrame.height - expectedVideoHeight) / 2) + (expectedVideoHeight / 2)
-        let expectedVideoMaxY = expectedVideoMinY + expectedVideoHeight
-        XCTAssertEqual(app.buttons["toggleNativePlayback"].frame.midY, expectedVideoMidY, accuracy: 24)
-        XCTAssertLessThan(app.buttons["enterFullScreen"].frame.midY, app.sliders["playbackTimeline"].frame.minY)
-        XCTAssertEqual(app.buttons["enterFullScreen"].frame.midY, expectedVideoMinY + 34, accuracy: 24)
-        XCTAssertGreaterThanOrEqual(app.buttons["enterFullScreen"].frame.minY, expectedVideoMinY - 1)
-        XCTAssertLessThanOrEqual(app.buttons["enterFullScreen"].frame.maxY, expectedVideoMaxY + 1)
-        XCTAssertGreaterThanOrEqual(app.buttons["enterFullScreen"].frame.minX, playerFrame.minX - 1)
-        XCTAssertLessThan(app.buttons["enterFullScreen"].frame.midX, playerFrame.midX)
-        XCTAssertGreaterThanOrEqual(app.sliders["playbackTimeline"].frame.width, 88)
-        XCTAssertLessThanOrEqual(app.staticTexts["playbackRemainingTime"].frame.height, 20)
+        XCTAssertFalse(app.buttons["skipBackward10Seconds"].exists)
+        XCTAssertFalse(app.buttons["toggleNativePlayback"].exists)
+        XCTAssertFalse(app.buttons["skipForward10Seconds"].exists)
         XCTAssertEqual(app.buttons.matching(NSPredicate(format: "label == %@", "More")).count, 1)
 
         more.tap()

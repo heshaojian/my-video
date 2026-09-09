@@ -123,6 +123,16 @@ These are product invariants, not incidental implementation details.
 
 - Selecting a native card routes to `NativePlayerViewModel`. `WKWebView` is only
   the explicit Open Website fallback.
+- Embed one `AVPlayerViewController` and keep it alive for both inline and native
+  fullscreen presentation. Do not replace it with a second fullscreen player.
+- Leave play/pause, seeking, timeline, fullscreen, Picture in Picture, volume,
+  and AirPlay to `AVPlayerViewController`'s native chrome. Do not duplicate those
+  controls in SwiftUI or add a separate top-bar route picker.
+- Keep only app-specific actions outside the native chrome: Back, Episodes,
+  quality/settings, Google Cast, Skip Intro/Outro/Undo, autoplay cancellation,
+  retry, and explicit website fallback.
+- Hide the paused local player's native controls while Google Cast owns playback
+  so local transport never appears active during a Cast session.
 - One app-owned playback session survives expanded and collapsed presentation.
   Back collapses to the mini-player; it does not stop or recreate playback.
 - Home, Saved, Played, and All remain navigable while the mini-player is active.
@@ -170,7 +180,8 @@ These are product invariants, not incidental implementation details.
 - Exclude only separately supplied advertisement entries from local and Cast
   program queues.
 - Do not claim to remove an advertisement embedded inside the program stream.
-- AirPlay uses the system route picker and the local AVPlayer pipeline.
+- AirPlay uses `AVPlayerViewController`'s native route control and the local
+  AVPlayer pipeline.
 - Google Cast uses the official Sender SDK and Default Media Receiver.
 - Do not introduce a custom receiver, streaming proxy, download path, DRM bypass,
   authentication workaround, or provider-control bypass.
@@ -296,6 +307,8 @@ Treat every provider value and URL as untrusted input.
 | Launch causes duplicate Home/Saved requests | View and tab lifecycle hooks each start work | Use one app-open coordinator and coalesce its in-flight task |
 | Wrong episode starts from Played or notification | Item published before episode key | Assign episode key first, item second |
 | Back or fullscreen stops playback | Player owned by a transient view | Retain one session-owned view model and player |
+| Fullscreen restarts or duplicates playback | A second player controller or custom fullscreen cover is presented | Let the embedded `AVPlayerViewController` own its native fullscreen transition |
+| Player shows two transport or AirPlay controls | SwiftUI duplicates native AVPlayer chrome | Keep only app-specific actions outside the player |
 | Played time advances while nothing plays | Wall-clock timer treated as progress | Persist AVPlayer media time only while `.playing` |
 | Episode list shows one item or starts episode 1 | Partial response trusted as complete | Require expected key, retry, and surface failure |
 | Video waits for episode metadata | Stream and playlist loading coupled | Start trusted episode and recover list independently |

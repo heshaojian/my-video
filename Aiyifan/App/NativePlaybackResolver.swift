@@ -57,7 +57,13 @@ enum SerialPlaybackIntent {
         item: AiyifanItem,
         preferredEpisodeKey: String? = nil
     ) -> Bool {
-        if providerIsSerial || item.isSerial == true || item.latestEpisodeKey != nil || preferredEpisodeKey != nil {
+        if providerIsSerial || item.isSerial == true || preferredEpisodeKey != nil {
+            return true
+        }
+        if item.isSerial == false {
+            return false
+        }
+        if item.latestEpisodeKey != nil {
             return true
         }
         let categoryParts = item.categoryPath?.split(separator: ",").map(String.init) ?? []
@@ -156,8 +162,7 @@ enum PlaybackCertificateParser {
         let json = String(html[start...end])
         guard
             let root = try? JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any],
-            let configuration = (root["config"] as? [[String: Any]])?.first,
-            let pageCertificate = configuration["pConfig"] as? [String: Any],
+            let pageCertificate = pConfig(in: root),
             let publicKey = pageCertificate["publicKey"] as? String,
             let privateKey = (pageCertificate["privateKey"] as? [String])?.first,
             !publicKey.isEmpty,
@@ -169,6 +174,28 @@ enum PlaybackCertificateParser {
         }
 
         return PlaybackCertificate(publicKey: publicKey, privateKey: privateKey)
+    }
+
+    private static func pConfig(in value: Any) -> [String: Any]? {
+        if let dictionary = value as? [String: Any] {
+            if let pageCertificate = dictionary["pConfig"] as? [String: Any] {
+                return pageCertificate
+            }
+            for nested in dictionary.values {
+                if let pageCertificate = pConfig(in: nested) {
+                    return pageCertificate
+                }
+            }
+            return nil
+        }
+        if let array = value as? [Any] {
+            for nested in array {
+                if let pageCertificate = pConfig(in: nested) {
+                    return pageCertificate
+                }
+            }
+        }
+        return nil
     }
 }
 

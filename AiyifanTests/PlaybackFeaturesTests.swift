@@ -48,6 +48,38 @@ final class PlaybackFeaturesTests: XCTestCase {
         XCTAssertTrue(options.isEmpty)
     }
 
+    func testPlaybackQualityProjectionKeepsProvider576Tier() {
+        let options = PlaybackQualityProjector.options(from: [
+            PlaybackVariantDescriptor(width: 1_024, height: 576, averageBitRate: 1_500_000, peakBitRate: nil)
+        ])
+
+        XCTAssertEqual(options.map(\.tierHeight), [576])
+        XCTAssertEqual(options.first?.title, "576p")
+    }
+
+    func testQualityMenuShowsAdvertisedUnavailableTiersAbovePlayableStream() {
+        let playableOptions = PlaybackQualityProjector.options(from: [
+            PlaybackVariantDescriptor(width: 1_024, height: 576, averageBitRate: 1_500_000, peakBitRate: nil)
+        ])
+
+        let menuOptions = PlaybackQualityMenuProjector.options(
+            playableOptions: playableOptions,
+            catalogQuality: "1080P"
+        )
+
+        XCTAssertEqual(menuOptions.map(\.tierHeight), [1_080, 720, 576])
+        XCTAssertEqual(menuOptions.map(\.isPlayable), [false, false, true])
+    }
+
+    func testQualityMenuStaysUnavailableWithoutPlayableStreamOptions() {
+        let menuOptions = PlaybackQualityMenuProjector.options(
+            playableOptions: [],
+            catalogQuality: "1080P"
+        )
+
+        XCTAssertTrue(menuOptions.isEmpty)
+    }
+
     func testVariantDiscoveryWinsAndPlayableVideoTrackProvidesSingleRenditionFallback() {
         let variant = PlaybackVariantDescriptor(
             width: 1_920,

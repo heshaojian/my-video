@@ -25,6 +25,16 @@ final class NativePlaybackResolverTests: XCTestCase {
             providerIsSerial: false,
             item: AiyifanItem(listPath: "movie", title: "Movie", categoryPath: "0,1,3,8")
         ))
+        XCTAssertFalse(SerialPlaybackIntent.infer(
+            providerIsSerial: false,
+            item: AiyifanItem(
+                listPath: "movie",
+                title: "Movie With Quality Row",
+                isSerial: false,
+                latestEpisodeKey: "quality-row",
+                latestEpisodeTitle: "576P"
+            )
+        ))
     }
 
     func testCertificateParserReadsCurrentPageConfiguration() throws {
@@ -38,6 +48,19 @@ final class NativePlaybackResolverTests: XCTestCase {
 
         XCTAssertEqual(certificate.publicKey, "public-test")
         XCTAssertEqual(certificate.privateKey, "private-test")
+    }
+
+    func testCertificateParserReadsHomeConfigPageConfiguration() throws {
+        let html = """
+        <script>
+        var injectJson = {"home-config":{"ret":200,"data":{"list":{"mustLogin":false,"pConfig":{"publicKey":"public-live","privateKey":["private-live"]}}}}};
+        </script>
+        """
+
+        let certificate = try PlaybackCertificateParser.parse(Data(html.utf8))
+
+        XCTAssertEqual(certificate.publicKey, "public-live")
+        XCTAssertEqual(certificate.privateKey, "private-live")
     }
 
     func testRequestBuilderSignsGuestPlaybackRequestDeterministically() throws {
@@ -403,6 +426,61 @@ final class NativePlaybackResolverTests: XCTestCase {
         for request in captured.dropFirst() {
             XCTAssertEqual(request.value(forHTTPHeaderField: "Referer"), item.playURL.absoluteString)
         }
+    }
+
+    func testResolverTreatsExplicitMovieWithQualityPlaylistAsMoviePlayback() async throws {
+        let requests = LockedRequests()
+        ResolverURLProtocol.setHandler { request in
+            requests.append(request)
+            let url = try XCTUnwrap(request.url)
+            let data: Data
+            switch url.path {
+            case "/play/movie-key":
+                data = Data("""
+                <script>var injectJson = {"home-config":{"data":{"list":{"pConfig":{"publicKey":"public-test","privateKey":["private-test"]}}}}};</script>
+                """.utf8)
+            case "/v3/video/detail":
+                data = Data("""
+                {"ret":200,"data":{"code":0,"info":[{
+                  "cid":"0,1,3,19",
+                  "isSerial":false,
+                  "lastName":"1080P集全"
+                }]}}
+                """.utf8)
+            case "/v3/video/play":
+                let query = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems ?? []
+                XCTAssertEqual(query.first { $0.name == "id" }?.value, "movie-key")
+                XCTAssertEqual(query.first { $0.name == "a" }?.value, "1")
+                data = Self.responseData(info: """
+                {"isPreView":false,"needLogin":0,"flvPathList":[
+                  {"result":"https://media.example.com/movie-576.m3u8","isHls":true,"bitrate":576}
+                ]}
+                """)
+            default:
+                XCTFail("Unexpected resolver request: \(url.absoluteString)")
+                data = Data()
+            }
+            return (HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!, data)
+        }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [ResolverURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        defer { session.invalidateAndCancel() }
+        let item = AiyifanItem(
+            listPath: "movie-key",
+            title: "Movie",
+            url: "https://m.yfsp.tv/play/movie-key",
+            isSerial: false,
+            latestEpisodeKey: "quality-row",
+            latestEpisodeTitle: "576P"
+        )
+
+        let playback = try await NativePlaybackResolver(session: session).resolve(item: item)
+
+        XCTAssertNil(playback.selectedEpisode)
+        XCTAssertTrue(playback.episodes.isEmpty)
+        XCTAssertEqual(playback.entries.map(\.url.absoluteString), ["https://media.example.com/movie-576.m3u8"])
+        XCTAssertFalse(requests.values.contains { $0.url?.path == "/v3/video/languagesplaylist" })
     }
 
     func testResolverRetriesFullThirtyEpisodeResolutionOnceWithFreshCertificate() async throws {

@@ -117,6 +117,13 @@ final class NativePlayerViewModel: ObservableObject {
         qualityOptions.count > 1 ? qualityOptions : []
     }
 
+    var qualityMenuOptions: [PlaybackQualityMenuOption] {
+        PlaybackQualityMenuProjector.options(
+            playableOptions: qualityOptions,
+            catalogQuality: item.quality
+        )
+    }
+
     var qualityAvailabilityText: String {
         guard let onlyQuality = qualityOptions.first, qualityOptions.count == 1 else {
             return "Stream quality unavailable"
@@ -414,6 +421,15 @@ final class NativePlayerViewModel: ObservableObject {
         qualityPreferences.setTargetHeight(available.tierHeight)
         selectedQuality = available
         playbackItems.forEach { apply(available, to: $0) }
+    }
+
+    func setQuality(_ option: PlaybackQualityMenuOption) {
+        guard option.isPlayable,
+              let quality = qualityOptions.first(where: { $0.tierHeight == option.tierHeight })
+        else {
+            return
+        }
+        setQuality(quality)
     }
 
     func setAutomaticQuality() {
@@ -981,8 +997,6 @@ struct NativePlayerScreen: View {
     @ObservedObject private var viewModel: NativePlayerViewModel
     @StateObject private var castManager = GoogleCastManager.shared
     @State private var isShowingEpisodes = false
-    @State private var isShowingFullScreenPlayer = false
-    @State private var isShowingPlaybackChrome = false
     @Environment(\.scenePhase) private var scenePhase
 
     init(
@@ -1033,9 +1047,6 @@ struct NativePlayerScreen: View {
 
                     }
 
-                    AirPlayRouteButton()
-                        .frame(width: 44, height: 44)
-
                     GoogleCastRouteButton()
                         .frame(width: 44, height: 44)
 
@@ -1057,28 +1068,15 @@ struct NativePlayerScreen: View {
                     player: viewModel.player,
                     onFullScreenChanged: viewModel.setFullScreenPresentationActive,
                     onPictureInPictureChanged: viewModel.setPictureInPictureActive,
-                    showsPlaybackControls: false
+                    showsPlaybackControls: !castManager.isCasting
                 )
                 .ignoresSafeArea(edges: .bottom)
-                .contentShape(Rectangle())
-                .onTapGesture(perform: togglePlaybackChrome)
 
-                if let countdown = viewModel.autoplayCountdown {
-                    Button {
-                        viewModel.cancelAutoplay()
-                    } label: {
-                        Label("Next episode in \(countdown)s", systemImage: "xmark.circle.fill")
-                            .font(.subheadline.weight(.semibold))
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 9)
-                            .foregroundStyle(.white)
-                            .background(.black.opacity(0.8))
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
-                    }
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
-                    .padding(.trailing, 16)
-                    .padding(.bottom, 108)
-                    .accessibilityIdentifier("cancelAutoplay")
+                if viewModel.errorMessage == nil {
+                    PlaybackPromptOverlay(
+                        viewModel: viewModel,
+                        isCasting: castManager.isCasting
+                    )
                 }
 
                 if let errorMessage = viewModel.errorMessage {
@@ -1115,22 +1113,10 @@ struct NativePlayerScreen: View {
                         .foregroundStyle(.white)
                 }
 
-                if viewModel.errorMessage == nil, isShowingPlaybackChrome {
-                    PlaybackChromeOverlay(
-                        viewModel: viewModel,
-                        isCasting: castManager.isCasting,
-                        enterFullScreen: enterFullScreen
-                    )
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.horizontal, 12)
-                    .padding(.bottom, 12)
-                    .transition(.opacity)
-                }
             }
             .background(Color.black)
         }
         .background(Color.black)
-        .accessibilityHidden(isShowingFullScreenPlayer)
         .onChange(of: scenePhase) { _, phase in
             viewModel.setApplicationActive(phase == .active)
             if phase != .active {
@@ -1170,34 +1156,10 @@ struct NativePlayerScreen: View {
             }
             .presentationDetents([.medium, .large])
         }
-        .fullScreenCover(isPresented: $isShowingFullScreenPlayer) {
-            FullScreenNativePlayerScreen(
-                viewModel: viewModel,
-                dismiss: exitFullScreen
-            )
-        }
     }
 
     private func closePlayer() {
         onClose()
-    }
-
-    private func togglePlaybackChrome() {
-        guard viewModel.errorMessage == nil else { return }
-        withAnimation(.easeInOut(duration: 0.18)) {
-            isShowingPlaybackChrome.toggle()
-        }
-    }
-
-    private func enterFullScreen() {
-        viewModel.setFullScreenPresentationActive(true)
-        isShowingPlaybackChrome = false
-        isShowingFullScreenPlayer = true
-    }
-
-    private func exitFullScreen() {
-        isShowingFullScreenPlayer = false
-        viewModel.setFullScreenPresentationActive(false)
     }
 
     private func openWebsite() {
@@ -1233,22 +1195,31 @@ struct NativePlayerScreen: View {
                 }
                 .accessibilityIdentifier("automaticPlaybackQuality")
 
-                if viewModel.manualQualityOptions.isEmpty {
+                if viewModel.qualityMenuOptions.isEmpty {
                     Text(viewModel.qualityAvailabilityText)
                 } else {
                     Divider()
-                    ForEach(viewModel.manualQualityOptions) { quality in
-                        Button {
-                            viewModel.setQuality(quality)
-                        } label: {
-                            if !viewModel.usesAutomaticQuality,
-                               quality.id == viewModel.selectedQuality?.id {
-                                Label(quality.title, systemImage: "checkmark")
-                            } else {
-                                Text(quality.title)
+                    ForEach(viewModel.qualityMenuOptions) { quality in
+                        if quality.isPlayable {
+                            Button {
+                                viewModel.setQuality(quality)
+                            } label: {
+                                if !viewModel.usesAutomaticQuality,
+                                   quality.id == viewModel.selectedQuality?.id {
+                                    Label(quality.title, systemImage: "checkmark")
+                                } else {
+                                    Text(quality.title)
+                                }
                             }
+                            .accessibilityIdentifier("playbackQuality-\(quality.tierHeight)")
+                        } else {
+                            Button {
+                            } label: {
+                                Label("\(quality.title) unavailable", systemImage: "lock")
+                            }
+                            .disabled(true)
+                            .accessibilityIdentifier("playbackQuality-\(quality.tierHeight)-unavailable")
                         }
-                        .accessibilityIdentifier("playbackQuality-\(quality.tierHeight)")
                     }
                 }
             }
@@ -1307,240 +1278,51 @@ struct NativePlayerScreen: View {
     }
 }
 
-private struct PlaybackChromeOverlay: View {
+private struct PlaybackPromptOverlay: View {
     @ObservedObject var viewModel: NativePlayerViewModel
     let isCasting: Bool
-    let enterFullScreen: () -> Void
 
     var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                let videoFrame = videoFrame(in: proxy.size)
-                centerTransportControls(in: videoFrame)
-                topLeftFullScreenButton(in: videoFrame)
+        VStack(alignment: .trailing, spacing: 8) {
+            Spacer()
 
-                VStack {
-                    Spacer()
-
-                    if viewModel.canUndoSkip || viewModel.skipOpportunity != nil {
-                        Button(viewModel.canUndoSkip ? "Undo Skip" : skipButtonTitle) {
-                            if viewModel.canUndoSkip {
-                                viewModel.undoSkip()
-                            } else {
-                                viewModel.performSkip()
-                            }
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .tint(.cyan)
-                        .foregroundStyle(.black)
-                        .accessibilityIdentifier(viewModel.canUndoSkip ? "undoSkip" : "performSkip")
-                        .padding(.bottom, 8)
+            if !isCasting, viewModel.canUndoSkip || viewModel.skipOpportunity != nil {
+                Button(viewModel.canUndoSkip ? "Undo Skip" : skipButtonTitle) {
+                    if viewModel.canUndoSkip {
+                        viewModel.undoSkip()
+                    } else {
+                        viewModel.performSkip()
                     }
-
-                    bottomTimeline
                 }
+                .buttonStyle(.borderedProminent)
+                .tint(.cyan)
+                .foregroundStyle(.black)
+                .accessibilityIdentifier(viewModel.canUndoSkip ? "undoSkip" : "performSkip")
+            }
+
+            if let countdown = viewModel.autoplayCountdown {
+                Button {
+                    viewModel.cancelAutoplay()
+                } label: {
+                    Label("Next episode in \(countdown)s", systemImage: "xmark.circle.fill")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 9)
+                        .foregroundStyle(.white)
+                        .background(.black.opacity(0.8))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .accessibilityIdentifier("cancelAutoplay")
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomTrailing)
+        .padding(.trailing, 16)
+        .padding(.bottom, 96)
         .accessibilityElement(children: .contain)
     }
 
     private var skipButtonTitle: String {
         viewModel.skipOpportunity?.kind == .outro ? "Skip Outro" : "Skip Intro"
-    }
-
-    private var bottomTimeline: some View {
-        HStack(spacing: 4) {
-            if viewModel.shouldShowEpisodeControl {
-                iconButton(
-                    systemName: "backward.end.fill",
-                    label: "Previous Episode",
-                    identifier: "previousEpisode",
-                    disabled: viewModel.previousEpisode == nil,
-                    action: viewModel.playPreviousEpisode
-                )
-            }
-
-            Text(timeLabel(viewModel.playbackPosition))
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(.white.opacity(0.72))
-                .lineLimit(1)
-                .minimumScaleFactor(0.82)
-                .frame(width: 42, alignment: .trailing)
-                .accessibilityIdentifier("playbackElapsedTime")
-
-            Slider(
-                value: Binding(
-                    get: { viewModel.playbackPosition },
-                    set: { viewModel.seekCurrentProgram(to: $0) }
-                ),
-                in: 0...max(viewModel.playbackDuration, 1)
-            )
-            .tint(.white)
-            .disabled(isCasting || viewModel.isLoading || viewModel.playbackDuration <= 0)
-            .accessibilityLabel("Playback Timeline")
-            .accessibilityIdentifier("playbackTimeline")
-
-            Text(remainingTimeLabel)
-                .font(.caption2.monospacedDigit())
-                .foregroundStyle(.white.opacity(0.72))
-                .lineLimit(1)
-                .minimumScaleFactor(0.76)
-                .frame(width: 52, alignment: .leading)
-                .fixedSize(horizontal: true, vertical: false)
-                .accessibilityIdentifier("playbackRemainingTime")
-
-            if viewModel.shouldShowEpisodeControl {
-                iconButton(
-                    systemName: "forward.end.fill",
-                    label: "Next Episode",
-                    identifier: "nextEpisode",
-                    disabled: viewModel.nextEpisode == nil,
-                    action: viewModel.playNextEpisode
-                )
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(.black.opacity(0.72))
-        .clipShape(Capsule(style: .continuous))
-    }
-
-    private func topLeftFullScreenButton(in videoFrame: CGRect) -> some View {
-        let buttonSize: CGFloat = 44
-        let videoInset: CGFloat = 12
-        return iconButton(
-            systemName: "arrow.up.left.and.arrow.down.right",
-            label: "Enter Full Screen",
-            identifier: "enterFullScreen",
-            disabled: false,
-            action: enterFullScreen
-        )
-        .position(
-            x: videoFrame.minX + videoInset + (buttonSize / 2),
-            y: videoFrame.minY + videoInset + (buttonSize / 2)
-        )
-    }
-
-    private func centerTransportControls(in videoFrame: CGRect) -> some View {
-        return HStack(spacing: 28) {
-            transportButton(
-                systemName: "gobackward.10",
-                label: "Rewind 10 seconds",
-                identifier: "skipBackward10Seconds",
-                size: 48,
-                disabled: isCasting || viewModel.isLoading,
-                action: viewModel.skipBackward10Seconds
-            )
-
-            transportButton(
-                systemName: viewModel.isPlaying ? "pause.fill" : "play.fill",
-                label: viewModel.isPlaying ? "Pause" : "Play",
-                identifier: "toggleNativePlayback",
-                size: 58,
-                disabled: isCasting || viewModel.isLoading,
-                action: viewModel.togglePlayback
-            )
-
-            transportButton(
-                systemName: "goforward.10",
-                label: "Forward 10 seconds",
-                identifier: "skipForward10Seconds",
-                size: 48,
-                disabled: isCasting || viewModel.isLoading,
-                action: viewModel.skipForward10Seconds
-            )
-        }
-        .position(x: videoFrame.midX, y: videoFrame.midY)
-        .padding(.horizontal, 16)
-    }
-
-    private func videoFrame(in availableSize: CGSize) -> CGRect {
-        guard availableSize.width > 0, availableSize.height > 0 else {
-            return CGRect(origin: .zero, size: availableSize)
-        }
-        let videoAspectRatio = 16.0 / 9.0
-        let containerAspectRatio = availableSize.width / availableSize.height
-        let videoSize: CGSize
-        if containerAspectRatio > videoAspectRatio {
-            videoSize = CGSize(
-                width: availableSize.height * videoAspectRatio,
-                height: availableSize.height
-            )
-        } else {
-            videoSize = CGSize(
-                width: availableSize.width,
-                height: availableSize.width / videoAspectRatio
-            )
-        }
-        return CGRect(
-            x: (availableSize.width - videoSize.width) / 2,
-            y: (availableSize.height - videoSize.height) / 2,
-            width: videoSize.width,
-            height: videoSize.height
-        )
-    }
-
-    private var remainingTimeLabel: String {
-        guard viewModel.playbackDuration > 0 else {
-            return "-0:00"
-        }
-        let remaining = max(0, viewModel.playbackDuration - viewModel.playbackPosition)
-        return "-\(timeLabel(remaining))"
-    }
-
-    private func timeLabel(_ seconds: Double) -> String {
-        let totalSeconds = max(0, Int(seconds.rounded(.down)))
-        let hours = totalSeconds / 3600
-        let minutes = (totalSeconds % 3600) / 60
-        let seconds = totalSeconds % 60
-        if hours > 0 {
-            return "\(hours):\(String(format: "%02d", minutes)):\(String(format: "%02d", seconds))"
-        }
-        return "\(minutes):\(String(format: "%02d", seconds))"
-    }
-
-    private func iconButton(
-        systemName: String,
-        label: String,
-        identifier: String,
-        disabled: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: 15, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: 44, height: 44)
-                .background(disabled ? Color.white.opacity(0.08) : Color.white.opacity(0.16))
-                .clipShape(Circle())
-        }
-        .disabled(disabled)
-        .opacity(disabled ? 0.42 : 1)
-        .accessibilityLabel(label)
-        .accessibilityIdentifier(identifier)
-    }
-
-    private func transportButton(
-        systemName: String,
-        label: String,
-        identifier: String,
-        size: CGFloat,
-        disabled: Bool,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Image(systemName: systemName)
-                .font(.system(size: size == 58 ? 24 : 20, weight: .semibold))
-                .foregroundStyle(.white)
-                .frame(width: size, height: size)
-                .background(.black.opacity(disabled ? 0.34 : 0.54))
-                .clipShape(Circle())
-        }
-        .disabled(disabled)
-        .opacity(disabled ? 0.42 : 1)
-        .accessibilityLabel(label)
-        .accessibilityIdentifier(identifier)
     }
 
 }
@@ -1589,25 +1371,6 @@ private struct ViewerMetricsBar: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("\(value) \(label)")
         .accessibilityIdentifier(id)
-    }
-}
-
-private struct FullScreenNativePlayerScreen: View {
-    @ObservedObject var viewModel: NativePlayerViewModel
-    let dismiss: () -> Void
-
-    var body: some View {
-        NativePlayerController(
-            player: viewModel.player,
-            onFullScreenChanged: viewModel.setFullScreenPresentationActive,
-            onPictureInPictureChanged: viewModel.setPictureInPictureActive,
-            showsPlaybackControls: true
-        )
-        .ignoresSafeArea()
-        .background(Color.black)
-        .onDisappear {
-            viewModel.setFullScreenPresentationActive(false)
-        }
     }
 }
 
