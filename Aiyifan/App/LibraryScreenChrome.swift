@@ -4,6 +4,7 @@ enum LibraryScreenChrome {
     static let background = Color(red: 0.055, green: 0.052, blue: 0.073)
     static let primaryText = Color.white
     static let secondaryText = Color.white.opacity(0.65)
+    static let scrollBottomClearance: CGFloat = 124
 }
 
 private struct LibraryNavigationChrome: ViewModifier {

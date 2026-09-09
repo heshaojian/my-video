@@ -27,6 +27,7 @@ struct PlayedItemsView: View {
                             .frame(maxWidth: .infinity, minHeight: 360)
                         }
                         .padding(18)
+                        .padding(.bottom, LibraryScreenChrome.scrollBottomClearance)
                     }
                 } else {
                     VStack(spacing: 0) {
@@ -73,6 +74,7 @@ struct PlayedItemsView: View {
                                 }
                             }
                             .padding(16)
+                            .padding(.bottom, LibraryScreenChrome.scrollBottomClearance)
                         }
                     }
                 }

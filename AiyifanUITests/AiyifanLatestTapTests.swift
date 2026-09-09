@@ -149,6 +149,19 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertLessThan(left.maxX, right.minX)
     }
 
+    func testSavedGridCanScrollClearOfFloatingTabBar() {
+        let app = launchFixtureApp()
+        XCTAssertTrue(app.buttons["saveItem-fixture-movie"].waitForExistence(timeout: 5))
+        app.buttons["saveItem-fixture-movie"].tap()
+        app.buttons["saveItem-fixture-drama"].tap()
+        app.tabBars.buttons["Saved"].tap()
+
+        let lowerCard = app.buttons["savedItem-fixture-drama"]
+        XCTAssertTrue(lowerCard.waitForExistence(timeout: 5))
+
+        assertCanScrollClearOfTabBar(lowerCard, in: app)
+    }
+
     func testSavedItemOpensNativePlayerAndSurvivesRelaunch() {
         var app = launchFixtureApp(resetSavedItems: true)
         let saveButton = app.buttons["saveItem-fixture-movie"]
@@ -396,6 +409,22 @@ final class AiyifanLatestTapTests: XCTestCase {
 
         XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
         XCTAssertTrue(app.buttons["showEpisodes"].label.contains("4/10"))
+    }
+
+    private func assertCanScrollClearOfTabBar(
+        _ element: XCUIElement,
+        in app: XCUIApplication,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let tabBar = app.tabBars.element
+        XCTAssertTrue(tabBar.exists, file: file, line: line)
+
+        for _ in 0..<5 where element.frame.maxY > tabBar.frame.minY - 12 {
+            app.swipeUp()
+        }
+
+        XCTAssertLessThanOrEqual(element.frame.maxY, tabBar.frame.minY - 12, file: file, line: line)
     }
 
     func testReadyQueueMenuActionsUpdateVisibleEntries() {

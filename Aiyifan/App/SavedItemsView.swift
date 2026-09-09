@@ -28,6 +28,7 @@ struct SavedItemsView: View {
                                 .frame(maxWidth: .infinity, minHeight: 360)
                         }
                         .padding(18)
+                        .padding(.bottom, LibraryScreenChrome.scrollBottomClearance)
                     }
                     .refreshable { await refreshSaved() }
                 } else {
@@ -77,6 +78,7 @@ struct SavedItemsView: View {
                             }
                         }
                         .padding(18)
+                        .padding(.bottom, LibraryScreenChrome.scrollBottomClearance)
                     }
                     .refreshable { await refreshSaved() }
                 }

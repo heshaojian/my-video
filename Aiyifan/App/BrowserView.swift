@@ -390,7 +390,7 @@ private struct HomeView: View {
                             }
                         }
                     }
-                    .padding(.bottom, 24)
+                    .padding(.bottom, LibraryScreenChrome.scrollBottomClearance)
                 }
                 .refreshable {
                     guard searchViewModel.submittedQuery == nil else { return }
