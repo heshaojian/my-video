@@ -108,9 +108,13 @@ final class AiyifanLatestTapTests: XCTestCase {
     }
 
     func testLibraryTabTitlesRemainVisibleInDarkTheme() {
-        let app = launchFixtureApp()
+        let app = launchFixtureAppWithPlayedHistory()
         XCTAssertTrue(app.buttons["saveItem-fixture-movie"].waitForExistence(timeout: 5))
         app.buttons["saveItem-fixture-movie"].tap()
+
+        let homeTitle = app.staticTexts["homeScreenTitle"]
+        XCTAssertTrue(homeTitle.waitForExistence(timeout: 5))
+        let homeTitleTop = homeTitle.frame.minY
 
         app.tabBars.buttons["Saved"].tap()
         let savedTitle = app.staticTexts["savedScreenTitle"]
@@ -120,6 +124,7 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertGreaterThan(savedTitle.frame.width, 40)
         XCTAssertGreaterThan(savedTitle.frame.height, 20)
         XCTAssertLessThan(abs(savedTitle.frame.midY - savedBrandMark.frame.midY), 20)
+        XCTAssertEqual(savedTitle.frame.minY, homeTitleTop, accuracy: 2)
 
         app.tabBars.buttons["Played"].tap()
         let playedTitle = app.staticTexts["playedScreenTitle"]
@@ -129,6 +134,7 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertGreaterThan(playedTitle.frame.width, 40)
         XCTAssertGreaterThan(playedTitle.frame.height, 20)
         XCTAssertLessThan(abs(playedTitle.frame.midY - playedBrandMark.frame.midY), 20)
+        XCTAssertEqual(playedTitle.frame.minY, homeTitleTop, accuracy: 2)
     }
 
     func testSavedGridKeepsAdjacentCardsInUniformNonOverlappingColumns() {

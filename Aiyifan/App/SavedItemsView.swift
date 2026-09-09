@@ -83,9 +83,6 @@ struct SavedItemsView: View {
                     .refreshable { await refreshSaved() }
                 }
             }
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
-            .libraryNavigationChrome()
             .onChange(of: savedItemsStore.items.map(\.id)) { _, ids in
                 readyToWatchStore.prune(savedTitleIDs: Set(ids))
             }

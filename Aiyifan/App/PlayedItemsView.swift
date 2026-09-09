@@ -79,9 +79,6 @@ struct PlayedItemsView: View {
                     }
                 }
             }
-            .navigationTitle("")
-            .navigationBarTitleDisplayMode(.inline)
-            .libraryNavigationChrome()
             .alert("Clear Played History?", isPresented: $isConfirmingClear) {
                 Button("Cancel", role: .cancel) {}
                 Button("Clear All", role: .destructive, action: playedItemsStore.removeAll)

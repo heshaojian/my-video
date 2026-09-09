@@ -7,6 +7,7 @@ Keep first-class library tabs visually consistent with Home and prevent dark-the
 ## Rule
 
 - Home, Saved, and Played are first-class library tabs and must share the same page identity primitive: BrandMark, small Aiyifan label, large white page title, consistent top spacing, semantic dark background, and optional trailing page action.
+- Root Home, Saved, and Played tabs must not attach empty native navigation chrome above the custom `LibraryScreenHeader`; that reserves an invisible navigation bar and pushes the header lower than Home.
 - Pushed or modal utility screens, such as Ready to Watch, Filters, Settings, Episodes, and Cast, may use native navigation chrome when that better matches platform behavior.
 - Shared dark colors and navigation-bar treatment must come from `LibraryScreenChrome` and `libraryNavigationChrome()`, not duplicated per screen.
 - First-class library scroll views must reserve `LibraryScreenChrome.scrollBottomClearance` so poster cards, row actions, and titles can scroll above the floating tab bar.
@@ -27,6 +28,7 @@ Search for these patterns before shipping visual changes:
 
 - UI-test Home, Saved, and Played title visibility in dark mode.
 - Verify the shared BrandMark exists for every first-class library tab.
-- Verify title and BrandMark vertical alignment to catch invisible, clipped, or shifted headers.
+- Verify title and BrandMark vertical alignment to catch invisible or clipped headers.
+- Verify Saved and Played header top positions match Home to catch invisible root navigation chrome.
 - Verify Saved/Home/Played content can scroll clear of fixed or floating bottom chrome.
 - Keep existing Saved/Played behavior tests for persistence, Ready to Watch, clear-history confirmation, and native-player launch.

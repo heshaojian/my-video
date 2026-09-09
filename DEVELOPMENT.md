@@ -330,6 +330,7 @@ Treat every provider value and URL as untrusted input.
 | Search cards drift from All | Similar markup copied into another view | Reuse `PosterMediaCard(.grid)` directly |
 | Catalog says 4K but player cannot select it | Metadata treated as a rendition | Report only measured AVFoundation tiers |
 | Current title returns an invalid response | Stale certificate or provider request context | Use validated region/language and one fresh-certificate retry |
+| Saved or Played header sits lower than Home | Empty root navigation chrome reserves native bar height above a custom page header | Root library tabs use custom header spacing only; reserve native navigation chrome for pushed utility screens |
 | Daily notification claimed at an exact hour | `earliestBeginDate` treated as a timer | Describe background refresh as best effort; catch up on launch |
 | Ready queue starts the wrong episode | Queue stores only a title or guesses episode 1 | Retain exact episode keys and publish them before the selected item |
 | Ready entries disappear after one failed check | Latest provider attempt replaces valid state | Retain the last valid bounded snapshot on partial failure |
