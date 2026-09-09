@@ -59,6 +59,7 @@ final class NativePlayerViewModel: ObservableObject {
     @Published private(set) var viewerMetrics: ViewerMetrics?
     @Published private(set) var qualityOptions: [PlaybackQualityOption] = []
     @Published private(set) var selectedQuality: PlaybackQualityOption?
+    @Published private(set) var advertisedQuality: String?
     @Published private(set) var isPlaying = false
     @Published private(set) var playbackPosition = 0.0
     @Published private(set) var playbackDuration = 0.0
@@ -120,7 +121,7 @@ final class NativePlayerViewModel: ObservableObject {
     var qualityMenuOptions: [PlaybackQualityMenuOption] {
         PlaybackQualityMenuProjector.options(
             playableOptions: qualityOptions,
-            catalogQuality: item.quality
+            catalogQuality: item.quality ?? advertisedQuality
         )
     }
 
@@ -251,6 +252,7 @@ final class NativePlayerViewModel: ObservableObject {
         playbackEntries = []
         qualityOptions = []
         selectedQuality = nil
+        advertisedQuality = nil
         isLoadingEpisodes = false
         episodeErrorMessage = nil
         preparedEntryCount = 0
@@ -533,6 +535,7 @@ final class NativePlayerViewModel: ObservableObject {
         viewerMetrics = nil
         qualityOptions = []
         selectedQuality = nil
+        advertisedQuality = nil
         isLoadingEpisodes = false
         episodeErrorMessage = nil
         pendingResumePosition = 0
@@ -552,6 +555,7 @@ final class NativePlayerViewModel: ObservableObject {
             selectedEpisode = playback.selectedEpisode
             publishEpisodeObservation(playback.episodes)
             viewerMetrics = playback.metrics
+            advertisedQuality = playback.advertisedQuality
             episodeTitle = playback.episodeTitle
             pendingResumePosition = playedItemsStore?
                 .record(for: item, episodeKey: playback.selectedEpisode?.mediaKey)?

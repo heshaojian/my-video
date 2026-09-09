@@ -154,6 +154,41 @@ final class NativePlayerViewModelTests: XCTestCase {
         viewModel.stop()
     }
 
+    func testQualityMenuUsesResolvedAdvertisedQualityWhenItemDoesNotHaveQuality() async throws {
+        let deliveredOptions = PlaybackQualityProjector.options(from: [
+            PlaybackVariantDescriptor(
+                width: 1_024,
+                height: 576,
+                averageBitRate: 1_500_000,
+                peakBitRate: nil
+            )
+        ])
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(
+                listPath: "movie",
+                title: "Movie"
+            ),
+            resolver: StubPlaybackResolver(playback: NativePlayback(
+                entries: [
+                    NativePlaybackEntry(
+                        url: URL(string: "https://media.example.com/movie.m3u8")!,
+                        isAdvertisement: false
+                    )
+                ],
+                advertisedQuality: "1080P"
+            )),
+            qualityLoader: StubQualityLoader(options: deliveredOptions)
+        )
+
+        viewModel.start()
+        try await waitUntil { viewModel.selectedQuality?.tierHeight == 576 }
+
+        XCTAssertEqual(viewModel.advertisedQuality, "1080P")
+        XCTAssertEqual(viewModel.qualityMenuOptions.map(\.tierHeight), [1_080, 720, 576])
+        XCTAssertEqual(viewModel.qualityMenuOptions.map(\.isPlayable), [false, false, true])
+        viewModel.stop()
+    }
+
     func testTeLiDuXingUsesDelivered480pInsteadOfCatalog4KClaim() async throws {
         let deliveredOptions = PlaybackQualityProjector.options(from: [
             PlaybackVariantDescriptor(

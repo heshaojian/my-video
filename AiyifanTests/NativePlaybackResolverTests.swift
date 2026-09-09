@@ -246,8 +246,29 @@ final class NativePlaybackResolverTests: XCTestCase {
         XCTAssertTrue(context.isSerial)
         XCTAssertEqual(context.categoryID, "0,1,4,137")
         XCTAssertEqual(context.metrics, ViewerMetrics(likes: 76, favorites: 221, score: 9.6, views: 170000))
+        XCTAssertNil(context.advertisedQuality)
         XCTAssertEqual(episodes.map(\.mediaKey), ["episode-4", "episode-3", "episode-1"])
         XCTAssertEqual(episodes.first?.title, "04")
+    }
+
+    func testDetailDecoderExtractsAdvertisedQualityFromProviderFields() throws {
+        let vipResource = Data("""
+        {"ret":200,"data":{"code":0,"info":[{
+          "cid":"0,1,3,27",
+          "isSerial":false,
+          "vipResource":"1080P"
+        }]}}
+        """.utf8)
+        let lastName = Data("""
+        {"ret":200,"data":{"code":0,"info":[{
+          "cid":"0,1,3,27",
+          "isSerial":false,
+          "lastName":"1080P集全"
+        }]}}
+        """.utf8)
+
+        XCTAssertEqual(try VideoDetailResponseDecoder.decode(vipResource).advertisedQuality, "1080P")
+        XCTAssertEqual(try VideoDetailResponseDecoder.decode(lastName).advertisedQuality, "1080P集全")
     }
 
     func testDetailDecoderOmitsMalformedOptionalMetricsIndependently() throws {
@@ -488,6 +509,7 @@ final class NativePlaybackResolverTests: XCTestCase {
 
         XCTAssertNil(playback.selectedEpisode)
         XCTAssertTrue(playback.episodes.isEmpty)
+        XCTAssertEqual(playback.advertisedQuality, "1080P集全")
         XCTAssertEqual(playback.entries.map(\.url.absoluteString), ["https://media.example.com/movie-576.m3u8"])
         XCTAssertFalse(requests.values.contains { $0.url?.path == "/v3/video/languagesplaylist" })
     }

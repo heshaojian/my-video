@@ -151,7 +151,7 @@ enum PlaybackQualityMenuProjector {
         })
     }
 
-    private static func maximumTier(from catalogQuality: String?) -> Int? {
+    static func maximumTier(from catalogQuality: String?) -> Int? {
         guard let catalogQuality else { return nil }
         let normalized = catalogQuality
             .trimmingCharacters(in: .whitespacesAndNewlines)

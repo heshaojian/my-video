@@ -16,6 +16,7 @@ struct NativePlayback: Equatable, Sendable {
     let episodes: [Episode]
     let selectedEpisode: Episode?
     let metrics: ViewerMetrics?
+    let advertisedQuality: String?
 
     var episodeTitle: String? {
         selectedEpisode?.title
@@ -25,12 +26,14 @@ struct NativePlayback: Equatable, Sendable {
         entries: [NativePlaybackEntry],
         episodes: [Episode] = [],
         selectedEpisode: Episode? = nil,
-        metrics: ViewerMetrics? = nil
+        metrics: ViewerMetrics? = nil,
+        advertisedQuality: String? = nil
     ) {
         self.entries = entries
         self.episodes = episodes
         self.selectedEpisode = selectedEpisode
         self.metrics = metrics
+        self.advertisedQuality = advertisedQuality
     }
 }
 
@@ -48,6 +51,7 @@ struct ViewerMetrics: Equatable, Sendable {
 struct VideoPlaybackContext: Equatable, Sendable {
     let isSerial: Bool
     let categoryID: String
+    let advertisedQuality: String?
     let metrics: ViewerMetrics
 }
 
@@ -307,6 +311,7 @@ enum VideoDetailResponseDecoder {
         return VideoPlaybackContext(
             isSerial: isSerial,
             categoryID: categoryID,
+            advertisedQuality: advertisedQuality(from: info),
             metrics: ViewerMetrics(
                 likes: APIResponseParser.nonnegativeCount(info["good"]),
                 favorites: APIResponseParser.nonnegativeCount(info["favoriteCount"]),
@@ -314,6 +319,17 @@ enum VideoDetailResponseDecoder {
                 views: APIResponseParser.nonnegativeCount(info["view"])
             )
         )
+    }
+
+    private static func advertisedQuality(from info: [String: Any]) -> String? {
+        [
+            info["vipResource"],
+            info["quality"],
+            info["lastName"]
+        ]
+        .compactMap { $0 as? String }
+        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() }
+        .first { !$0.isEmpty && PlaybackQualityMenuProjector.maximumTier(from: $0) != nil }
     }
 }
 
@@ -711,7 +727,8 @@ struct NativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving
             entries: playback.entries,
             episodes: episodes,
             selectedEpisode: selectedEpisode,
-            metrics: context.metrics.isEmpty ? nil : context.metrics
+            metrics: context.metrics.isEmpty ? nil : context.metrics,
+            advertisedQuality: context.advertisedQuality
         )
     }
 
