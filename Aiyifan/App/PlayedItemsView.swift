@@ -14,14 +14,26 @@ struct PlayedItemsView: View {
                     .ignoresSafeArea()
 
                 if playedItemsStore.items.isEmpty {
-                    ContentUnavailableView(
-                        "Nothing played yet",
-                        systemImage: "clock.arrow.circlepath",
-                        description: Text("Movies and episodes you start will appear here.")
-                    )
-                    .foregroundStyle(LibraryScreenChrome.primaryText)
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 40) {
+                            LibraryScreenTitle(title: "Played", accessibilityIdentifier: "playedScreenTitle")
+
+                            ContentUnavailableView(
+                                "Nothing played yet",
+                                systemImage: "clock.arrow.circlepath",
+                                description: Text("Movies and episodes you start will appear here.")
+                            )
+                            .foregroundStyle(LibraryScreenChrome.primaryText)
+                            .frame(maxWidth: .infinity, minHeight: 360)
+                        }
+                        .padding(18)
+                    }
                 } else {
                     VStack(spacing: 0) {
+                        LibraryScreenTitle(title: "Played", accessibilityIdentifier: "playedScreenTitle")
+                            .padding(.horizontal, 18)
+                            .padding(.top, 18)
+
                         Picker("Played Filter", selection: $filter) {
                             ForEach(PlayedFilter.allCases) { option in
                                 Text(option.title).tag(option)

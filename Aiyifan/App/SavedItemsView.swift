@@ -23,6 +23,19 @@ extension View {
     }
 }
 
+struct LibraryScreenTitle: View {
+    let title: String
+    let accessibilityIdentifier: String
+
+    var body: some View {
+        Text(title)
+            .font(.largeTitle.bold())
+            .foregroundStyle(LibraryScreenChrome.primaryText)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .accessibilityIdentifier(accessibilityIdentifier)
+    }
+}
+
 struct SavedItemsView: View {
     @ObservedObject var viewModel: BrowserViewModel
     @ObservedObject var savedItemsStore: SavedItemsStore
@@ -43,14 +56,21 @@ struct SavedItemsView: View {
 
                 if savedItemsStore.items.isEmpty {
                     ScrollView {
-                        ContentUnavailableView("Nothing saved yet", systemImage: "bookmark")
-                            .foregroundStyle(LibraryScreenChrome.primaryText)
-                            .frame(maxWidth: .infinity, minHeight: 420)
+                        VStack(alignment: .leading, spacing: 40) {
+                            LibraryScreenTitle(title: "Saved", accessibilityIdentifier: "savedScreenTitle")
+
+                            ContentUnavailableView("Nothing saved yet", systemImage: "bookmark")
+                                .foregroundStyle(LibraryScreenChrome.primaryText)
+                                .frame(maxWidth: .infinity, minHeight: 360)
+                        }
+                        .padding(18)
                     }
                     .refreshable { await refreshSaved() }
                 } else {
                     ScrollView {
                         LazyVStack(alignment: .leading, spacing: 24) {
+                            LibraryScreenTitle(title: "Saved", accessibilityIdentifier: "savedScreenTitle")
+
                             if savedUpdateMonitor.isChecking {
                                 Label("Checking saved titles", systemImage: "arrow.triangle.2.circlepath")
                                     .font(.caption.weight(.semibold))

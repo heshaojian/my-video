@@ -105,6 +105,24 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Nothing saved yet"].exists)
     }
 
+    func testLibraryTabTitlesRemainVisibleInDarkTheme() {
+        let app = launchFixtureApp()
+        XCTAssertTrue(app.buttons["saveItem-fixture-movie"].waitForExistence(timeout: 5))
+        app.buttons["saveItem-fixture-movie"].tap()
+
+        app.tabBars.buttons["Saved"].tap()
+        let savedTitle = app.staticTexts["savedScreenTitle"]
+        XCTAssertTrue(savedTitle.waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(savedTitle.frame.width, 40)
+        XCTAssertGreaterThan(savedTitle.frame.height, 20)
+
+        app.tabBars.buttons["Played"].tap()
+        let playedTitle = app.staticTexts["playedScreenTitle"]
+        XCTAssertTrue(playedTitle.waitForExistence(timeout: 5))
+        XCTAssertGreaterThan(playedTitle.frame.width, 40)
+        XCTAssertGreaterThan(playedTitle.frame.height, 20)
+    }
+
     func testSavedGridKeepsAdjacentCardsInUniformNonOverlappingColumns() {
         let app = launchFixtureApp()
         XCTAssertTrue(app.buttons["saveItem-fixture-movie"].waitForExistence(timeout: 5))
