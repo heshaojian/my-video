@@ -2,6 +2,34 @@ import XCTest
 
 @MainActor
 final class AiyifanLatestTapTests: XCTestCase {
+    private enum ScrollDirection: String {
+        case up
+        case down
+
+        @MainActor
+        func swipe(_ scrollSurface: XCUIElement, incrementally: Bool) {
+            if incrementally {
+                let start = scrollSurface.coordinate(
+                    withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)
+                )
+                let verticalStep = scrollSurface.frame.height / 5
+                let offset = self == .up ? -verticalStep : verticalStep
+                start.press(
+                    forDuration: 0.01,
+                    thenDragTo: start.withOffset(CGVector(dx: 0, dy: offset))
+                )
+                return
+            }
+
+            switch self {
+            case .up:
+                scrollSurface.swipeUp()
+            case .down:
+                scrollSurface.swipeDown()
+            }
+        }
+    }
+
     private func launchFixtureApp() -> XCUIApplication {
         launchFixtureApp(resetSavedItems: true, resetCatalogPreferences: true)
     }
@@ -143,15 +171,26 @@ final class AiyifanLatestTapTests: XCTestCase {
 
     func testSavedGridKeepsAdjacentCardsInUniformNonOverlappingColumns() {
         let app = launchFixtureApp()
-        XCTAssertTrue(app.buttons["saveItem-fixture-movie"].waitForExistence(timeout: 5))
-        app.buttons["saveItem-fixture-movie"].tap()
-        app.buttons["saveItem-fixture-drama"].tap()
+        let homeScroll = app.scrollViews.firstMatch
+        let saveMovie = app.buttons["saveItem-fixture-movie"]
+        XCTAssertTrue(saveMovie.waitForExistence(timeout: 5))
+        assertReachableAndHittable(saveMovie, named: "movie save action", in: homeScroll)
+        saveMovie.tap()
+
+        let saveDrama = app.buttons["saveItem-fixture-drama"]
+        assertReachableAndHittable(saveDrama, named: "series save action", in: homeScroll)
+        saveDrama.tap()
         app.tabBars.buttons["Saved"].tap()
 
         let movie = app.buttons["savedItem-fixture-movie"]
         let drama = app.buttons["savedItem-fixture-drama"]
+        let savedScroll = app.scrollViews.firstMatch
+        assertReachableAndHittable(movie, named: "saved movie card", in: savedScroll)
+        assertReachableAndHittable(drama, named: "saved series card", in: savedScroll)
         XCTAssertTrue(movie.waitForExistence(timeout: 5))
         XCTAssertTrue(drama.exists)
+        XCTAssertTrue(movie.isHittable)
+        XCTAssertTrue(drama.isHittable)
         XCTAssertEqual(movie.frame.width, drama.frame.width, accuracy: 0.5)
 
         let left = movie.frame.minX < drama.frame.minX ? movie.frame : drama.frame
@@ -161,33 +200,90 @@ final class AiyifanLatestTapTests: XCTestCase {
 
     func testSharedCardsKeepOneLineTitlesAndCompactDetailsAcrossLibraries() {
         let app = launchFixtureAppWithPlayedHistory()
+        let homeScroll = app.scrollViews.firstMatch
 
-        assertCompactCardText("latestItem-fixture-drama", in: app)
+        assertCompactCardText("latestItem-fixture-drama", in: app, scrollSurface: homeScroll)
 
-        app.buttons["showSearch"].tap()
+        let showSearch = app.buttons["showSearch"]
+        assertReachableAndHittable(
+            showSearch,
+            named: "Home search action",
+            in: homeScroll,
+            direction: .down
+        )
+        showSearch.tap()
         let searchField = app.textFields["providerSearchField"]
         XCTAssertTrue(searchField.waitForExistence(timeout: 2))
         searchField.tap()
         searchField.typeText("Fixture Search")
         app.buttons["submitSearch"].tap()
-        assertCompactCardText("catalogItem-fixture-search-movie", in: app)
-        app.buttons["cancelSearch"].tap()
+        assertCompactCardText(
+            "catalogItem-fixture-search-movie",
+            in: app,
+            scrollSurface: homeScroll
+        )
+        let cancelSearch = app.buttons["cancelSearch"]
+        assertReachableAndHittable(
+            cancelSearch,
+            named: "cancel search action",
+            in: homeScroll,
+            direction: .down
+        )
+        cancelSearch.tap()
 
-        app.buttons["saveItem-fixture-drama"].tap()
+        let saveDrama = app.buttons["saveItem-fixture-drama"]
+        assertReachableAndHittable(saveDrama, named: "series save action", in: homeScroll)
+        saveDrama.tap()
         app.tabBars.buttons["Saved"].tap()
-        assertCompactCardText("savedItem-fixture-drama", in: app)
+        assertCompactCardText(
+            "savedItem-fixture-drama",
+            in: app,
+            scrollSurface: app.scrollViews.firstMatch
+        )
 
         app.tabBars.buttons["Played"].tap()
-        assertCompactCardText("playedItem-fixture-drama::episode-4", in: app)
+        assertCompactCardText(
+            "playedItem-fixture-drama::episode-4",
+            in: app,
+            scrollSurface: app.scrollViews.firstMatch
+        )
 
         app.tabBars.buttons["Home"].tap()
         let all = app.buttons["browseCategory-variety"]
-        if !all.exists {
-            app.swipeUp()
-        }
+        assertReachableAndHittable(all, named: "Latest Variety All action", in: homeScroll)
         XCTAssertTrue(all.waitForExistence(timeout: 3))
         all.tap()
-        assertCompactCardText("catalogItem-fixture-catalog-variety-1", in: app)
+        assertCompactCardText(
+            "catalogItem-fixture-catalog-variety-1",
+            in: app,
+            scrollSurface: app.scrollViews.firstMatch
+        )
+    }
+
+    func testHomePosterCardKeepsCompactVisibleGeometryInLandscape() {
+        let device = XCUIDevice.shared
+        device.orientation = .landscapeLeft
+        defer { device.orientation = .portrait }
+
+        let app = launchFixtureApp()
+        let homeScroll = app.scrollViews.firstMatch
+        let itemIdentifier = "latestItem-fixture-drama"
+        assertCompactCardText(itemIdentifier, in: app, scrollSurface: homeScroll)
+
+        let card = app.buttons[itemIdentifier]
+        let title = app.staticTexts["\(itemIdentifier)-title"]
+        let detail = app.staticTexts["\(itemIdentifier)-detail"]
+        let save = app.buttons["saveItem-fixture-drama"]
+        assertReachableAndHittable(save, named: "series save action", in: homeScroll)
+
+        XCTAssertGreaterThanOrEqual(card.frame.minX, homeScroll.frame.minX)
+        XCTAssertLessThanOrEqual(card.frame.maxX, homeScroll.frame.maxX)
+        XCTAssertGreaterThanOrEqual(title.frame.minX, card.frame.minX)
+        XCTAssertLessThanOrEqual(title.frame.maxX, card.frame.maxX)
+        XCTAssertGreaterThanOrEqual(detail.frame.minX, card.frame.minX)
+        XCTAssertLessThanOrEqual(detail.frame.maxX, card.frame.maxX)
+        XCTAssertGreaterThanOrEqual(save.frame.minX, card.frame.minX - 1)
+        XCTAssertLessThanOrEqual(save.frame.maxX, card.frame.maxX + 1)
     }
 
     func testSavedGridCanScrollClearOfFloatingTabBar() {
@@ -481,14 +577,69 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertLessThanOrEqual(element.frame.maxY, tabBar.frame.minY - 12, file: file, line: line)
     }
 
-    private func assertCompactCardText(
-        _ itemIdentifier: String,
-        in app: XCUIApplication,
+    private func assertReachableAndHittable(
+        _ element: XCUIElement,
+        named name: String,
+        in scrollSurface: XCUIElement,
+        direction: ScrollDirection? = nil,
+        maxAttempts: Int = 8,
         file: StaticString = #filePath,
         line: UInt = #line
     ) {
+        guard scrollSurface.waitForExistence(timeout: 2) else {
+            XCTFail("Missing scroll surface while looking for \(name)", file: file, line: line)
+            return
+        }
+
+        if element.waitForExistence(timeout: 1), element.isHittable {
+            return
+        }
+
+        for _ in 0..<maxAttempts {
+            let isMaterialized = element.exists
+            let swipeDirection: ScrollDirection
+            if let direction {
+                swipeDirection = direction
+            } else if isMaterialized, element.frame.midY < scrollSurface.frame.midY {
+                swipeDirection = .down
+            } else {
+                swipeDirection = .up
+            }
+            swipeDirection.swipe(scrollSurface, incrementally: isMaterialized)
+            if element.waitForExistence(timeout: 0.5), element.isHittable {
+                return
+            }
+        }
+
+        let targetState = element.exists
+            ? "exists at \(element.frame) but is not hittable"
+            : "does not exist"
+        let directionDescription = direction?.rawValue ?? "adaptive"
+        XCTFail(
+            "Could not reach \(name) after \(maxAttempts) \(directionDescription) swipes; target \(targetState)",
+            file: file,
+            line: line
+        )
+    }
+
+    private func assertCompactCardText(
+        _ itemIdentifier: String,
+        in app: XCUIApplication,
+        scrollSurface: XCUIElement,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let item = app.buttons[itemIdentifier]
         let title = app.staticTexts["\(itemIdentifier)-title"]
         let detail = app.staticTexts["\(itemIdentifier)-detail"]
+        assertReachableAndHittable(
+            item,
+            named: "\(itemIdentifier) card",
+            in: scrollSurface,
+            file: file,
+            line: line
+        )
+        XCTAssertTrue(item.isHittable, file: file, line: line)
         XCTAssertTrue(title.waitForExistence(timeout: 5), file: file, line: line)
         XCTAssertTrue(detail.exists, file: file, line: line)
         XCTAssertLessThanOrEqual(title.frame.height, 20, file: file, line: line)
@@ -833,18 +984,37 @@ final class AiyifanLatestTapTests: XCTestCase {
 
         app.buttons["playbackSettings"].tap()
         app.buttons["playbackQuality"].tap()
+        let qualityMenu = app.collectionViews.firstMatch
+        XCTAssertTrue(qualityMenu.waitForExistence(timeout: 3), app.debugDescription)
 
         for tier in [2_160, 1_080, 720, 480] {
             let quality = app.buttons["playbackQuality-\(tier)"]
+            assertReachableAndHittable(
+                quality,
+                named: "\(tier)p quality tier",
+                in: qualityMenu
+            )
             XCTAssertTrue(quality.waitForExistence(timeout: 3), app.debugDescription)
             XCTAssertTrue(quality.isEnabled, "\(tier)p should be enabled")
             XCTAssertTrue(quality.isHittable, "\(tier)p should be hittable")
         }
 
-        app.buttons["playbackQuality-720"].tap()
+        let quality720 = app.buttons["playbackQuality-720"]
+        assertReachableAndHittable(
+            quality720,
+            named: "720p quality tier",
+            in: qualityMenu,
+            direction: .down
+        )
+        quality720.tap()
         app.buttons["playbackSettings"].tap()
         app.buttons["playbackQuality"].tap()
         let selectedQuality = app.buttons["playbackQuality-720"]
+        assertReachableAndHittable(
+            selectedQuality,
+            named: "selected 720p quality tier",
+            in: qualityMenu
+        )
         XCTAssertTrue(selectedQuality.isSelected)
     }
 
