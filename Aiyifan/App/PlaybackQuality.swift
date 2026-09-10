@@ -221,6 +221,21 @@ protocol PlaybackQualityLoading: Sendable {
     func loadOptions(for url: URL) async throws -> [PlaybackQualityOption]
 }
 
+@MainActor
+protocol PlaybackItemPreparing {
+    func prepare(url: URL) async throws -> AVPlayerItem
+}
+
+struct AVPlaybackItemPreparer: PlaybackItemPreparing {
+    func prepare(url: URL) async throws -> AVPlayerItem {
+        let asset = AVURLAsset(url: url)
+        guard try await asset.load(.isPlayable) else {
+            throw NativePlaybackError.unsupportedMedia
+        }
+        return AVPlayerItem(asset: asset)
+    }
+}
+
 struct AVAssetPlaybackQualityLoader: PlaybackQualityLoading {
     func loadOptions(for url: URL) async throws -> [PlaybackQualityOption] {
         let asset = AVURLAsset(url: url)
