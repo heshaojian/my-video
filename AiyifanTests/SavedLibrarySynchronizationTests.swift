@@ -96,6 +96,12 @@ final class SavedLibrarySynchronizationTests: XCTestCase {
         XCTAssertEqual(projection.detailText, "国语 · 2026")
     }
 
+    func testEpisodeDisplayLabelPreservesProviderLabelsAndHidesOpaqueKeys() {
+        XCTAssertEqual(EpisodeDisplayLabel.sanitized("第10集", excluding: ["episode-10"]), "第10集")
+        XCTAssertNil(EpisodeDisplayLabel.sanitized("fz4AxompbuT"))
+        XCTAssertNil(EpisodeDisplayLabel.sanitized("episode-10", excluding: [" episode-10 "]))
+    }
+
     func testPosterProjectionDoesNotTreatMovieSubtitleAsEpisode() {
         let projection = PosterCardProjection(
             item: AiyifanItem(

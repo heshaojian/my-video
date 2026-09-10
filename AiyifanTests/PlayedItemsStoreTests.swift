@@ -159,6 +159,40 @@ final class PlayedItemsStoreTests: XCTestCase {
         XCTAssertTrue(record?.isCompleted == true)
     }
 
+    func testRawEpisodeKeyDoesNotBecomePersistedEpisodeTitle() {
+        let (defaults, suiteName) = isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let item = AiyifanItem(listPath: "series", title: "Series", isSerial: true)
+        let key = "fz4AxompbuT"
+        let store = PlayedItemsStore(defaults: defaults)
+
+        store.record(
+            item: item,
+            episode: Episode(mediaKey: key, title: key, updateDate: nil),
+            position: 10,
+            duration: 100
+        )
+
+        XCTAssertEqual(store.record(for: item, episodeKey: key)?.episodeKey, key)
+        XCTAssertNil(store.record(for: item, episodeKey: key)?.episodeTitle)
+        XCTAssertNil(PlayedItemsStore(defaults: defaults).record(for: item, episodeKey: key)?.episodeTitle)
+    }
+
+    func testMarkingEpisodeWithoutProviderTitleKeepsEpisodeIdentity() {
+        let (defaults, suiteName) = isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let item = AiyifanItem(listPath: "series", title: "Series", isSerial: true)
+        let key = "fz4AxompbuT"
+        let store = PlayedItemsStore(defaults: defaults)
+
+        store.markWatched(item: item, episodeKey: key, episodeTitle: nil)
+
+        let record = PlayedItemsStore(defaults: defaults).record(for: item, episodeKey: key)
+        XCTAssertEqual(record?.episodeKey, key)
+        XCTAssertNil(record?.episodeTitle)
+        XCTAssertTrue(record?.isCompleted == true)
+    }
+
     private func isolatedDefaults() -> (UserDefaults, String) {
         let suiteName = "PlayedItemsStoreTests.\(UUID().uuidString)"
         return (UserDefaults(suiteName: suiteName)!, suiteName)

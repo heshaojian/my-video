@@ -5,45 +5,18 @@ enum PosterMediaCardLayout: Equatable {
     case grid
 }
 
-struct PosterCardProjection: Equatable, Sendable {
-    let title: String
-    let detailText: String?
-
-    init(item: AiyifanItem, episodeState: SavedEpisodeUpdateState? = nil) {
-        title = item.title
-        let details = [
-            Self.episodeLabel(item: item, episodeState: episodeState),
-            Self.normalized(item.language),
-            Self.normalized(item.year)
-        ].compactMap { $0 }
-        detailText = details.isEmpty ? nil : details.joined(separator: " · ")
+enum EpisodeDisplayLabel {
+    static func sanitized(_ value: String?, excluding values: [String] = []) -> String? {
+        let excludedValues = Set(values.compactMap(normalized))
+        guard let value = normalized(value), !excludedValues.contains(value) else { return nil }
+        guard hasRecognizedEpisodeForm(value) || !isOpaqueProviderKey(value) else { return nil }
+        return value
     }
 
-    private static func episodeLabel(
-        item: AiyifanItem,
-        episodeState: SavedEpisodeUpdateState?
-    ) -> String? {
-        guard item.isSerial == true || episodeState != nil else { return nil }
-
-        let synchronizedTitle = episodeState.flatMap { state in
-            state.episodes.first(where: { $0.mediaKey == state.latestEpisodeKey })?.title
-        }
-        let rejectedValues = [
-            normalized(item.listPath),
-            normalized(item.latestEpisodeKey),
-            episodeState.flatMap { normalized($0.latestEpisodeKey) }
-        ].compactMap { $0 }
-
-        for candidate in [synchronizedTitle, item.latestEpisodeTitle, item.subTitle] {
-            guard let candidate = normalized(candidate), !rejectedValues.contains(candidate) else {
-                continue
-            }
-            if hasRecognizedEpisodeForm(candidate) || !isOpaqueProviderKey(candidate) {
-                return candidate
-            }
-        }
-
-        return nil
+    static func normalized(_ value: String?) -> String? {
+        guard let value else { return nil }
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
     }
 
     private static func hasRecognizedEpisodeForm(_ value: String) -> Bool {
@@ -68,11 +41,44 @@ struct PosterCardProjection: Equatable, Sendable {
         return scalars.contains(where: CharacterSet.letters.contains)
             && scalars.contains(where: CharacterSet.decimalDigits.contains)
     }
+}
 
-    private static func normalized(_ value: String?) -> String? {
-        guard let value else { return nil }
-        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? nil : trimmed
+struct PosterCardProjection: Equatable, Sendable {
+    let title: String
+    let detailText: String?
+
+    init(item: AiyifanItem, episodeState: SavedEpisodeUpdateState? = nil) {
+        title = item.title
+        let details = [
+            Self.episodeLabel(item: item, episodeState: episodeState),
+            EpisodeDisplayLabel.normalized(item.language),
+            EpisodeDisplayLabel.normalized(item.year)
+        ].compactMap { $0 }
+        detailText = details.isEmpty ? nil : details.joined(separator: " · ")
+    }
+
+    private static func episodeLabel(
+        item: AiyifanItem,
+        episodeState: SavedEpisodeUpdateState?
+    ) -> String? {
+        guard item.isSerial == true || episodeState != nil else { return nil }
+
+        let synchronizedTitle = episodeState.flatMap { state in
+            state.episodes.first(where: { $0.mediaKey == state.latestEpisodeKey })?.title
+        }
+        let rejectedValues = [
+            EpisodeDisplayLabel.normalized(item.listPath),
+            EpisodeDisplayLabel.normalized(item.latestEpisodeKey),
+            episodeState.flatMap { EpisodeDisplayLabel.normalized($0.latestEpisodeKey) }
+        ].compactMap { $0 }
+
+        for candidate in [synchronizedTitle, item.latestEpisodeTitle, item.subTitle] {
+            if let candidate = EpisodeDisplayLabel.sanitized(candidate, excluding: rejectedValues) {
+                return candidate
+            }
+        }
+
+        return nil
     }
 }
 

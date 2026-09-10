@@ -514,7 +514,10 @@ private struct ContinueWatchingSection: View {
                     ForEach(records) { record in
                         ProgressMediaCard(
                             item: record.item,
-                            subtitle: record.episodeTitle.map { "Episode \($0)" },
+                            subtitle: EpisodeDisplayLabel.sanitized(
+                                record.episodeTitle,
+                                excluding: record.episodeKey.map { [$0] } ?? []
+                            ),
                             progress: record.duration > 0 ? record.position / record.duration : 0,
                             progressLabel: nil,
                             itemIdentifier: "continueItem-\(record.item.id)",

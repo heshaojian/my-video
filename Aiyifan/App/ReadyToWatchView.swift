@@ -173,8 +173,10 @@ struct ReadyToWatchQueueView: View {
     }
 
     private func subtitle(for entry: ReadyToWatchEntry) -> String? {
-        guard let title = entry.episodeTitle else { return nil }
-        return "Episode \(title)"
+        EpisodeDisplayLabel.sanitized(
+            entry.episodeTitle,
+            excluding: entry.episodeKey.map { [$0] } ?? []
+        )
     }
 
     private func progress(for entry: ReadyToWatchEntry) -> Double {

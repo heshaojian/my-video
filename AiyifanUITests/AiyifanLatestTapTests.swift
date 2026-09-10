@@ -427,6 +427,19 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertTrue(episodeControl.label.contains("4"))
     }
 
+    func testPlayedAndContinueCardsKeepProviderEpisodeLabelsVerbatim() {
+        let app = launchFixtureAppWithPlayedHistory()
+
+        let continueDetail = app.staticTexts["continueItem-fixture-drama-detail"]
+        XCTAssertTrue(continueDetail.waitForExistence(timeout: 5))
+        XCTAssertEqual(continueDetail.label, "04")
+
+        app.tabBars.buttons["Played"].tap()
+        let playedDetail = app.staticTexts["playedItem-fixture-drama::episode-4-detail"]
+        XCTAssertTrue(playedDetail.waitForExistence(timeout: 5))
+        XCTAssertEqual(playedDetail.label, "04")
+    }
+
     func testSavedPageShowsReadyToWatchAboveUnchangedSavedGridAndPlaysExactEpisode() {
         let app = launchFixtureAppWithPlayedHistory()
         XCTAssertTrue(app.buttons["saveItem-fixture-drama"].waitForExistence(timeout: 5))
@@ -502,6 +515,7 @@ final class AiyifanLatestTapTests: XCTestCase {
         let manualMovie = app.buttons["readyQueueItem-fixture-movie"]
         XCTAssertTrue(automaticDrama.waitForExistence(timeout: 3))
         XCTAssertTrue(manualMovie.exists)
+        XCTAssertEqual(app.staticTexts["readyQueueItem-fixture-drama-detail"].label, "04")
 
         app.buttons["readyOptions-fixture-drama"].tap()
         app.buttons["Mark Watched"].tap()
