@@ -266,6 +266,20 @@ final class AiyifanLatestTapTests: XCTestCase {
         defer { device.orientation = .portrait }
 
         let app = launchFixtureApp()
+        let landscapeDeadline = Date().addingTimeInterval(5)
+        while app.frame.width <= app.frame.height, Date() < landscapeDeadline {
+            RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        }
+        guard app.frame.width > app.frame.height else {
+            XCTFail("Expected landscape within 5 seconds after launch; app frame is \(app.frame)")
+            return
+        }
+        XCTAssertGreaterThan(
+            app.frame.width,
+            app.frame.height,
+            "Landscape geometry assertions require a wider-than-tall app frame"
+        )
+
         let homeScroll = app.scrollViews.firstMatch
         let itemIdentifier = "latestItem-fixture-drama"
         assertCompactCardText(itemIdentifier, in: app, scrollSurface: homeScroll)
@@ -275,15 +289,26 @@ final class AiyifanLatestTapTests: XCTestCase {
         let detail = app.staticTexts["\(itemIdentifier)-detail"]
         let save = app.buttons["saveItem-fixture-drama"]
         assertReachableAndHittable(save, named: "series save action", in: homeScroll)
+        let visibleScrollFrame = homeScroll.frame.intersection(app.frame)
 
         XCTAssertGreaterThanOrEqual(card.frame.minX, homeScroll.frame.minX)
         XCTAssertLessThanOrEqual(card.frame.maxX, homeScroll.frame.maxX)
+        XCTAssertGreaterThanOrEqual(card.frame.minY, visibleScrollFrame.minY)
+        XCTAssertLessThanOrEqual(card.frame.maxY, visibleScrollFrame.maxY)
         XCTAssertGreaterThanOrEqual(title.frame.minX, card.frame.minX)
         XCTAssertLessThanOrEqual(title.frame.maxX, card.frame.maxX)
+        XCTAssertGreaterThanOrEqual(title.frame.minY, card.frame.minY)
+        XCTAssertLessThanOrEqual(title.frame.maxY, card.frame.maxY)
         XCTAssertGreaterThanOrEqual(detail.frame.minX, card.frame.minX)
         XCTAssertLessThanOrEqual(detail.frame.maxX, card.frame.maxX)
+        XCTAssertGreaterThanOrEqual(detail.frame.minY, card.frame.minY)
+        XCTAssertLessThanOrEqual(detail.frame.maxY, card.frame.maxY)
         XCTAssertGreaterThanOrEqual(save.frame.minX, card.frame.minX - 1)
         XCTAssertLessThanOrEqual(save.frame.maxX, card.frame.maxX + 1)
+        XCTAssertGreaterThanOrEqual(save.frame.minY, card.frame.minY - 1)
+        XCTAssertLessThanOrEqual(save.frame.maxY, card.frame.maxY + 1)
+        XCTAssertLessThanOrEqual(save.frame.maxY, title.frame.minY)
+        XCTAssertLessThanOrEqual(save.frame.maxY, detail.frame.minY)
     }
 
     func testSavedGridCanScrollClearOfFloatingTabBar() {
