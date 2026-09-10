@@ -433,8 +433,11 @@ final class NativePlayerViewModel: ObservableObject {
     func setQuality(_ option: PlaybackQualityMenuOption) {
         if let quality = option.adaptiveOption {
             setQuality(quality)
-        } else {
-            requestedProviderQualitySource = option.providerSource
+        } else if let source = option.providerSource,
+                  let currentSource = providerQualitySources.first(where: {
+                      $0.tierHeight == source.tierHeight && $0.url == source.url
+                  }) {
+            requestedProviderQualitySource = currentSource
         }
     }
 

@@ -246,6 +246,73 @@ final class NativePlayerViewModelTests: XCTestCase {
         XCTAssertNil(viewModel.requestedProviderQualitySource)
     }
 
+    func testQualityMenuIgnoresStaleProviderSourceAfterReload() async throws {
+        let initialSource = ProviderPlaybackSource(
+            url: URL(string: "https://media.example.com/initial-1440.m3u8")!,
+            tierHeight: 1_440
+        )
+        let refreshedSource = ProviderPlaybackSource(
+            url: URL(string: "https://media.example.com/refreshed-1440.m3u8")!,
+            tierHeight: 1_440
+        )
+        let resolver = SequencedPlaybackResolver(playbacks: [
+            NativePlayback(
+                entries: [NativePlaybackEntry(url: initialSource.url, isAdvertisement: false)],
+                qualitySources: [initialSource]
+            ),
+            NativePlayback(
+                entries: [NativePlaybackEntry(url: refreshedSource.url, isAdvertisement: false)],
+                qualitySources: [refreshedSource]
+            )
+        ])
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            resolver: resolver,
+            qualityLoader: StubQualityLoader(options: [])
+        )
+
+        viewModel.start()
+        try await waitUntil { viewModel.providerQualitySources == [initialSource] }
+        let staleMenuOption = try XCTUnwrap(viewModel.qualityMenuOptions.first)
+
+        viewModel.retry()
+        try await waitUntil { viewModel.providerQualitySources == [refreshedSource] }
+        viewModel.setQuality(staleMenuOption)
+
+        XCTAssertNil(viewModel.requestedProviderQualitySource)
+        viewModel.stop()
+    }
+
+    func testQualityMenuIgnoresForeignProviderSourceAtCurrentTier() async throws {
+        let source = ProviderPlaybackSource(
+            url: URL(string: "https://media.example.com/current-1440.m3u8")!,
+            tierHeight: 1_440
+        )
+        let foreignMenuOption = PlaybackQualityMenuOption(
+            tierHeight: source.tierHeight,
+            adaptiveOption: nil,
+            providerSource: ProviderPlaybackSource(
+                url: URL(string: "https://media.example.com/foreign-1440.m3u8")!,
+                tierHeight: source.tierHeight
+            )
+        )
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            resolver: StubPlaybackResolver(playback: NativePlayback(
+                entries: [NativePlaybackEntry(url: source.url, isAdvertisement: false)],
+                qualitySources: [source]
+            )),
+            qualityLoader: StubQualityLoader(options: [])
+        )
+
+        viewModel.start()
+        try await waitUntil { viewModel.providerQualitySources == [source] }
+        viewModel.setQuality(foreignMenuOption)
+
+        XCTAssertNil(viewModel.requestedProviderQualitySource)
+        viewModel.stop()
+    }
+
     func testTeLiDuXingUsesDelivered480pInsteadOfCatalog4KClaim() async throws {
         let deliveredOptions = PlaybackQualityProjector.options(from: [
             PlaybackVariantDescriptor(
@@ -946,6 +1013,21 @@ private actor CountingPlaybackResolver: NativePlaybackResolving {
 
     func resolveCount() -> Int {
         count
+    }
+}
+
+private actor SequencedPlaybackResolver: NativePlaybackResolving {
+    private var playbacks: [NativePlayback]
+
+    init(playbacks: [NativePlayback]) {
+        self.playbacks = playbacks
+    }
+
+    func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
+        guard !playbacks.isEmpty else {
+            throw NativePlaybackError.unsupportedMedia
+        }
+        return playbacks.removeFirst()
     }
 }
 
