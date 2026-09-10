@@ -941,6 +941,17 @@ extension NativePlaybackResolver: SavedEpisodeResolving {
 }
 
 struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving, SavedEpisodeResolving {
+    static let qualitySources = [2_160, 1_080, 720, 480].map { tierHeight in
+        ProviderPlaybackSource(
+            url: URL(string: "https://media.example.com/fixture-quality-\(tierHeight)p.m3u8")!,
+            tierHeight: tierHeight
+        )
+    }
+
+    static func qualitySource(for tierHeight: Int) -> ProviderPlaybackSource? {
+        qualitySources.first { $0.tierHeight == tierHeight }
+    }
+
     func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
         let isSerial = item.isSerial == true || item.latestEpisodeKey != nil || preferredEpisodeKey != nil
         let episodes = [
@@ -952,7 +963,7 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistRe
         let usesPlayableMedia = ProcessInfo.processInfo.arguments.contains("-AiyifanUsePlayableFixtureMedia")
         let programURL = usesPlayableMedia
             ? URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8")!
-            : URL(string: "https://media.example.com/\(selected?.mediaKey ?? item.listPath).m3u8")!
+            : Self.qualitySource(for: 720)!.url
         return NativePlayback(
             entries: [
                 NativePlaybackEntry(
@@ -964,6 +975,7 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistRe
                     isAdvertisement: false
                 )
             ],
+            qualitySources: Self.qualitySources,
             episodes: isSerial ? episodes : [],
             selectedEpisode: selected,
             metrics: ViewerMetrics(likes: 76, favorites: 221, score: 9.6, views: 170_000)

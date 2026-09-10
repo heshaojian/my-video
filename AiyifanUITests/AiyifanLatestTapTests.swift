@@ -8,7 +8,8 @@ final class AiyifanLatestTapTests: XCTestCase {
 
     private func launchFixtureApp(
         resetSavedItems: Bool,
-        resetCatalogPreferences: Bool = true
+        resetCatalogPreferences: Bool = true,
+        failingQualityTier: Int? = nil
     ) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments.append("-AiyifanUseFixtureFeed")
@@ -18,6 +19,9 @@ final class AiyifanLatestTapTests: XCTestCase {
         }
         if resetSavedItems {
             app.launchArguments.append("-AiyifanResetSavedItems")
+        }
+        if let failingQualityTier {
+            app.launchArguments += ["-AiyifanFailQualityTier", "\(failingQualityTier)"]
         }
         app.launch()
         return app
@@ -820,6 +824,56 @@ final class AiyifanLatestTapTests: XCTestCase {
         let automatic = app.buttons["automaticPlaybackQuality"]
         XCTAssertTrue(automatic.waitForExistence(timeout: 3))
         XCTAssertTrue(automatic.label.contains("Automatic"))
+    }
+
+    func testEveryProviderResolutionIsEnabledAndTappable() {
+        let app = launchFixtureApp()
+        app.buttons["latestItem-fixture-movie"].tap()
+        XCTAssertTrue(app.otherElements["nativePlayer"].waitForExistence(timeout: 5))
+
+        app.buttons["playbackSettings"].tap()
+        app.buttons["playbackQuality"].tap()
+
+        for tier in [2_160, 1_080, 720, 480] {
+            let quality = app.buttons["playbackQuality-\(tier)"]
+            XCTAssertTrue(quality.waitForExistence(timeout: 3), app.debugDescription)
+            XCTAssertTrue(quality.isEnabled, "\(tier)p should be enabled")
+            XCTAssertTrue(quality.isHittable, "\(tier)p should be hittable")
+        }
+
+        app.buttons["playbackQuality-720"].tap()
+        app.buttons["playbackSettings"].tap()
+        app.buttons["playbackQuality"].tap()
+        let selectedQuality = app.buttons["playbackQuality-720"]
+        XCTAssertTrue(selectedQuality.isSelected)
+    }
+
+    func testFailedResolutionKeepsNativePlaybackActive() {
+        let app = launchFixtureApp(
+            resetSavedItems: true,
+            failingQualityTier: 2_160
+        )
+        app.buttons["latestItem-fixture-movie"].tap()
+        let nativePlayer = app.otherElements["nativePlayer"]
+        XCTAssertTrue(nativePlayer.waitForExistence(timeout: 5))
+
+        app.buttons["playbackSettings"].tap()
+        app.buttons["playbackQuality"].tap()
+        let failingQuality = app.buttons["playbackQuality-2160"]
+        XCTAssertTrue(failingQuality.waitForExistence(timeout: 3))
+        XCTAssertTrue(failingQuality.isEnabled)
+        failingQuality.tap()
+
+        let feedback = app.descendants(matching: .any)["qualitySelectionMessage"]
+        XCTAssertTrue(feedback.waitForExistence(timeout: 5))
+        XCTAssertTrue(feedback.label.contains("2160p could not be played"))
+        XCTAssertTrue(nativePlayer.exists)
+        XCTAssertTrue(app.buttons["playbackSettings"].exists)
+        XCTAssertFalse(app.staticTexts["Playback unavailable"].exists)
+
+        app.buttons["playbackSettings"].tap()
+        app.buttons["playbackQuality"].tap()
+        XCTAssertTrue(app.buttons["playbackQuality-2160"].isEnabled)
     }
 
     func testPowerUserSessionKeepsNavigationAndCollectionsConsistent() {

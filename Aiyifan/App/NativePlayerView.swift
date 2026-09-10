@@ -61,6 +61,7 @@ final class NativePlayerViewModel: ObservableObject {
     @Published private(set) var providerQualitySources: [ProviderPlaybackSource] = []
     @Published private(set) var requestedProviderQualitySource: ProviderPlaybackSource?
     @Published private(set) var selectedQuality: PlaybackQualityOption?
+    @Published private(set) var hasManualQualitySelection = false
     @Published private(set) var qualitySelectionMessage: String?
     @Published private(set) var advertisedQuality: String?
     @Published private(set) var isPlaying = false
@@ -85,13 +86,13 @@ final class NativePlayerViewModel: ObservableObject {
         if let selectedQuality {
             return selectedQuality.tierHeight
         }
-        guard let activeProgramURL else {
-            return nil
+        if let activeProgramURL {
+            if committedProviderQualitySource?.url == activeProgramURL {
+                return committedProviderQualitySource?.tierHeight
+            }
+            return providerQualitySources.first { $0.url == activeProgramURL }?.tierHeight
         }
-        if committedProviderQualitySource?.url == activeProgramURL {
-            return committedProviderQualitySource?.tierHeight
-        }
-        return providerQualitySources.first { $0.url == activeProgramURL }?.tierHeight
+        return committedProviderQualitySource?.tierHeight
     }
 
     private var activePlaybackIndex: Int? {
@@ -149,7 +150,7 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     var usesAutomaticQuality: Bool {
-        !qualityPreferences.hasManualSelection
+        !hasManualQualitySelection
     }
 
     var manualQualityOptions: [PlaybackQualityOption] {
@@ -222,6 +223,7 @@ final class NativePlayerViewModel: ObservableObject {
         self.preferences = preferences
         self.qualityLoader = qualityLoader
         self.qualityPreferences = qualityPreferences
+        hasManualQualitySelection = qualityPreferences.hasManualSelection
         self.itemPreparer = itemPreparer
         self.itemStager = itemStager
         self.skipMarkerStore = skipMarkerStore
@@ -479,6 +481,7 @@ final class NativePlayerViewModel: ObservableObject {
         cancelQualitySourceSelection(clearMessage: true)
         cancelPlaybackPositionProtection()
         qualityPreferences.setTargetHeight(available.tierHeight)
+        hasManualQualitySelection = true
         selectedQuality = available
         playbackItems.forEach { apply(available, to: $0) }
     }
@@ -498,6 +501,7 @@ final class NativePlayerViewModel: ObservableObject {
         cancelQualitySourceSelection(clearMessage: true)
         cancelPlaybackPositionProtection()
         qualityPreferences.setAutomatic()
+        hasManualQualitySelection = false
         guard let automatic = PlaybackQualitySelector.select(
             from: qualityOptions,
             targetHeight: PlaybackQualityPreferenceStore.defaultTargetHeight,
@@ -774,7 +778,7 @@ final class NativePlayerViewModel: ObservableObject {
 
     private func beginQualitySourceSelection(_ source: ProviderPlaybackSource) {
         guard
-            let currentIndex = activePlaybackIndex,
+            let currentIndex = activePlaybackIndex ?? playbackItems.indices.first,
             playbackItems.indices.contains(currentIndex),
             playbackEntries.indices.contains(currentIndex)
         else {
@@ -841,11 +845,12 @@ final class NativePlayerViewModel: ObservableObject {
     private func finishSameURLQualitySourceSelection(
         _ snapshot: QualitySourceSelectionSnapshot
     ) {
-        guard isCurrent(snapshot), player.currentItem === snapshot.currentItem else { return }
+        guard isCurrent(snapshot), currentItemMatches(snapshot) else { return }
         applyProviderTier(snapshot.source.tierHeight, to: snapshot.currentItem)
         committedProviderQualitySource = snapshot.source
         selectedQuality = nil
         qualityPreferences.setTargetHeight(snapshot.source.tierHeight)
+        hasManualQualitySelection = true
         requestedProviderQualitySource = nil
         qualitySelectionTask = nil
         updateFutureCastPlan(
@@ -915,6 +920,7 @@ final class NativePlayerViewModel: ObservableObject {
         qualityOptions = []
         selectedQuality = nil
         qualityPreferences.setTargetHeight(snapshot.source.tierHeight)
+        hasManualQualitySelection = true
         requestedProviderQualitySource = nil
         qualitySelectionTask = nil
         previousPlayer.removeAllItems()
@@ -965,8 +971,12 @@ final class NativePlayerViewModel: ObservableObject {
         qualitySelectionGeneration == snapshot.generation
             && playbackItems.indices.contains(snapshot.currentIndex)
             && playbackItems[snapshot.currentIndex] === snapshot.currentItem
-            && activeProgramURL == snapshot.currentURL
+            && (activeProgramURL == snapshot.currentURL || player.currentItem == nil)
             && selectedEpisode?.mediaKey == snapshot.episode?.mediaKey
+    }
+
+    private func currentItemMatches(_ snapshot: QualitySourceSelectionSnapshot) -> Bool {
+        player.currentItem == nil || player.currentItem === snapshot.currentItem
     }
 
     private func applyProviderTier(_ tierHeight: Int, to item: AVPlayerItem) {
@@ -1502,6 +1512,24 @@ final class NativePlayerViewModel: ObservableObject {
     }
 }
 
+@MainActor
+struct FixturePlaybackItemPreparer: PlaybackItemPreparing {
+    let failingURL: URL?
+
+    func prepare(url: URL) async throws -> AVPlayerItem {
+        if url == failingURL {
+            throw NativePlaybackError.unsupportedMedia
+        }
+        return AVPlayerItem(url: url)
+    }
+}
+
+struct FixturePlaybackQualityLoader: PlaybackQualityLoading {
+    func loadOptions(for url: URL) async throws -> [PlaybackQualityOption] {
+        []
+    }
+}
+
 struct NativePlayerScreen: View {
     let item: AiyifanItem
     let onClose: () -> Void
@@ -1708,22 +1736,26 @@ struct NativePlayerScreen: View {
                 }
                 .accessibilityIdentifier("automaticPlaybackQuality")
 
-                if viewModel.qualityMenuOptions.isEmpty {
-                    Text(viewModel.qualityAvailabilityText)
-                } else {
+                if !viewModel.qualityMenuOptions.isEmpty {
                     Divider()
                     ForEach(viewModel.qualityMenuOptions) { quality in
                         Button {
                             viewModel.setQuality(quality)
                         } label: {
                             if !viewModel.usesAutomaticQuality,
-                               quality.id == viewModel.selectedQuality?.id {
+                               quality.tierHeight == viewModel.selectedQualityTier {
                                 Label(quality.title, systemImage: "checkmark")
                             } else {
                                 Text(quality.title)
                             }
                         }
                         .accessibilityIdentifier("playbackQuality-\(quality.tierHeight)")
+                        .accessibilityAddTraits(
+                            !viewModel.usesAutomaticQuality
+                                && quality.tierHeight == viewModel.selectedQualityTier
+                                ? .isSelected
+                                : []
+                        )
                     }
                 }
             }
@@ -1789,6 +1821,18 @@ private struct PlaybackPromptOverlay: View {
     var body: some View {
         VStack(alignment: .trailing, spacing: 8) {
             Spacer()
+
+            if let message = viewModel.qualitySelectionMessage {
+                Text(message)
+                    .font(.caption.weight(.semibold))
+                    .multilineTextAlignment(.trailing)
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 9)
+                    .background(.black.opacity(0.8))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .accessibilityIdentifier("qualitySelectionMessage")
+            }
 
             if !isCasting, viewModel.canUndoSkip || viewModel.skipOpportunity != nil {
                 Button(viewModel.canUndoSkip ? "Undo Skip" : skipButtonTitle) {
