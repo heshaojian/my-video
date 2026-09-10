@@ -14,7 +14,7 @@ changing navigation, playback, provider requests, persistence, or casting.
 - Opens All as a native, pull-to-refresh catalog with 24-item pagination, score badges, Save/Favorite controls, and direct native playback.
 - Keeps Home focused on discovery, with Continue Watching and New for You sections; filtering and sorting live in each native All catalog.
 - Provides a collapsed global search that queries Aiyifan's signed catalog API and returns native, playable, saveable cards rather than filtering the small Home sample.
-- Uses one compact poster-card system for Home, Search, Saved, All, and poster rails: a two-line title plus one update/year/region row. Continue Watching and Played use the matching progress-row variant.
+- Uses one compact poster-card system for Home, Search, Saved, All, and poster rails: a one-line title plus one episode/language/year detail row that never exposes opaque provider episode identifiers. Continue Watching and Played use the matching progress-row variant.
 - Remembers independently selected filters, sort order, and sort direction for each category across navigation and app relaunches.
 - Saves titles for later, checks every saved serial title when the app opens and daily in the background, and supports per-title update alerts with episode deep links. Player-discovered episodes update Saved immediately and never regress to an older partial response.
 - Adds a Saved-only Ready to Watch queue above the unchanged Saved grid. It combines exact new episodes, genuinely unfinished Saved episodes, and manually pinned titles; users can reorder pins, dismiss entries, mark them watched, or play the exact episode.
@@ -22,7 +22,8 @@ changing navigation, playback, provider requests, persistence, or casting.
 - Excludes separately supplied front advertisements from native and Cast playback queues while leaving the full program stream untouched.
 - Lists multi-episode shows newest-first, autoplays the next episode, and remembers progress per episode.
 - Starts a known latest episode immediately while its complete episode list retries independently up to four times.
-- Always exposes Quality with Automatic preferring exact 1080p, falls back to the highest delivered rendition, and remembers manual choices when the stream exposes them. A catalog `4K` label never fabricates a 4K stream option.
+- Always exposes Quality with Automatic preferring exact 1080p and falling back to the highest delivered rendition. Manual choices come only from actual provider playback sources and HLS/AVFoundation variants; catalog quality metadata never fabricates a resolution.
+- Keeps every listed resolution enabled. Direct-source changes are staged before promotion, and a failed selection reports nonterminal feedback while preserving the active player, source, playback state, and progress.
 - Keeps one player session alive when Back is tapped, with a video mini-player for browsing Home, Saved, Played, and All without interrupting playback.
 - Continues audio while the screen is locked and provides playback speed, sleep timer, lock-screen Now Playing controls, interruption recovery, and transient-load retry.
 - Offers local Skip Intro/Skip Outro suggestions for serial content, with an eight-second Undo and manual timing corrections. Learned fingerprints stay on device, never gate playback, and skip is always user-triggered rather than automatic.
