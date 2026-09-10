@@ -83,6 +83,13 @@ final class NativePlayerViewModelTests: XCTestCase {
     }
 
     func testSingleQualityIsAppliedAndStillExposesAutomaticQualityControl() async throws {
+        let suiteName = "NativePlayerQualityTests.\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suiteName)!
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let qualityPreferences = PlaybackQualityPreferenceStore(
+            defaults: defaults,
+            storageKey: "quality"
+        )
         let option = PlaybackQualityOption(
             width: 1_280,
             height: 720,
@@ -100,7 +107,8 @@ final class NativePlayerViewModelTests: XCTestCase {
                 )
             ])),
             castManager: castManager,
-            qualityLoader: StubQualityLoader(options: [option])
+            qualityLoader: StubQualityLoader(options: [option]),
+            qualityPreferences: qualityPreferences
         )
 
         viewModel.start()
