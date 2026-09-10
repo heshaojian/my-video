@@ -2,53 +2,113 @@ import XCTest
 @testable import Aiyifan
 
 final class SavedLibrarySynchronizationTests: XCTestCase {
-    func testPosterProjectionKeepsUpdateAndMetadataInTwoGroups() {
+    func testPosterProjectionHidesOpaqueEpisodeKeyAndUsesLanguageAndYear() {
+        let key = "fz4AxompbuT"
         let item = AiyifanItem(
             listPath: "series",
-            title: "A Long Series Title",
-            subTitle: "09",
-            year: "2026",
-            region: "Mainland China"
+            title: "Series",
+            subTitle: key,
+            year: "2025",
+            isSerial: true,
+            latestEpisodeKey: key,
+            latestEpisodeTitle: key,
+            language: "国语"
         )
 
-        let projection = PosterCardProjection(item: item)
-
-        XCTAssertEqual(projection.title, "A Long Series Title")
-        XCTAssertEqual(projection.updateText, "09")
-        XCTAssertEqual(projection.metadataText, "2026 · Mainland China")
+        XCTAssertEqual(PosterCardProjection(item: item).detailText, "国语 · 2025")
     }
 
-    func testSavedPosterProjectionPrefersReconciledLatestEpisode() {
+    func testPosterProjectionUsesResolvedEpisodeThenLanguageAndYear() {
         let item = AiyifanItem(
             listPath: "series",
             title: "Series",
             subTitle: "09",
-            year: "2026"
+            year: "2026",
+            isSerial: true,
+            latestEpisodeKey: "episode-9",
+            latestEpisodeTitle: "09",
+            language: "粤语"
         )
         let state = SavedEpisodeUpdateState(
-            episodes: [
-                EpisodeSelection(mediaKey: "episode-10", title: "10"),
-                EpisodeSelection(mediaKey: "episode-9", title: "09")
-            ],
+            episodes: [EpisodeSelection(mediaKey: "episode-10", title: "10")],
             latestEpisodeKey: "episode-10",
             seenEpisodeKey: "episode-9",
             detectedAt: nil,
             lastObservedAt: nil
         )
 
-        let projection = PosterCardProjection(item: item, episodeState: state)
-
-        XCTAssertEqual(projection.updateText, "10")
-        XCTAssertEqual(projection.metadataText, "2026")
+        XCTAssertEqual(
+            PosterCardProjection(item: item, episodeState: state).detailText,
+            "10 · 粤语 · 2026"
+        )
     }
 
-    func testPosterProjectionOmitsMissingMetadataWithoutEmptySeparators() {
-        let projection = PosterCardProjection(
-            item: AiyifanItem(listPath: "movie", title: "Movie", subTitle: "Updated")
+    func testPosterProjectionAcceptsRecognizedAndMeaningfulSerialEpisodeLabels() {
+        let labels = ["09", "Episode 10", "第10集", "第10期", "Season Finale"]
+
+        for label in labels {
+            let projection = PosterCardProjection(
+                item: AiyifanItem(
+                    listPath: "series",
+                    title: "Series",
+                    subTitle: label,
+                    isSerial: true
+                )
+            )
+
+            XCTAssertEqual(projection.detailText, label, "Expected \(label) to be an episode label")
+        }
+    }
+
+    func testPosterProjectionUsesProviderEpisodeBeforeSubtitleAndOmitsMissingFields() {
+        let providerEpisode = PosterCardProjection(
+            item: AiyifanItem(
+                listPath: "series",
+                title: "Series",
+                subTitle: "09",
+                isSerial: true,
+                latestEpisodeKey: "episode-10",
+                latestEpisodeTitle: "Episode 10"
+            )
+        )
+        let missing = PosterCardProjection(
+            item: AiyifanItem(listPath: "series", title: "Series", isSerial: true)
         )
 
-        XCTAssertEqual(projection.updateText, "Updated")
-        XCTAssertNil(projection.metadataText)
+        XCTAssertEqual(providerEpisode.detailText, "Episode 10")
+        XCTAssertNil(missing.detailText)
+    }
+
+    func testPosterProjectionSkipsListPathAndOpaqueProviderTitle() {
+        let projection = PosterCardProjection(
+            item: AiyifanItem(
+                listPath: "series",
+                title: "Series",
+                subTitle: "series",
+                year: "2026",
+                isSerial: true,
+                latestEpisodeKey: "episode-10",
+                latestEpisodeTitle: "fz4AxompbuT",
+                language: "国语"
+            )
+        )
+
+        XCTAssertEqual(projection.detailText, "国语 · 2026")
+    }
+
+    func testPosterProjectionDoesNotTreatMovieSubtitleAsEpisode() {
+        let projection = PosterCardProjection(
+            item: AiyifanItem(
+                listPath: "movie",
+                title: "Movie",
+                subTitle: "New release",
+                year: "2026",
+                isSerial: false,
+                language: "国语"
+            )
+        )
+
+        XCTAssertEqual(projection.detailText, "国语 · 2026")
     }
 
     func testPromotesAValidatedNewerEpisodeAndDeduplicatesSnapshot() {

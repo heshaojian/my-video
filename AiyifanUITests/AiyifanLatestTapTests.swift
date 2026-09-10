@@ -155,6 +155,37 @@ final class AiyifanLatestTapTests: XCTestCase {
         XCTAssertLessThan(left.maxX, right.minX)
     }
 
+    func testSharedCardsKeepOneLineTitlesAndCompactDetailsAcrossLibraries() {
+        let app = launchFixtureAppWithPlayedHistory()
+
+        assertCompactCardText("latestItem-fixture-drama", in: app)
+
+        app.buttons["showSearch"].tap()
+        let searchField = app.textFields["providerSearchField"]
+        XCTAssertTrue(searchField.waitForExistence(timeout: 2))
+        searchField.tap()
+        searchField.typeText("Fixture Search")
+        app.buttons["submitSearch"].tap()
+        assertCompactCardText("catalogItem-fixture-search-movie", in: app)
+        app.buttons["cancelSearch"].tap()
+
+        app.buttons["saveItem-fixture-drama"].tap()
+        app.tabBars.buttons["Saved"].tap()
+        assertCompactCardText("savedItem-fixture-drama", in: app)
+
+        app.tabBars.buttons["Played"].tap()
+        assertCompactCardText("playedItem-fixture-drama::episode-4", in: app)
+
+        app.tabBars.buttons["Home"].tap()
+        let all = app.buttons["browseCategory-variety"]
+        if !all.exists {
+            app.swipeUp()
+        }
+        XCTAssertTrue(all.waitForExistence(timeout: 3))
+        all.tap()
+        assertCompactCardText("catalogItem-fixture-catalog-variety-1", in: app)
+    }
+
     func testSavedGridCanScrollClearOfFloatingTabBar() {
         let app = launchFixtureApp()
         XCTAssertTrue(app.buttons["saveItem-fixture-movie"].waitForExistence(timeout: 5))
@@ -431,6 +462,21 @@ final class AiyifanLatestTapTests: XCTestCase {
         }
 
         XCTAssertLessThanOrEqual(element.frame.maxY, tabBar.frame.minY - 12, file: file, line: line)
+    }
+
+    private func assertCompactCardText(
+        _ itemIdentifier: String,
+        in app: XCUIApplication,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let title = app.staticTexts["\(itemIdentifier)-title"]
+        let detail = app.staticTexts["\(itemIdentifier)-detail"]
+        XCTAssertTrue(title.waitForExistence(timeout: 5), file: file, line: line)
+        XCTAssertTrue(detail.exists, file: file, line: line)
+        XCTAssertLessThanOrEqual(title.frame.height, 20, file: file, line: line)
+        XCTAssertGreaterThanOrEqual(detail.frame.minY, title.frame.maxY, file: file, line: line)
+        XCTAssertLessThanOrEqual(detail.frame.minY, title.frame.maxY + 4, file: file, line: line)
     }
 
     func testReadyQueueMenuActionsUpdateVisibleEntries() {

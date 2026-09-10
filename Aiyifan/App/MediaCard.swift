@@ -7,17 +7,66 @@ enum PosterMediaCardLayout: Equatable {
 
 struct PosterCardProjection: Equatable, Sendable {
     let title: String
-    let updateText: String
-    let metadataText: String?
+    let detailText: String?
 
     init(item: AiyifanItem, episodeState: SavedEpisodeUpdateState? = nil) {
         title = item.title
-        let latestEpisodeTitle = episodeState.flatMap { state in
+        let details = [
+            Self.episodeLabel(item: item, episodeState: episodeState),
+            Self.normalized(item.language),
+            Self.normalized(item.year)
+        ].compactMap { $0 }
+        detailText = details.isEmpty ? nil : details.joined(separator: " · ")
+    }
+
+    private static func episodeLabel(
+        item: AiyifanItem,
+        episodeState: SavedEpisodeUpdateState?
+    ) -> String? {
+        guard item.isSerial == true || episodeState != nil else { return nil }
+
+        let synchronizedTitle = episodeState.flatMap { state in
             state.episodes.first(where: { $0.mediaKey == state.latestEpisodeKey })?.title
         }
-        updateText = Self.normalized(latestEpisodeTitle) ?? item.updateLabel
-        let metadata = [item.year, item.region].compactMap(Self.normalized)
-        metadataText = metadata.isEmpty ? nil : metadata.joined(separator: " · ")
+        let rejectedValues = [
+            normalized(item.listPath),
+            normalized(item.latestEpisodeKey),
+            episodeState.flatMap { normalized($0.latestEpisodeKey) }
+        ].compactMap { $0 }
+
+        for candidate in [synchronizedTitle, item.latestEpisodeTitle, item.subTitle] {
+            guard let candidate = normalized(candidate), !rejectedValues.contains(candidate) else {
+                continue
+            }
+            if hasRecognizedEpisodeForm(candidate) || !isOpaqueProviderKey(candidate) {
+                return candidate
+            }
+        }
+
+        return nil
+    }
+
+    private static func hasRecognizedEpisodeForm(_ value: String) -> Bool {
+        if EpisodeNumberParser.number(in: value) != nil {
+            return true
+        }
+
+        guard value.hasPrefix("第"), value.hasSuffix("期") else { return false }
+        let number = value.dropFirst().dropLast().trimmingCharacters(in: .whitespacesAndNewlines)
+        return Int(number) != nil
+    }
+
+    private static func isOpaqueProviderKey(_ value: String) -> Bool {
+        guard
+            !value.contains(where: \.isWhitespace),
+            (8...128).contains(value.count)
+        else {
+            return false
+        }
+
+        let scalars = value.unicodeScalars
+        return scalars.contains(where: CharacterSet.letters.contains)
+            && scalars.contains(where: CharacterSet.decimalDigits.contains)
     }
 
     private static func normalized(_ value: String?) -> String? {
@@ -128,27 +177,23 @@ struct PosterMediaCard: View {
                 VStack(alignment: .leading, spacing: 7) {
                     poster
 
-                    Text(projection.title)
-                        .font(.system(size: 15, weight: .semibold))
-                        .lineLimit(2, reservesSpace: true)
-                        .foregroundStyle(.white.opacity(0.94))
-
-                    HStack(spacing: 4) {
-                        Text(projection.updateText)
-                            .font(.caption)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(projection.title)
+                            .font(.system(size: 15, weight: .semibold))
                             .lineLimit(1)
-                            .foregroundStyle(.cyan.opacity(0.82))
-                            .layoutPriority(1)
+                            .truncationMode(.tail)
+                            .foregroundStyle(.white.opacity(0.94))
+                            .accessibilityIdentifier("\(itemIdentifier)-title")
 
-                        if let metadata = projection.metadataText {
-                            Text("· \(metadata)")
-                                .font(.caption2)
+                        if let detailText = projection.detailText {
+                            Text(detailText)
+                                .font(.caption)
                                 .lineLimit(1)
-                                .foregroundStyle(.white.opacity(0.48))
+                                .truncationMode(.tail)
+                                .foregroundStyle(.cyan.opacity(0.82))
+                                .accessibilityIdentifier("\(itemIdentifier)-detail")
                         }
                     }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .accessibilityElement(children: .combine)
                 }
                 .frame(maxWidth: layout == .grid ? .infinity : nil, alignment: .leading)
                 .contentShape(Rectangle())
@@ -240,16 +285,20 @@ struct ProgressMediaCard<TrailingActions: View>: View {
                     PosterImage(item: item)
                         .frame(width: 58, height: 82)
 
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 3) {
                         Text(item.title)
                             .font(.system(size: 15, weight: .semibold))
-                            .lineLimit(2)
+                            .lineLimit(1)
+                            .truncationMode(.tail)
+                            .accessibilityIdentifier("\(itemIdentifier)-title")
 
                         if let subtitle {
                             Text(subtitle)
                                 .font(.subheadline)
                                 .lineLimit(1)
+                                .truncationMode(.tail)
                                 .foregroundStyle(.cyan.opacity(0.82))
+                                .accessibilityIdentifier("\(itemIdentifier)-detail")
                         }
 
                         ProgressView(value: min(max(progress, 0), 1))
