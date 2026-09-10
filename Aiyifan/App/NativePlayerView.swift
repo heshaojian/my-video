@@ -59,6 +59,7 @@ final class NativePlayerViewModel: ObservableObject {
     @Published private(set) var viewerMetrics: ViewerMetrics?
     @Published private(set) var qualityOptions: [PlaybackQualityOption] = []
     @Published private(set) var providerQualitySources: [ProviderPlaybackSource] = []
+    @Published private(set) var requestedProviderQualitySource: ProviderPlaybackSource?
     @Published private(set) var selectedQuality: PlaybackQualityOption?
     @Published private(set) var advertisedQuality: String?
     @Published private(set) var isPlaying = false
@@ -253,6 +254,7 @@ final class NativePlayerViewModel: ObservableObject {
         playbackEntries = []
         qualityOptions = []
         providerQualitySources = []
+        requestedProviderQualitySource = nil
         selectedQuality = nil
         advertisedQuality = nil
         isLoadingEpisodes = false
@@ -422,17 +424,22 @@ final class NativePlayerViewModel: ObservableObject {
         guard let available = qualityOptions.first(where: { $0.id == quality.id }) else {
             return
         }
+        requestedProviderQualitySource = nil
         qualityPreferences.setTargetHeight(available.tierHeight)
         selectedQuality = available
         playbackItems.forEach { apply(available, to: $0) }
     }
 
     func setQuality(_ option: PlaybackQualityMenuOption) {
-        guard let quality = option.adaptiveOption else { return }
-        setQuality(quality)
+        if let quality = option.adaptiveOption {
+            setQuality(quality)
+        } else {
+            requestedProviderQualitySource = option.providerSource
+        }
     }
 
     func setAutomaticQuality() {
+        requestedProviderQualitySource = nil
         qualityPreferences.setAutomatic()
         guard let automatic = PlaybackQualitySelector.select(
             from: qualityOptions,
@@ -533,6 +540,7 @@ final class NativePlayerViewModel: ObservableObject {
         viewerMetrics = nil
         qualityOptions = []
         providerQualitySources = []
+        requestedProviderQualitySource = nil
         selectedQuality = nil
         advertisedQuality = nil
         isLoadingEpisodes = false

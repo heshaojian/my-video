@@ -15,12 +15,19 @@ final class NativePlayerViewModelTests: XCTestCase {
             PlaybackVariantDescriptor(width: 1_920, height: 804, averageBitRate: 5_000_000, peakBitRate: 7_000_000),
             PlaybackVariantDescriptor(width: 1_280, height: 536, averageBitRate: 3_000_000, peakBitRate: 4_000_000)
         ])
-        let playback = NativePlayback(entries: [
-            NativePlaybackEntry(
-                url: URL(string: "https://media.example.com/master.m3u8")!,
-                isAdvertisement: false
-            )
-        ])
+        let provider720 = ProviderPlaybackSource(
+            url: URL(string: "https://media.example.com/720.m3u8")!,
+            tierHeight: 720
+        )
+        let playback = NativePlayback(
+            entries: [
+                NativePlaybackEntry(
+                    url: URL(string: "https://media.example.com/master.m3u8")!,
+                    isAdvertisement: false
+                )
+            ],
+            qualitySources: [provider720]
+        )
         let castManager = MockCastPlaybackManager()
         castManager.isCasting = true
         let viewModel = NativePlayerViewModel(
@@ -40,11 +47,13 @@ final class NativePlayerViewModelTests: XCTestCase {
         XCTAssertEqual(currentItem.preferredMaximumResolution, CGSize(width: 1_920, height: 804))
         XCTAssertEqual(currentItem.preferredPeakBitRate, 7_000_000)
 
-        let lower = try XCTUnwrap(viewModel.qualityOptions.first { $0.tierHeight == 720 })
+        let lower = try XCTUnwrap(viewModel.qualityMenuOptions.first { $0.tierHeight == 720 })
+        XCTAssertEqual(lower.providerSource, provider720)
         viewModel.setQuality(lower)
 
         XCTAssertTrue(viewModel.preparedPlayerItems.first === currentItem)
         XCTAssertEqual(viewModel.manualQualityOptions.map(\.tierHeight), [2_160, 1_080, 720])
+        XCTAssertNil(viewModel.requestedProviderQualitySource)
         XCTAssertFalse(viewModel.usesAutomaticQuality)
         XCTAssertEqual(viewModel.selectedQuality?.tierHeight, 720)
         XCTAssertEqual(currentItem.preferredMaximumResolution, CGSize(width: 1_280, height: 536))
@@ -185,7 +194,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         viewModel.stop()
     }
 
-    func testQualityMenuShowsSingleProviderSourceWithoutAdaptiveVariants() async throws {
+    func testQualityMenuRecordsSingleProviderSourceRequestWithoutAdaptiveVariants() async throws {
         let source = ProviderPlaybackSource(
             url: URL(string: "https://media.example.com/1440.m3u8")!,
             tierHeight: 1_440
@@ -207,12 +216,34 @@ final class NativePlayerViewModelTests: XCTestCase {
         viewModel.start()
         try await waitUntil { viewModel.preparedEntryCount == 1 }
 
+        let currentItem = try XCTUnwrap(viewModel.preparedPlayerItems.first)
         let menuOption = try XCTUnwrap(viewModel.qualityMenuOptions.first)
         XCTAssertEqual(viewModel.qualityMenuOptions.map(\.tierHeight), [1_440])
         XCTAssertTrue(menuOption.isSelectable)
         XCTAssertNil(menuOption.adaptiveOption)
         XCTAssertEqual(menuOption.providerSource, source)
+
+        viewModel.setQuality(menuOption)
+
+        XCTAssertEqual(viewModel.requestedProviderQualitySource, source)
+        XCTAssertNil(viewModel.selectedQuality)
+        XCTAssertTrue(viewModel.usesAutomaticQuality)
+        XCTAssertTrue(viewModel.preparedPlayerItems.first === currentItem)
+
+        viewModel.setAutomaticQuality()
+        XCTAssertNil(viewModel.requestedProviderQualitySource)
+
+        viewModel.setQuality(menuOption)
+        XCTAssertEqual(viewModel.requestedProviderQualitySource, source)
+
+        viewModel.retry()
+        try await waitUntil { viewModel.requestedProviderQualitySource == nil }
+
+        let reloadedMenuOption = try XCTUnwrap(viewModel.qualityMenuOptions.first)
+        viewModel.setQuality(reloadedMenuOption)
+        XCTAssertEqual(viewModel.requestedProviderQualitySource, source)
         viewModel.stop()
+        XCTAssertNil(viewModel.requestedProviderQualitySource)
     }
 
     func testTeLiDuXingUsesDelivered480pInsteadOfCatalog4KClaim() async throws {
