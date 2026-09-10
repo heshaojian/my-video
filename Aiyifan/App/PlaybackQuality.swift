@@ -39,10 +39,12 @@ struct PlaybackQualityOption: Equatable, Identifiable, Sendable {
 
 struct PlaybackQualityMenuOption: Equatable, Identifiable, Sendable {
     let tierHeight: Int
-    let isPlayable: Bool
+    let adaptiveOption: PlaybackQualityOption?
+    let providerSource: ProviderPlaybackSource?
 
     var id: Int { tierHeight }
     var title: String { "\(tierHeight)p" }
+    var isSelectable: Bool { adaptiveOption != nil || providerSource != nil }
 }
 
 enum PlaybackQualityProjector {
@@ -143,28 +145,40 @@ enum PlaybackQualityProjector {
 }
 
 enum PlaybackQualityMenuProjector {
-    private static let advertisedTiers = [2_160, 1_440, 1_080, 720, 576, 480, 360, 240, 144]
-
     static func options(
-        playableOptions: [PlaybackQualityOption],
-        catalogQuality: String?
+        adaptiveOptions: [PlaybackQualityOption],
+        providerSources: [ProviderPlaybackSource]
     ) -> [PlaybackQualityMenuOption] {
-        guard !playableOptions.isEmpty else { return [] }
-        let playableTiers = Set(playableOptions.map(\.tierHeight))
-        let knownTiers = playableTiers.union(advertisedTiers(upTo: maximumTier(from: catalogQuality), playableTiers: playableTiers))
-        return knownTiers
+        let adaptiveByTier = firstAdaptiveOptionByTier(adaptiveOptions)
+        let providerByTier = firstProviderSourceByTier(providerSources)
+        let tiers = Set(adaptiveByTier.keys).union(providerByTier.keys)
+        return tiers
             .sorted(by: >)
             .map { tier in
-                PlaybackQualityMenuOption(tierHeight: tier, isPlayable: playableTiers.contains(tier))
+                PlaybackQualityMenuOption(
+                    tierHeight: tier,
+                    adaptiveOption: adaptiveByTier[tier],
+                    providerSource: providerByTier[tier]
+                )
             }
     }
 
-    private static func advertisedTiers(upTo maximumTier: Int?, playableTiers: Set<Int>) -> Set<Int> {
-        guard let maximumTier else { return [] }
-        let minimumPlayableTier = playableTiers.min()
-        return Set(advertisedTiers.filter { tier in
-            tier <= maximumTier && (minimumPlayableTier.map { tier >= $0 } ?? true)
-        })
+    private static func firstAdaptiveOptionByTier(
+        _ options: [PlaybackQualityOption]
+    ) -> [Int: PlaybackQualityOption] {
+        options.reduce(into: [:]) { tiers, option in
+            guard tiers[option.tierHeight] == nil else { return }
+            tiers[option.tierHeight] = option
+        }
+    }
+
+    private static func firstProviderSourceByTier(
+        _ sources: [ProviderPlaybackSource]
+    ) -> [Int: ProviderPlaybackSource] {
+        sources.reduce(into: [:]) { tiers, source in
+            guard tiers[source.tierHeight] == nil else { return }
+            tiers[source.tierHeight] = source
+        }
     }
 
     static func maximumTier(from catalogQuality: String?) -> Int? {
@@ -179,7 +193,10 @@ enum PlaybackQualityMenuProjector {
         guard let height = Int(digits), height > 0 else {
             return nil
         }
-        return PlaybackQualityProjector.tierHeight(width: Int((Double(height) * 16 / 9).rounded()), height: height)
+        return PlaybackQualityProjector.tierHeight(
+            width: Int((Double(height) * 16 / 9).rounded()),
+            height: height
+        )
     }
 }
 

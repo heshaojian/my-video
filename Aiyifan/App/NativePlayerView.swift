@@ -58,6 +58,7 @@ final class NativePlayerViewModel: ObservableObject {
     @Published private(set) var autoplayCountdown: Int?
     @Published private(set) var viewerMetrics: ViewerMetrics?
     @Published private(set) var qualityOptions: [PlaybackQualityOption] = []
+    @Published private(set) var providerQualitySources: [ProviderPlaybackSource] = []
     @Published private(set) var selectedQuality: PlaybackQualityOption?
     @Published private(set) var advertisedQuality: String?
     @Published private(set) var isPlaying = false
@@ -120,8 +121,8 @@ final class NativePlayerViewModel: ObservableObject {
 
     var qualityMenuOptions: [PlaybackQualityMenuOption] {
         PlaybackQualityMenuProjector.options(
-            playableOptions: qualityOptions,
-            catalogQuality: item.quality ?? advertisedQuality
+            adaptiveOptions: qualityOptions,
+            providerSources: providerQualitySources
         )
     }
 
@@ -251,6 +252,7 @@ final class NativePlayerViewModel: ObservableObject {
         playbackItems = []
         playbackEntries = []
         qualityOptions = []
+        providerQualitySources = []
         selectedQuality = nil
         advertisedQuality = nil
         isLoadingEpisodes = false
@@ -426,11 +428,7 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     func setQuality(_ option: PlaybackQualityMenuOption) {
-        guard option.isPlayable,
-              let quality = qualityOptions.first(where: { $0.tierHeight == option.tierHeight })
-        else {
-            return
-        }
+        guard let quality = option.adaptiveOption else { return }
         setQuality(quality)
     }
 
@@ -534,6 +532,7 @@ final class NativePlayerViewModel: ObservableObject {
         selectedEpisode = nil
         viewerMetrics = nil
         qualityOptions = []
+        providerQualitySources = []
         selectedQuality = nil
         advertisedQuality = nil
         isLoadingEpisodes = false
@@ -556,6 +555,7 @@ final class NativePlayerViewModel: ObservableObject {
             publishEpisodeObservation(playback.episodes)
             viewerMetrics = playback.metrics
             advertisedQuality = playback.advertisedQuality
+            providerQualitySources = playback.qualitySources
             episodeTitle = playback.episodeTitle
             pendingResumePosition = playedItemsStore?
                 .record(for: item, episodeKey: playback.selectedEpisode?.mediaKey)?
@@ -1204,26 +1204,17 @@ struct NativePlayerScreen: View {
                 } else {
                     Divider()
                     ForEach(viewModel.qualityMenuOptions) { quality in
-                        if quality.isPlayable {
-                            Button {
-                                viewModel.setQuality(quality)
-                            } label: {
-                                if !viewModel.usesAutomaticQuality,
-                                   quality.id == viewModel.selectedQuality?.id {
-                                    Label(quality.title, systemImage: "checkmark")
-                                } else {
-                                    Text(quality.title)
-                                }
+                        Button {
+                            viewModel.setQuality(quality)
+                        } label: {
+                            if !viewModel.usesAutomaticQuality,
+                               quality.id == viewModel.selectedQuality?.id {
+                                Label(quality.title, systemImage: "checkmark")
+                            } else {
+                                Text(quality.title)
                             }
-                            .accessibilityIdentifier("playbackQuality-\(quality.tierHeight)")
-                        } else {
-                            Button {
-                            } label: {
-                                Label("\(quality.title) unavailable", systemImage: "lock")
-                            }
-                            .disabled(true)
-                            .accessibilityIdentifier("playbackQuality-\(quality.tierHeight)-unavailable")
                         }
+                        .accessibilityIdentifier("playbackQuality-\(quality.tierHeight)")
                     }
                 }
             }

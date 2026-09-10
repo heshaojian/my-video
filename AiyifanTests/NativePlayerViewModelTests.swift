@@ -115,7 +115,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         viewModel.stop()
     }
 
-    func testQualityMenuIncludesUnavailableAdvertisedResolutions() async throws {
+    func testQualityMenuDoesNotSynthesizeItemCatalogResolutions() async throws {
         let deliveredOptions = PlaybackQualityProjector.options(from: [
             PlaybackVariantDescriptor(
                 width: 1_024,
@@ -145,16 +145,12 @@ final class NativePlayerViewModelTests: XCTestCase {
         viewModel.start()
         try await waitUntil { viewModel.selectedQuality?.tierHeight == 576 }
 
-        XCTAssertEqual(viewModel.qualityMenuOptions.map(\.tierHeight), [1_080, 720, 576])
-        XCTAssertEqual(viewModel.qualityMenuOptions.map(\.isPlayable), [false, false, true])
-        let unavailable1080 = try XCTUnwrap(viewModel.qualityMenuOptions.first)
-        viewModel.setQuality(unavailable1080)
-        XCTAssertTrue(viewModel.usesAutomaticQuality)
-        XCTAssertEqual(viewModel.selectedQuality?.tierHeight, 576)
+        XCTAssertEqual(viewModel.qualityMenuOptions.map(\.tierHeight), [576])
+        XCTAssertTrue(viewModel.qualityMenuOptions.allSatisfy(\.isSelectable))
         viewModel.stop()
     }
 
-    func testQualityMenuUsesResolvedAdvertisedQualityWhenItemDoesNotHaveQuality() async throws {
+    func testQualityMenuDoesNotSynthesizeResolvedAdvertisedQuality() async throws {
         let deliveredOptions = PlaybackQualityProjector.options(from: [
             PlaybackVariantDescriptor(
                 width: 1_024,
@@ -184,8 +180,38 @@ final class NativePlayerViewModelTests: XCTestCase {
         try await waitUntil { viewModel.selectedQuality?.tierHeight == 576 }
 
         XCTAssertEqual(viewModel.advertisedQuality, "1080P")
-        XCTAssertEqual(viewModel.qualityMenuOptions.map(\.tierHeight), [1_080, 720, 576])
-        XCTAssertEqual(viewModel.qualityMenuOptions.map(\.isPlayable), [false, false, true])
+        XCTAssertEqual(viewModel.qualityMenuOptions.map(\.tierHeight), [576])
+        XCTAssertTrue(viewModel.qualityMenuOptions.allSatisfy(\.isSelectable))
+        viewModel.stop()
+    }
+
+    func testQualityMenuShowsSingleProviderSourceWithoutAdaptiveVariants() async throws {
+        let source = ProviderPlaybackSource(
+            url: URL(string: "https://media.example.com/1440.m3u8")!,
+            tierHeight: 1_440
+        )
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "movie", title: "Movie", quality: "4K"),
+            resolver: StubPlaybackResolver(playback: NativePlayback(
+                entries: [
+                    NativePlaybackEntry(
+                        url: source.url,
+                        isAdvertisement: false
+                    )
+                ],
+                qualitySources: [source]
+            )),
+            qualityLoader: StubQualityLoader(options: [])
+        )
+
+        viewModel.start()
+        try await waitUntil { viewModel.preparedEntryCount == 1 }
+
+        let menuOption = try XCTUnwrap(viewModel.qualityMenuOptions.first)
+        XCTAssertEqual(viewModel.qualityMenuOptions.map(\.tierHeight), [1_440])
+        XCTAssertTrue(menuOption.isSelectable)
+        XCTAssertNil(menuOption.adaptiveOption)
+        XCTAssertEqual(menuOption.providerSource, source)
         viewModel.stop()
     }
 
@@ -225,6 +251,8 @@ final class NativePlayerViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.selectedQuality?.height, 362)
         XCTAssertEqual(viewModel.qualityAvailabilityText, "480p only")
         XCTAssertTrue(viewModel.manualQualityOptions.isEmpty)
+        XCTAssertEqual(viewModel.qualityMenuOptions.map(\.tierHeight), [480])
+        XCTAssertTrue(viewModel.qualityMenuOptions.allSatisfy(\.isSelectable))
         viewModel.stop()
     }
 
