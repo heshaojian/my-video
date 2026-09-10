@@ -511,6 +511,7 @@ final class NativePlaybackResolverTests: XCTestCase {
         XCTAssertTrue(playback.episodes.isEmpty)
         XCTAssertEqual(playback.advertisedQuality, "1080P集全")
         XCTAssertEqual(playback.entries.map(\.url.absoluteString), ["https://media.example.com/movie-576.m3u8"])
+        XCTAssertEqual(playback.qualitySources.map(\.tierHeight), [576])
         XCTAssertFalse(requests.values.contains { $0.url?.path == "/v3/video/languagesplaylist" })
     }
 
@@ -949,6 +950,55 @@ final class NativePlaybackResolverTests: XCTestCase {
         XCTAssertEqual(playback.entries.count, 1)
         XCTAssertFalse(playback.entries[0].isAdvertisement)
         XCTAssertEqual(playback.entries[0].url.absoluteString, "https://media.example.com/full.m3u8")
+    }
+
+    func testResponseDecoderRetainsSecureProviderQualitySourcesInProviderOrder() throws {
+        let data = Self.responseData(info: """
+        {
+          "isPreView": false,
+          "needLogin": 0,
+          "flvPathList": [
+            {"result":"https://ads.example.com/front.mp4","duration":20,"isHls":false,"bitrate":0},
+            {"result":"https://media.example.com/full-2160.m3u8","duration":0,"isHls":true,"bitrate":2160},
+            {"result":"https://media.example.com/full-1080.m3u8","duration":0,"isHls":true,"bitrate":1080},
+            {"result":"https://media.example.com/full-720.m3u8","duration":0,"isHls":true,"bitrate":720},
+            {"result":"https://media.example.com/full-1080-duplicate.m3u8","duration":0,"isHls":true,"bitrate":1080}
+          ]
+        }
+        """)
+
+        let playback = try NativePlaybackResponseDecoder.decode(data)
+
+        XCTAssertEqual(playback.entries.count, 1)
+        XCTAssertEqual(playback.entries.first?.url.lastPathComponent, "full-2160.m3u8")
+        XCTAssertEqual(playback.qualitySources.map(\.tierHeight), [2_160, 1_080, 720])
+        XCTAssertTrue(playback.qualitySources.allSatisfy { $0.url.scheme == "https" })
+        XCTAssertEqual(playback.qualitySources.map { $0.url.lastPathComponent }, [
+            "full-2160.m3u8",
+            "full-1080.m3u8",
+            "full-720.m3u8"
+        ])
+    }
+
+    func testResponseDecoderExcludesInvalidQualitySourcesButKeepsSecureRecognizedProgram() throws {
+        let data = Self.responseData(info: """
+        {
+          "isPreView": false,
+          "needLogin": 0,
+          "flvPathList": [
+            {"result":"https://attacker.invalid/full-2160.m3u8","duration":0,"isHls":true,"bitrate":2160},
+            {"result":"https://media.example.com/full-2000.m3u8","duration":0,"isHls":true,"bitrate":2000},
+            {"result":"https://media.example.com/full-2160-fractional.m3u8","duration":0,"isHls":true,"bitrate":2160.5},
+            {"result":"https://media.example.com/full-1440.m3u8","duration":0,"isHls":true,"bitrate":1440}
+          ]
+        }
+        """)
+
+        let playback = try NativePlaybackResponseDecoder.decode(data)
+
+        XCTAssertEqual(playback.entries.count, 1)
+        XCTAssertEqual(playback.entries.first?.url.lastPathComponent, "full-1440.m3u8")
+        XCTAssertEqual(playback.qualitySources.map(\.tierHeight), [1_440])
     }
 
     func testResponseDecoderRejectsPreviewAndLoginOnlyPlayback() {

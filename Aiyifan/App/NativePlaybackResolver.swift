@@ -13,6 +13,7 @@ struct NativePlaybackEntry: Equatable, Sendable {
 
 struct NativePlayback: Equatable, Sendable {
     let entries: [NativePlaybackEntry]
+    let qualitySources: [ProviderPlaybackSource]
     let episodes: [Episode]
     let selectedEpisode: Episode?
     let metrics: ViewerMetrics?
@@ -24,12 +25,14 @@ struct NativePlayback: Equatable, Sendable {
 
     init(
         entries: [NativePlaybackEntry],
+        qualitySources: [ProviderPlaybackSource] = [],
         episodes: [Episode] = [],
         selectedEpisode: Episode? = nil,
         metrics: ViewerMetrics? = nil,
         advertisedQuality: String? = nil
     ) {
         self.entries = entries
+        self.qualitySources = qualitySources
         self.episodes = episodes
         self.selectedEpisode = selectedEpisode
         self.metrics = metrics
@@ -547,7 +550,18 @@ enum NativePlaybackResponseDecoder {
         }
 
         var bitrate: Int {
-            (raw["bitrate"] as? NSNumber)?.intValue ?? 0
+            APIResponseParser.integer(raw["bitrate"]) ?? 0
+        }
+
+        var providerSource: ProviderPlaybackSource? {
+            guard
+                isHLS,
+                let url = secureURL,
+                let tierHeight = PlaybackQualityProjector.normalizedTier(from: bitrate)
+            else {
+                return nil
+            }
+            return ProviderPlaybackSource(url: url, tierHeight: tierHeight)
         }
 
         var secureURL: URL? {
@@ -583,15 +597,17 @@ enum NativePlaybackResponseDecoder {
         guard !isPreview else {
             throw NativePlaybackError.previewOnly
         }
-        let media = rawMedia.map(Media.init(raw:))
-        guard let programIndex = media.firstIndex(where: {
-            $0.isHLS && $0.bitrate > 0
-        }), let programURL = media[programIndex].secureURL else {
+        let sources = rawMedia
+            .map(Media.init(raw:))
+            .compactMap(\.providerSource)
+        var retainedTiers = Set<Int>()
+        let qualitySources = sources.filter { retainedTiers.insert($0.tierHeight).inserted }
+        guard let programSource = qualitySources.first else {
             throw NativePlaybackError.unsupportedMedia
         }
 
-        let program = NativePlaybackEntry(url: programURL, isAdvertisement: false)
-        return NativePlayback(entries: [program])
+        let program = NativePlaybackEntry(url: programSource.url, isAdvertisement: false)
+        return NativePlayback(entries: [program], qualitySources: qualitySources)
     }
 
 }
@@ -725,6 +741,7 @@ struct NativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving
         let playback = try NativePlaybackResponseDecoder.decode(playbackData)
         return NativePlayback(
             entries: playback.entries,
+            qualitySources: playback.qualitySources,
             episodes: episodes,
             selectedEpisode: selectedEpisode,
             metrics: context.metrics.isEmpty ? nil : context.metrics,

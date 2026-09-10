@@ -57,6 +57,18 @@ final class PlaybackFeaturesTests: XCTestCase {
         XCTAssertEqual(options.first?.title, "576p")
     }
 
+    func testPlaybackQualityProjectionPreserves1440AndNormalizesOnlyRecognizedProviderTiers() {
+        let options = PlaybackQualityProjector.options(from: [
+            PlaybackVariantDescriptor(width: 2_560, height: 1_440, averageBitRate: 8_000_000, peakBitRate: nil)
+        ])
+
+        XCTAssertEqual(options.map(\.tierHeight), [1_440])
+        XCTAssertEqual(PlaybackQualityProjector.normalizedTier(from: 144), 144)
+        XCTAssertEqual(PlaybackQualityProjector.normalizedTier(from: 1_440), 1_440)
+        XCTAssertEqual(PlaybackQualityProjector.normalizedTier(from: 2_160), 2_160)
+        XCTAssertNil(PlaybackQualityProjector.normalizedTier(from: 2_000))
+    }
+
     func testQualityMenuShowsAdvertisedUnavailableTiersAbovePlayableStream() {
         let playableOptions = PlaybackQualityProjector.options(from: [
             PlaybackVariantDescriptor(width: 1_024, height: 576, averageBitRate: 1_500_000, peakBitRate: nil)

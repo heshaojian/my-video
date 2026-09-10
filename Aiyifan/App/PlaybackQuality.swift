@@ -15,6 +15,14 @@ struct PlaybackTrackDescriptor: Equatable, Sendable {
     let isPlayable: Bool
 }
 
+struct ProviderPlaybackSource: Equatable, Identifiable, Sendable {
+    let url: URL
+    let tierHeight: Int
+
+    var id: Int { tierHeight }
+    var title: String { "\(tierHeight)p" }
+}
+
 struct PlaybackQualityOption: Equatable, Identifiable, Sendable {
     let width: Int
     let height: Int
@@ -38,6 +46,8 @@ struct PlaybackQualityMenuOption: Equatable, Identifiable, Sendable {
 }
 
 enum PlaybackQualityProjector {
+    private static let providerTiers: Set<Int> = [144, 240, 360, 480, 576, 720, 1_080, 1_440, 2_160]
+
     static func options(from descriptors: [PlaybackVariantDescriptor]) -> [PlaybackQualityOption] {
         let valid = descriptors.compactMap(option(from:))
         let grouped = Dictionary(grouping: valid, by: \.tierHeight)
@@ -79,6 +89,8 @@ enum PlaybackQualityProjector {
         switch (landscapeWidth, landscapeHeight) {
         case let (width, height) where width >= 3_840 || height >= 2_160:
             return 2_160
+        case let (width, height) where width >= 2_560 || height >= 1_440:
+            return 1_440
         case let (width, height) where width >= 1_920 || height >= 1_080:
             return 1_080
         case let (width, height) where width >= 1_280 || height >= 720:
@@ -96,6 +108,10 @@ enum PlaybackQualityProjector {
         default:
             return nil
         }
+    }
+
+    static func normalizedTier(from providerValue: Int) -> Int? {
+        providerTiers.contains(providerValue) ? providerValue : nil
     }
 
     private static func option(from descriptor: PlaybackVariantDescriptor) -> PlaybackQualityOption? {
@@ -127,7 +143,7 @@ enum PlaybackQualityProjector {
 }
 
 enum PlaybackQualityMenuProjector {
-    private static let advertisedTiers = [2_160, 1_080, 720, 576, 480, 360, 240, 144]
+    private static let advertisedTiers = [2_160, 1_440, 1_080, 720, 576, 480, 360, 240, 144]
 
     static func options(
         playableOptions: [PlaybackQualityOption],
