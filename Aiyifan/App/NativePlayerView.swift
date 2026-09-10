@@ -631,9 +631,19 @@ final class NativePlayerViewModel: ObservableObject {
             pendingResumePosition = playedItemsStore?
                 .record(for: item, episodeKey: playback.selectedEpisode?.mediaKey)?
                 .resumePosition ?? 0
-            let programEntries = playback.entries.filter { !$0.isAdvertisement }
-            guard !programEntries.isEmpty else {
+            let resolvedProgramEntries = playback.entries.filter { !$0.isAdvertisement }
+            guard let resolvedProgramEntry = resolvedProgramEntries.first else {
                 throw NativePlaybackError.unsupportedMedia
+            }
+            let initialProviderSource = ProviderPlaybackSourceSelector.initialSource(
+                from: playback.qualitySources,
+                currentProgramURL: resolvedProgramEntry.url,
+                targetHeight: qualityPreferences.targetHeight,
+                hasManualSelection: qualityPreferences.hasManualSelection
+            )
+            let programEntries = resolvedProgramEntries.enumerated().map { index, entry in
+                guard index == 0, let initialProviderSource else { return entry }
+                return NativePlaybackEntry(url: initialProviderSource.url, isAdvertisement: false)
             }
             let playable = NativePlayback(
                 entries: programEntries,
@@ -645,9 +655,8 @@ final class NativePlayerViewModel: ObservableObject {
             playbackEntries = programEntries
             preparedEntryCount = programEntries.count
             playbackItems = items
-            committedProviderQualitySource = playback.qualitySources.first { source in
-                source.url == programEntries.first?.url
-            }
+            committedProviderQualitySource = initialProviderSource
+                ?? playback.qualitySources.first { $0.url == programEntries.first?.url }
             if let castPlan = try? CastPlaybackPlanBuilder.make(
                 item: item,
                 playback: playable,
@@ -1512,6 +1521,7 @@ final class NativePlayerViewModel: ObservableObject {
     }
 }
 
+#if DEBUG
 @MainActor
 struct FixturePlaybackItemPreparer: PlaybackItemPreparing {
     let failingURL: URL?
@@ -1529,6 +1539,7 @@ struct FixturePlaybackQualityLoader: PlaybackQualityLoading {
         []
     }
 }
+#endif
 
 struct NativePlayerScreen: View {
     let item: AiyifanItem

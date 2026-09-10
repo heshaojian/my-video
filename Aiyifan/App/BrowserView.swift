@@ -57,8 +57,8 @@ struct BrowserView: View {
         .animation(.easeInOut(duration: 0.2), value: playbackSession.presentation)
         .onChange(of: viewModel.selectedItem) { _, item in
             guard let item else { return }
-            let monitorsPlayback = !ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed")
-                || ProcessInfo.processInfo.arguments.contains("-AiyifanUsePlayableFixtureMedia")
+            let monitorsPlayback = !AiyifanFixtureRuntime.usesFixtureFeed
+                || AiyifanFixtureRuntime.usesPlayableFixtureMedia
             playbackSession.play(
                 item: item,
                 episodeKey: viewModel.selectedEpisodeKey,

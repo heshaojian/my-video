@@ -1,6 +1,32 @@
 import CoreFoundation
 import Foundation
 
+enum AiyifanFixtureRuntime {
+#if DEBUG
+    static var usesFixtureFeed: Bool {
+        ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed")
+    }
+
+    static var usesPlayableFixtureMedia: Bool {
+        ProcessInfo.processInfo.arguments.contains("-AiyifanUsePlayableFixtureMedia")
+    }
+
+    static var failingQualityTier: Int? {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard
+            let flagIndex = arguments.firstIndex(of: "-AiyifanFailQualityTier"),
+            arguments.indices.contains(flagIndex + 1)
+        else {
+            return nil
+        }
+        return Int(arguments[flagIndex + 1])
+    }
+#else
+    static let usesFixtureFeed = false
+    static let usesPlayableFixtureMedia = false
+#endif
+}
+
 struct PlaybackCertificate: Equatable, Sendable {
     let publicKey: String
     let privateKey: String
@@ -542,7 +568,20 @@ enum NativePlaybackResponseDecoder {
         let raw: [String: Any]
 
         var duration: Double {
-            (raw["duration"] as? NSNumber)?.doubleValue ?? 0
+            guard let value = raw["duration"] else { return 0 }
+            let decoded: Double?
+            if let value = value as? NSNumber,
+               CFGetTypeID(value) != CFBooleanGetTypeID() {
+                decoded = value.doubleValue
+            } else if let value = value as? String {
+                decoded = Double(value)
+            } else {
+                decoded = nil
+            }
+            guard let decoded, decoded.isFinite, decoded >= 0 else {
+                return .nan
+            }
+            return decoded
         }
 
         var isHLS: Bool {
@@ -555,6 +594,7 @@ enum NativePlaybackResponseDecoder {
 
         var providerSource: ProviderPlaybackSource? {
             guard
+                duration == 0,
                 isHLS,
                 let url = secureURL,
                 let tierHeight = PlaybackQualityProjector.normalizedTier(from: bitrate)
@@ -572,6 +612,7 @@ enum NativePlaybackResponseDecoder {
                 let host = url.host,
                 url.user == nil,
                 url.password == nil,
+                url.port == nil,
                 RemoteResourceHostValidator.isAllowedMediaHost(host)
             else {
                 return nil
@@ -940,6 +981,7 @@ extension NativePlaybackResolver: SavedEpisodeResolving {
     }
 }
 
+#if DEBUG
 struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving, SavedEpisodeResolving {
     static let qualitySources = [2_160, 1_080, 720, 480].map { tierHeight in
         ProviderPlaybackSource(
@@ -960,8 +1002,7 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistRe
             Episode(mediaKey: "episode-2", title: "02", updateDate: "2026-09-06T10:00:00Z")
         ]
         let selected = isSerial ? (episodes.first { $0.mediaKey == preferredEpisodeKey } ?? episodes[0]) : nil
-        let usesPlayableMedia = ProcessInfo.processInfo.arguments.contains("-AiyifanUsePlayableFixtureMedia")
-        let programURL = usesPlayableMedia
+        let programURL = AiyifanFixtureRuntime.usesPlayableFixtureMedia
             ? URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8")!
             : Self.qualitySource(for: 720)!.url
         return NativePlayback(
@@ -1002,3 +1043,4 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistRe
         ]
     }
 }
+#endif

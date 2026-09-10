@@ -217,6 +217,27 @@ enum PlaybackQualitySelector {
     }
 }
 
+enum ProviderPlaybackSourceSelector {
+    private static let automaticTargetHeight = 1_080
+
+    static func initialSource(
+        from sources: [ProviderPlaybackSource],
+        currentProgramURL: URL,
+        targetHeight: Int,
+        hasManualSelection: Bool
+    ) -> ProviderPlaybackSource? {
+        let validSources = sources.filter {
+            PlaybackQualityProjector.normalizedTier(from: $0.tierHeight) == $0.tierHeight
+        }
+        if hasManualSelection {
+            return validSources.first { $0.tierHeight == targetHeight }
+                ?? validSources.first { $0.url == currentProgramURL }
+        }
+        return validSources.first { $0.tierHeight == automaticTargetHeight }
+            ?? validSources.max { $0.tierHeight < $1.tierHeight }
+    }
+}
+
 protocol PlaybackQualityLoading: Sendable {
     func loadOptions(for url: URL) async throws -> [PlaybackQualityOption]
 }
@@ -242,12 +263,59 @@ protocol PlaybackItemStaging {
 }
 
 struct AVPlaybackItemStager: PlaybackItemStaging {
+    typealias Readiness = @MainActor (AVQueuePlayer, AVPlayerItem) -> PlaybackItemStagingReadiness
+
+    private let timeout: Duration
+    private let pollInterval: Duration
+    private let readiness: Readiness
+
+    init(
+        timeout: Duration = .seconds(12),
+        pollInterval: Duration = .milliseconds(20),
+        readiness: @escaping Readiness = AVPlaybackItemStager.readiness
+    ) {
+        self.timeout = timeout
+        self.pollInterval = pollInterval
+        self.readiness = readiness
+    }
+
     func stage(item: AVPlayerItem, to position: Double) async -> StagedPlaybackItem? {
-        guard position.isFinite, position >= 0, !Task.isCancelled else {
+        guard
+            position.isFinite,
+            position >= 0,
+            timeout > .zero,
+            pollInterval > .zero,
+            !Task.isCancelled
+        else {
             return nil
         }
-        return await AVPlaybackItemStageOperation(item: item, position: position).run()
+        return await AVPlaybackItemStageOperation(
+            item: item,
+            position: position,
+            timeout: timeout,
+            pollInterval: pollInterval,
+            readiness: readiness
+        ).run()
     }
+
+    private static func readiness(
+        player: AVQueuePlayer,
+        item: AVPlayerItem
+    ) -> PlaybackItemStagingReadiness {
+        if player.status == .failed || item.status == .failed {
+            return .failed
+        }
+        if player.status == .readyToPlay, item.status == .readyToPlay {
+            return .ready
+        }
+        return .unknown
+    }
+}
+
+enum PlaybackItemStagingReadiness {
+    case unknown
+    case ready
+    case failed
 }
 
 @MainActor
@@ -272,13 +340,26 @@ private final class AVPlaybackItemStageOperation {
     private let item: AVPlayerItem
     private let position: Double
     private let player: AVQueuePlayer
+    private let timeout: Duration
+    private let pollInterval: Duration
+    private let readiness: AVPlaybackItemStager.Readiness
     private var readinessTask: Task<Void, Never>?
+    private var timeoutTask: Task<Void, Never>?
     private var continuation: CheckedContinuation<StagedPlaybackItem?, Never>?
     private var isFinished = false
 
-    init(item: AVPlayerItem, position: Double) {
+    init(
+        item: AVPlayerItem,
+        position: Double,
+        timeout: Duration,
+        pollInterval: Duration,
+        readiness: @escaping AVPlaybackItemStager.Readiness
+    ) {
         self.item = item
         self.position = position
+        self.timeout = timeout
+        self.pollInterval = pollInterval
+        self.readiness = readiness
         player = AVQueuePlayer(items: [item])
     }
 
@@ -291,6 +372,7 @@ private final class AVPlaybackItemStageOperation {
                     return
                 }
                 waitUntilReady()
+                startTimeout()
             }
         } onCancel: {
             Task { @MainActor in
@@ -302,23 +384,36 @@ private final class AVPlaybackItemStageOperation {
     private func waitUntilReady() {
         readinessTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            while player.status == .unknown || item.status == .unknown {
-                guard player.status != .failed, item.status != .failed else {
+            while true {
+                switch readiness(player, item) {
+                case .failed:
                     finish(nil)
                     return
-                }
-                do {
-                    try await Task.sleep(for: .milliseconds(20))
-                } catch {
-                    finish(nil)
+                case .ready:
+                    seek()
                     return
+                case .unknown:
+                    do {
+                        try await Task.sleep(for: pollInterval)
+                    } catch {
+                        finish(nil)
+                        return
+                    }
                 }
             }
-            guard player.status == .readyToPlay, item.status == .readyToPlay else {
+        }
+    }
+
+    private func startTimeout() {
+        timeoutTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                try await Task.sleep(for: timeout)
+            } catch {
                 finish(nil)
                 return
             }
-            seek()
+            finish(nil)
         }
     }
 
@@ -350,8 +445,11 @@ private final class AVPlaybackItemStageOperation {
         self.continuation = nil
         readinessTask?.cancel()
         readinessTask = nil
+        timeoutTask?.cancel()
+        timeoutTask = nil
         if stagedItem == nil {
             item.cancelPendingSeeks()
+            player.pause()
             player.removeAllItems()
         }
         continuation.resume(returning: stagedItem)

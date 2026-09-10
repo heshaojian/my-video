@@ -980,6 +980,63 @@ final class NativePlaybackResolverTests: XCTestCase {
         ])
     }
 
+    func testResponseDecoderExcludesBitrateBearingHLSFrontAdFromProgramSources() throws {
+        let data = Self.responseData(info: """
+        {
+          "isPreView": false,
+          "needLogin": 0,
+          "flvPathList": [
+            {"result":"https://media.example.com/front-ad-2160.m3u8","duration":20,"isHls":true,"bitrate":2160},
+            {"result":"https://media.example.com/full-1080.m3u8","duration":0,"isHls":true,"bitrate":1080},
+            {"result":"https://media.example.com/full-720.m3u8","duration":0,"isHls":true,"bitrate":720},
+            {"result":"https://media.example.com/full-1080-duplicate.m3u8","duration":0,"isHls":true,"bitrate":1080}
+          ]
+        }
+        """)
+
+        let playback = try NativePlaybackResponseDecoder.decode(data)
+
+        XCTAssertEqual(playback.entries.map(\.url.lastPathComponent), ["full-1080.m3u8"])
+        XCTAssertEqual(playback.qualitySources.map(\.tierHeight), [1_080, 720])
+        XCTAssertEqual(
+            playback.qualitySources.map(\.url.lastPathComponent),
+            ["full-1080.m3u8", "full-720.m3u8"]
+        )
+    }
+
+    func testResponseDecoderRejectsPlaybackContainingOnlyBitrateBearingHLSAds() {
+        let data = Self.responseData(info: """
+        {
+          "isPreView": false,
+          "needLogin": 0,
+          "flvPathList": [
+            {"result":"https://media.example.com/front-ad-1080.m3u8","duration":15,"isHls":true,"bitrate":1080},
+            {"result":"https://media.example.com/front-ad-720.m3u8","duration":30,"isHls":true,"bitrate":720}
+          ]
+        }
+        """)
+
+        XCTAssertThrowsError(try NativePlaybackResponseDecoder.decode(data)) { error in
+            XCTAssertEqual(error as? NativePlaybackError, .unsupportedMedia)
+        }
+    }
+
+    func testResponseDecoderRejectsDirectMediaURLWithCustomPort() {
+        let data = Self.responseData(info: """
+        {
+          "isPreView": false,
+          "needLogin": 0,
+          "flvPathList": [
+            {"result":"https://media.example.com:8443/full-1080.m3u8","duration":0,"isHls":true,"bitrate":1080}
+          ]
+        }
+        """)
+
+        XCTAssertThrowsError(try NativePlaybackResponseDecoder.decode(data)) { error in
+            XCTAssertEqual(error as? NativePlaybackError, .unsupportedMedia)
+        }
+    }
+
     func testResponseDecoderExcludesInvalidQualitySourcesButKeepsSecureRecognizedProgram() throws {
         let data = Self.responseData(info: """
         {

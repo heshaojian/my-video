@@ -15,16 +15,22 @@ struct AiyifanFeedService: @unchecked Sendable, AiyifanFeedServing {
 
     init(
         catalogService: any CategoryCatalogServing = CategoryCatalogService(),
-        usesFixtureFeed: Bool = ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed")
+        usesFixtureFeed: Bool = AiyifanFixtureRuntime.usesFixtureFeed
     ) {
         self.catalogService = catalogService
+#if DEBUG
         self.usesFixtureFeed = usesFixtureFeed
+#else
+        self.usesFixtureFeed = false
+#endif
     }
 
     func fetchLatest(category: AiyifanCategory) async throws -> [AiyifanItem] {
+#if DEBUG
         if usesFixtureFeed {
             return Self.fixtureItems(for: category)
         }
+#endif
 
         return try await catalogService.fetchPage(
             query: CatalogQuery(category: category),
@@ -33,6 +39,7 @@ struct AiyifanFeedService: @unchecked Sendable, AiyifanFeedServing {
         ).items
     }
 
+#if DEBUG
     private static func fixtureItems(for category: AiyifanCategory) -> [AiyifanItem] {
         let html = """
         <html><body>
@@ -56,4 +63,5 @@ struct AiyifanFeedService: @unchecked Sendable, AiyifanFeedServing {
             )
         ]
     }
+#endif
 }

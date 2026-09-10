@@ -585,9 +585,11 @@ struct CategoryCatalogService: @unchecked Sendable, CategoryCatalogServing {
     }
 
     func fetchPage(query: CatalogQuery, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
-        if ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed") {
+#if DEBUG
+        if AiyifanFixtureRuntime.usesFixtureFeed {
             return try await FixtureCategoryCatalog.shared.page(query: query, page: page, pageSize: pageSize)
         }
+#endif
 
         let category = query.category
         let certificate = try await certificate(for: category)
@@ -611,9 +613,11 @@ struct CategoryCatalogService: @unchecked Sendable, CategoryCatalogServing {
     }
 
     func fetchFilters(category: AiyifanCategory) async throws -> CatalogFilterSet {
-        if ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed") {
+#if DEBUG
+        if AiyifanFixtureRuntime.usesFixtureFeed {
             return try FixtureCategoryCatalog.filters(category: category)
         }
+#endif
         if let cached = await filterCache.value(for: category) {
             return cached
         }
@@ -699,6 +703,7 @@ actor CategoryCatalogFilterCache {
     }
 }
 
+#if DEBUG
 private actor FixtureCategoryCatalog {
     static let shared = FixtureCategoryCatalog()
     private var failedRequests: Set<String> = []
@@ -788,3 +793,4 @@ private actor FixtureCategoryCatalog {
         )
     }
 }
+#endif

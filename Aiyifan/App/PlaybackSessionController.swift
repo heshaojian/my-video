@@ -71,25 +71,28 @@ final class PlaybackSessionController: ObservableObject {
         playedItemsStore: PlayedItemsStore,
         onEpisodesObserved: @escaping NativePlayerViewModel.EpisodeObservationHandler
     ) -> NativePlayerViewModel {
-        let usesFixturePlayback = ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed")
+#if DEBUG
+        let usesFixturePlayback = AiyifanFixtureRuntime.usesFixtureFeed
         let resolver: any NativePlaybackResolving = usesFixturePlayback
             ? FixtureNativePlaybackResolver()
             : NativePlaybackResolver()
         let itemPreparer: any PlaybackItemPreparing
         let qualityLoader: any PlaybackQualityLoading
         if usesFixturePlayback {
-            let arguments = ProcessInfo.processInfo.arguments
-            let failureTier = arguments
-                .firstIndex(of: "-AiyifanFailQualityTier")
-                .flatMap { arguments.indices.contains($0 + 1) ? Int(arguments[$0 + 1]) : nil }
             itemPreparer = FixturePlaybackItemPreparer(
-                failingURL: failureTier.flatMap { FixtureNativePlaybackResolver.qualitySource(for: $0)?.url }
+                failingURL: AiyifanFixtureRuntime.failingQualityTier
+                    .flatMap { FixtureNativePlaybackResolver.qualitySource(for: $0)?.url }
             )
             qualityLoader = FixturePlaybackQualityLoader()
         } else {
             itemPreparer = AVPlaybackItemPreparer()
             qualityLoader = AVAssetPlaybackQualityLoader()
         }
+#else
+        let resolver: any NativePlaybackResolving = NativePlaybackResolver()
+        let itemPreparer: any PlaybackItemPreparing = AVPlaybackItemPreparer()
+        let qualityLoader: any PlaybackQualityLoading = AVAssetPlaybackQualityLoader()
+#endif
         return NativePlayerViewModel(
             item: item,
             initialEpisodeKey: episodeKey,
