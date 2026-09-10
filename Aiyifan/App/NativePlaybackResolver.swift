@@ -567,20 +567,15 @@ enum NativePlaybackResponseDecoder {
     private struct Media {
         let raw: [String: Any]
 
-        var duration: Double {
-            guard let value = raw["duration"] else { return 0 }
-            let decoded: Double?
-            if let value = value as? NSNumber,
-               CFGetTypeID(value) != CFBooleanGetTypeID() {
-                decoded = value.doubleValue
-            } else if let value = value as? String {
-                decoded = Double(value)
-            } else {
-                decoded = nil
+        var duration: Double? {
+            guard
+                let value = raw["duration"] as? NSNumber,
+                CFGetTypeID(value) != CFBooleanGetTypeID()
+            else {
+                return nil
             }
-            guard let decoded, decoded.isFinite, decoded >= 0 else {
-                return .nan
-            }
+            let decoded = value.doubleValue
+            guard decoded.isFinite, decoded >= 0 else { return nil }
             return decoded
         }
 
@@ -594,6 +589,7 @@ enum NativePlaybackResponseDecoder {
 
         var providerSource: ProviderPlaybackSource? {
             guard
+                let duration,
                 duration == 0,
                 isHLS,
                 let url = secureURL,

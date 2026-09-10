@@ -247,13 +247,58 @@ protocol PlaybackItemPreparing {
     func prepare(url: URL) async throws -> AVPlayerItem
 }
 
+enum PlaybackItemPreparationError: Error, Equatable {
+    case timedOut
+}
+
 struct AVPlaybackItemPreparer: PlaybackItemPreparing {
+    typealias LoadItem = @Sendable (URL) async throws -> AVPlayerItem
+
+    private let timeout: Duration
+    private let loadItem: LoadItem
+
+    init(
+        timeout: Duration = .seconds(12),
+        loadItem: LoadItem? = nil
+    ) {
+        self.timeout = timeout
+        self.loadItem = loadItem ?? Self.loadItem
+    }
+
     func prepare(url: URL) async throws -> AVPlayerItem {
-        let asset = AVURLAsset(url: url)
-        guard try await asset.load(.isPlayable) else {
-            throw NativePlaybackError.unsupportedMedia
+        guard timeout > .zero else {
+            throw PlaybackItemPreparationError.timedOut
         }
-        return AVPlayerItem(asset: asset)
+        return try await withThrowingTaskGroup(
+            of: AVPlayerItem.self,
+            returning: AVPlayerItem.self
+        ) { group in
+            group.addTask {
+                try await loadItem(url)
+            }
+            group.addTask {
+                try await Task.sleep(for: timeout)
+                throw PlaybackItemPreparationError.timedOut
+            }
+            defer { group.cancelAll() }
+            guard let preparedItem = try await group.next() else {
+                throw CancellationError()
+            }
+            return preparedItem
+        }
+    }
+
+    private static func loadItem(url: URL) async throws -> AVPlayerItem {
+        let asset = AVURLAsset(url: url)
+        return try await withTaskCancellationHandler {
+            guard try await asset.load(.isPlayable) else {
+                throw NativePlaybackError.unsupportedMedia
+            }
+            try Task.checkCancellation()
+            return AVPlayerItem(asset: asset)
+        } onCancel: {
+            asset.cancelLoading()
+        }
     }
 }
 

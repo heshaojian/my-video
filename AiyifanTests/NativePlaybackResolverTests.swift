@@ -409,7 +409,7 @@ final class NativePlaybackResolverTests: XCTestCase {
                 XCTAssertEqual(query.first { $0.name == "a" }?.value, "0")
                 data = Self.responseData(info: """
                 {"isPreView":false,"needLogin":0,"flvPathList":[
-                  {"result":"https://media.example.com/episode-2.m3u8","isHls":true,"bitrate":576}
+                  {"result":"https://media.example.com/episode-2.m3u8","duration":0,"isHls":true,"bitrate":576}
                 ]}
                 """)
             default:
@@ -483,7 +483,7 @@ final class NativePlaybackResolverTests: XCTestCase {
                 XCTAssertEqual(query.first { $0.name == "a" }?.value, "1")
                 data = Self.responseData(info: """
                 {"isPreView":false,"needLogin":0,"flvPathList":[
-                  {"result":"https://media.example.com/movie-576.m3u8","isHls":true,"bitrate":576}
+                  {"result":"https://media.example.com/movie-576.m3u8","duration":0,"isHls":true,"bitrate":576}
                 ]}
                 """)
             default:
@@ -554,7 +554,7 @@ final class NativePlaybackResolverTests: XCTestCase {
                 } else {
                     data = Self.responseData(info: """
                     {"isPreView":false,"needLogin":0,"flvPathList":[
-                      {"result":"https://media.example.com/pijing-30.m3u8","isHls":true,"bitrate":1080}
+                      {"result":"https://media.example.com/pijing-30.m3u8","duration":0,"isHls":true,"bitrate":1080}
                     ]}
                     """)
                 }
@@ -820,7 +820,7 @@ final class NativePlaybackResolverTests: XCTestCase {
             case "/v3/video/play":
                 data = Self.responseData(info: """
                 {"isPreView":false,"needLogin":0,"flvPathList":[
-                  {"result":"https://media.example.com/episode-10.m3u8","isHls":true,"bitrate":576}
+                  {"result":"https://media.example.com/episode-10.m3u8","duration":0,"isHls":true,"bitrate":576}
                 ]}
                 """)
             default:
@@ -872,7 +872,7 @@ final class NativePlaybackResolverTests: XCTestCase {
                 XCTAssertEqual(query.first { $0.name == "id" }?.value, "episode-10")
                 data = Self.responseData(info: """
                 {"isPreView":false,"needLogin":0,"flvPathList":[
-                  {"result":"https://media.example.com/episode-10.m3u8","isHls":true,"bitrate":576}
+                  {"result":"https://media.example.com/episode-10.m3u8","duration":0,"isHls":true,"bitrate":576}
                 ]}
                 """)
             default:
@@ -1002,6 +1002,67 @@ final class NativePlaybackResolverTests: XCTestCase {
             playback.qualitySources.map(\.url.lastPathComponent),
             ["full-1080.m3u8", "full-720.m3u8"]
         )
+    }
+
+    func testResponseDecoderExcludesOmittedDurationHLSBeforeValidProgramSources() throws {
+        let data = Self.responseData(info: """
+        {
+          "isPreView": false,
+          "needLogin": 0,
+          "flvPathList": [
+            {"result":"https://media.example.com/missing-duration-2160.m3u8","isHls":true,"bitrate":2160},
+            {"result":"https://media.example.com/full-1080.m3u8","duration":0,"isHls":true,"bitrate":1080},
+            {"result":"https://media.example.com/full-720.m3u8","duration":0,"isHls":true,"bitrate":720},
+            {"result":"https://media.example.com/full-1080-duplicate.m3u8","duration":0,"isHls":true,"bitrate":1080}
+          ]
+        }
+        """)
+
+        let playback = try NativePlaybackResponseDecoder.decode(data)
+
+        XCTAssertEqual(playback.entries.map(\.url.lastPathComponent), ["full-1080.m3u8"])
+        XCTAssertEqual(playback.qualitySources.map(\.tierHeight), [1_080, 720])
+        XCTAssertEqual(
+            playback.qualitySources.map(\.url.lastPathComponent),
+            ["full-1080.m3u8", "full-720.m3u8"]
+        )
+    }
+
+    func testResponseDecoderRejectsPlaybackWhenEveryHLSDurationIsOmitted() {
+        let data = Self.responseData(info: """
+        {
+          "isPreView": false,
+          "needLogin": 0,
+          "flvPathList": [
+            {"result":"https://media.example.com/missing-duration-1080.m3u8","isHls":true,"bitrate":1080},
+            {"result":"https://media.example.com/missing-duration-720.m3u8","isHls":true,"bitrate":720}
+          ]
+        }
+        """)
+
+        XCTAssertThrowsError(try NativePlaybackResponseDecoder.decode(data)) { error in
+            XCTAssertEqual(error as? NativePlaybackError, .unsupportedMedia)
+        }
+    }
+
+    func testResponseDecoderExcludesInvalidDurationFormsBeforeValidProgram() throws {
+        let data = Self.responseData(info: """
+        {
+          "isPreView": false,
+          "needLogin": 0,
+          "flvPathList": [
+            {"result":"https://media.example.com/null-duration.m3u8","duration":null,"isHls":true,"bitrate":2160},
+            {"result":"https://media.example.com/bool-duration.m3u8","duration":false,"isHls":true,"bitrate":1440},
+            {"result":"https://media.example.com/string-duration.m3u8","duration":"0","isHls":true,"bitrate":1080},
+            {"result":"https://media.example.com/full-720.m3u8","duration":0,"isHls":true,"bitrate":720}
+          ]
+        }
+        """)
+
+        let playback = try NativePlaybackResponseDecoder.decode(data)
+
+        XCTAssertEqual(playback.entries.map(\.url.lastPathComponent), ["full-720.m3u8"])
+        XCTAssertEqual(playback.qualitySources.map(\.tierHeight), [720])
     }
 
     func testResponseDecoderRejectsPlaybackContainingOnlyBitrateBearingHLSAds() {
@@ -1179,7 +1240,7 @@ final class NativePlaybackResolverTests: XCTestCase {
           "needLogin":0,
           "flvPathList":[
             {"result":"http://ads.example.com/front.mp4","duration":20,"isHls":false,"bitrate":0},
-            {"result":"https://media.example.com/full.m3u8","isHls":true,"bitrate":576}
+            {"result":"https://media.example.com/full.m3u8","duration":0,"isHls":true,"bitrate":576}
           ]
         }
         """)

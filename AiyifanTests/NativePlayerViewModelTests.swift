@@ -581,6 +581,95 @@ final class NativePlayerViewModelTests: XCTestCase {
         viewModel.stop()
     }
 
+    func testPlaybackItemPreparerTimesOutHangingLoadAndCancelsIt() async throws {
+        let loader = CancellationRecordingPlaybackItemLoader()
+        let preparer = AVPlaybackItemPreparer(
+            timeout: .milliseconds(60),
+            loadItem: { url in
+                try await loader.load(url: url)
+            }
+        )
+        let clock = ContinuousClock()
+        let startedAt = clock.now
+
+        do {
+            _ = try await preparer.prepare(url: Self.seekableMediaURL)
+            XCTFail("Expected preparation to time out")
+        } catch {
+            XCTAssertEqual(error as? PlaybackItemPreparationError, .timedOut)
+        }
+
+        XCTAssertLessThan(startedAt.duration(to: clock.now), .milliseconds(500))
+        XCTAssertTrue(loader.didStart)
+        XCTAssertTrue(loader.wasCancelled)
+    }
+
+    func testPlaybackItemPreparerReturnsReadyItemBeforeTimeout() async throws {
+        let expectedItem = makeSeekablePlayerItem()
+        let preparer = AVPlaybackItemPreparer(
+            timeout: .milliseconds(500),
+            loadItem: { _ in
+                try await Task.sleep(for: .milliseconds(20))
+                return expectedItem
+            }
+        )
+
+        let preparedItem = try await preparer.prepare(url: Self.seekableMediaURL)
+
+        XCTAssertTrue(preparedItem === expectedItem)
+    }
+
+    func testProviderQualityPreparationTimeoutPreservesLivePlaybackAndPreference() async throws {
+        let source720 = localProviderSource(tierHeight: 720)
+        let source1080 = localProviderSource(tierHeight: 1_080)
+        let (qualityPreferences, defaults, suiteName) = qualityStore(targetHeight: 720)
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let loader = CancellationRecordingPlaybackItemLoader()
+        let preparer = AVPlaybackItemPreparer(
+            timeout: .milliseconds(60),
+            loadItem: { url in
+                try await loader.load(url: url)
+            }
+        )
+        let viewModel = NativePlayerViewModel(
+            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            resolver: StubPlaybackResolver(playback: providerPlayback(
+                activeSource: source720,
+                sources: [source720, source1080]
+            )),
+            qualityLoader: StubQualityLoader(options: []),
+            qualityPreferences: qualityPreferences,
+            itemPreparer: preparer
+        )
+
+        viewModel.start()
+        try await waitUntil { viewModel.activeProgramURL == source720.url }
+        viewModel.pause()
+        viewModel.seekCurrentProgram(to: 27)
+        let originalPlayer = viewModel.player
+        let originalItem = try XCTUnwrap(viewModel.preparedPlayerItems.first)
+
+        let target1080 = try XCTUnwrap(viewModel.qualityMenuOptions.first { $0.tierHeight == 1_080 })
+        viewModel.setQuality(target1080)
+        try await waitUntil { loader.didStart }
+        try await waitUntil {
+            viewModel.qualitySelectionMessage == "1080p could not be played. Continuing with 720p."
+        }
+
+        XCTAssertTrue(loader.wasCancelled)
+        XCTAssertTrue(viewModel.player === originalPlayer)
+        XCTAssertTrue(viewModel.player.currentItem === originalItem)
+        XCTAssertTrue(viewModel.preparedPlayerItems.first === originalItem)
+        XCTAssertEqual(viewModel.activeProgramURL, source720.url)
+        XCTAssertEqual(viewModel.selectedQualityTier, 720)
+        XCTAssertEqual(viewModel.playbackPosition, 27, accuracy: 0.01)
+        XCTAssertFalse(viewModel.isPlaying)
+        XCTAssertNil(viewModel.requestedProviderQualitySource)
+        XCTAssertEqual(qualityPreferences.targetHeight, 720)
+        XCTAssertTrue(qualityPreferences.hasManualSelection)
+        viewModel.stop()
+    }
+
     func testPlaybackItemStagerKeepsExactItemOwnedUntilHandoff() async throws {
         let item = makeSeekablePlayerItem()
 
@@ -1808,6 +1897,35 @@ private final class RecordingQualityLoader: PlaybackQualityLoading, @unchecked S
             storedURLs = storedURLs + [url]
         }
         return options
+    }
+}
+
+private final class CancellationRecordingPlaybackItemLoader: @unchecked Sendable {
+    private let lock = NSLock()
+    private var storedDidStart = false
+    private var storedWasCancelled = false
+
+    var didStart: Bool {
+        lock.withLock { storedDidStart }
+    }
+
+    var wasCancelled: Bool {
+        lock.withLock { storedWasCancelled }
+    }
+
+    func load(url: URL) async throws -> AVPlayerItem {
+        lock.withLock {
+            storedDidStart = true
+        }
+        do {
+            try await Task.sleep(for: .seconds(30))
+            return AVPlayerItem(url: url)
+        } catch {
+            lock.withLock {
+                storedWasCancelled = true
+            }
+            throw error
+        }
     }
 }
 
