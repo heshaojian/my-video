@@ -40,9 +40,8 @@ struct PlayerPresentationState: Equatable, Sendable {
 @MainActor
 final class NativePlayerViewModel: ObservableObject {
     typealias EpisodeObservationHandler = @MainActor ([EpisodeSelection]) -> Void
-    typealias QualitySourceSeek = @MainActor (AVPlayer, Double) async -> Bool
 
-    let player = AVQueuePlayer()
+    @Published private(set) var player = AVQueuePlayer()
 
     @Published private(set) var isLoading = true
     @Published private(set) var errorMessage: String?
@@ -76,9 +75,6 @@ final class NativePlayerViewModel: ObservableObject {
     var preparedPlayerItems: [AVPlayerItem] { playbackItems }
 
     var activeProgramURL: URL? {
-        if let qualityRestoreState {
-            return qualityRestoreState.snapshot.currentURL
-        }
         guard let index = activePlaybackIndex, playbackEntries.indices.contains(index) else {
             return nil
         }
@@ -92,15 +88,15 @@ final class NativePlayerViewModel: ObservableObject {
         guard let activeProgramURL else {
             return nil
         }
+        if committedProviderQualitySource?.url == activeProgramURL {
+            return committedProviderQualitySource?.tierHeight
+        }
         return providerQualitySources.first { $0.url == activeProgramURL }?.tierHeight
     }
 
     private var activePlaybackIndex: Int? {
-        if let currentItem = player.currentItem,
-           let index = playbackItems.firstIndex(where: { $0 === currentItem }) {
-            return index
-        }
-        return playbackItems.count == 1 && playbackEntries.count == 1 ? 0 : nil
+        guard let currentItem = player.currentItem else { return nil }
+        return playbackItems.firstIndex(where: { $0 === currentItem })
     }
 
     private let resolver: any NativePlaybackResolving
@@ -110,7 +106,7 @@ final class NativePlayerViewModel: ObservableObject {
     private let qualityLoader: any PlaybackQualityLoading
     private let qualityPreferences: PlaybackQualityPreferenceStore
     private let itemPreparer: any PlaybackItemPreparing
-    private let qualitySourceSeek: QualitySourceSeek
+    private let itemStager: any PlaybackItemStaging
     private let skipMarkerStore: SkipMarkerStore
     private let onEpisodesObserved: EpisodeObservationHandler
     private var playbackItems: [AVPlayerItem] = []
@@ -119,7 +115,7 @@ final class NativePlayerViewModel: ObservableObject {
     private var qualityTask: Task<Void, Never>?
     private var qualitySelectionTask: Task<Void, Never>?
     private var qualityMessageTask: Task<Void, Never>?
-    private var qualityRestoreState: QualityRestoreState?
+    private var committedProviderQualitySource: ProviderPlaybackSource?
     private var playbackPositionProtection: PlaybackPositionProtection?
     private var playbackPositionProtectionTask: Task<Void, Never>?
     private var playbackPositionProtectionGeneration: UInt = 0
@@ -209,7 +205,7 @@ final class NativePlayerViewModel: ObservableObject {
         qualityLoader: any PlaybackQualityLoading = AVAssetPlaybackQualityLoader(),
         qualityPreferences: PlaybackQualityPreferenceStore = PlaybackQualityPreferenceStore(),
         itemPreparer: any PlaybackItemPreparing = AVPlaybackItemPreparer(),
-        qualitySourceSeek: @escaping QualitySourceSeek = NativePlayerViewModel.seek,
+        itemStager: any PlaybackItemStaging = AVPlaybackItemStager(),
         skipMarkerStore: SkipMarkerStore = SkipMarkerStore(),
         onEpisodesObserved: @escaping EpisodeObservationHandler = { _ in }
     ) {
@@ -227,7 +223,7 @@ final class NativePlayerViewModel: ObservableObject {
         self.qualityLoader = qualityLoader
         self.qualityPreferences = qualityPreferences
         self.itemPreparer = itemPreparer
-        self.qualitySourceSeek = qualitySourceSeek
+        self.itemStager = itemStager
         self.skipMarkerStore = skipMarkerStore
         self.onEpisodesObserved = onEpisodesObserved
         playbackRate = preferences.playbackRate
@@ -302,6 +298,7 @@ final class NativePlayerViewModel: ObservableObject {
         playbackEntries = []
         qualityOptions = []
         providerQualitySources = []
+        committedProviderQualitySource = nil
         requestedProviderQualitySource = nil
         selectedQuality = nil
         advertisedQuality = nil
@@ -387,7 +384,7 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     func seekCurrentProgram(to position: Double) {
-        if qualitySelectionTask != nil || qualityRestoreState != nil {
+        if qualitySelectionTask != nil {
             cancelQualitySourceSelection(clearMessage: false)
         }
         guard let currentItem = player.currentItem, !castManager.isCasting else { return }
@@ -601,6 +598,7 @@ final class NativePlayerViewModel: ObservableObject {
         viewerMetrics = nil
         qualityOptions = []
         providerQualitySources = []
+        committedProviderQualitySource = nil
         requestedProviderQualitySource = nil
         selectedQuality = nil
         advertisedQuality = nil
@@ -643,6 +641,9 @@ final class NativePlayerViewModel: ObservableObject {
             playbackEntries = programEntries
             preparedEntryCount = programEntries.count
             playbackItems = items
+            committedProviderQualitySource = playback.qualitySources.first { source in
+                source.url == programEntries.first?.url
+            }
             if let castPlan = try? CastPlaybackPlanBuilder.make(
                 item: item,
                 playback: playable,
@@ -761,7 +762,6 @@ final class NativePlayerViewModel: ObservableObject {
 
     private enum PlaybackPositionProtectionPhase: Equatable {
         case pendingUserSeek
-        case restoring
         case stabilizing
     }
 
@@ -770,13 +770,6 @@ final class NativePlayerViewModel: ObservableObject {
         let target: Double
         let item: AVPlayerItem
         let phase: PlaybackPositionProtectionPhase
-    }
-
-    private struct QualityRestoreState {
-        let snapshot: QualitySourceSelectionSnapshot
-        let replacementItem: AVPlayerItem
-        let previousPlayerItem: AVPlayerItem?
-        let positionProtectionGeneration: UInt
     }
 
     private func beginQualitySourceSelection(_ source: ProviderPlaybackSource) {
@@ -791,10 +784,6 @@ final class NativePlayerViewModel: ObservableObject {
 
         cancelQualitySourceSelection(clearMessage: true)
         let currentURL = playbackEntries[currentIndex].url
-        guard currentURL != source.url else {
-            requestedProviderQualitySource = source
-            return
-        }
         let snapshot = QualitySourceSelectionSnapshot(
             generation: qualitySelectionGeneration,
             source: source,
@@ -807,28 +796,39 @@ final class NativePlayerViewModel: ObservableObject {
             episode: selectedEpisode,
             currentTier: selectedQualityTier
         )
+        guard currentURL != source.url else {
+            finishSameURLQualitySourceSelection(snapshot)
+            return
+        }
         requestedProviderQualitySource = source
         let itemPreparer = itemPreparer
-        let qualitySourceSeek = qualitySourceSeek
+        let itemStager = itemStager
         qualitySelectionTask = Task { [weak self] in
             do {
                 let replacementItem = try await itemPreparer.prepare(url: source.url)
                 try Task.checkCancellation()
-                guard
-                    let restoreState = self?.beginQualitySourceRestore(
-                        snapshot,
-                        replacementItem: replacementItem
-                    ),
-                    let player = self?.player
-                else {
+                guard self?.prepareQualitySourceForStaging(
+                    snapshot,
+                    replacementItem: replacementItem
+                ) == true else {
                     return
                 }
-                let seekCompleted = await qualitySourceSeek(
-                    player,
-                    restoreState.snapshot.position
-                )
-                try Task.checkCancellation()
-                self?.finishQualitySourceRestore(restoreState, seekCompleted: seekCompleted)
+                guard let stagedItem = await itemStager.stage(
+                    item: replacementItem,
+                    to: snapshot.position
+                ) else {
+                    self?.failQualitySourceSelection(snapshot)
+                    return
+                }
+                guard !Task.isCancelled else {
+                    stagedItem.discard()
+                    return
+                }
+                guard let self else {
+                    stagedItem.discard()
+                    return
+                }
+                finishQualitySourceSelection(snapshot, stagedItem: stagedItem)
             } catch is CancellationError {
                 return
             } catch {
@@ -838,55 +838,55 @@ final class NativePlayerViewModel: ObservableObject {
         }
     }
 
-    private func beginQualitySourceRestore(
-        _ snapshot: QualitySourceSelectionSnapshot,
-        replacementItem: AVPlayerItem
-    ) -> QualityRestoreState? {
-        guard isCurrent(snapshot) else { return nil }
-
-        applyProviderTier(snapshot.source.tierHeight, to: replacementItem)
-        let positionProtectionGeneration = beginPlaybackPositionProtection(
-            target: snapshot.position,
-            item: replacementItem,
-            phase: .restoring
+    private func finishSameURLQualitySourceSelection(
+        _ snapshot: QualitySourceSelectionSnapshot
+    ) {
+        guard isCurrent(snapshot), player.currentItem === snapshot.currentItem else { return }
+        applyProviderTier(snapshot.source.tierHeight, to: snapshot.currentItem)
+        committedProviderQualitySource = snapshot.source
+        selectedQuality = nil
+        qualityPreferences.setTargetHeight(snapshot.source.tierHeight)
+        requestedProviderQualitySource = nil
+        qualitySelectionTask = nil
+        updateFutureCastPlan(
+            entries: playbackEntries,
+            episode: snapshot.episode,
+            position: snapshot.position
         )
-        let restoreState = QualityRestoreState(
-            snapshot: snapshot,
-            replacementItem: replacementItem,
-            previousPlayerItem: player.currentItem,
-            positionProtectionGeneration: positionProtectionGeneration
-        )
-        qualityRestoreState = restoreState
-        player.pause()
-        if player.currentItem == nil {
-            player.insert(replacementItem, after: nil)
-        } else {
-            player.replaceCurrentItem(with: replacementItem)
-        }
-        return restoreState
     }
 
-    private func finishQualitySourceRestore(
-        _ restoreState: QualityRestoreState,
-        seekCompleted: Bool
+    private func prepareQualitySourceForStaging(
+        _ snapshot: QualitySourceSelectionSnapshot,
+        replacementItem: AVPlayerItem
+    ) -> Bool {
+        guard isCurrent(snapshot), player.currentItem === snapshot.currentItem else { return false }
+        applyProviderTier(snapshot.source.tierHeight, to: replacementItem)
+        return true
+    }
+
+    private func finishQualitySourceSelection(
+        _ snapshot: QualitySourceSelectionSnapshot,
+        stagedItem: StagedPlaybackItem
     ) {
+        let replacementItem = stagedItem.item
         guard
-            isCurrent(restoreState.snapshot),
-            qualityRestoreState?.replacementItem === restoreState.replacementItem
+            isCurrent(snapshot),
+            player.currentItem === snapshot.currentItem
         else {
+            stagedItem.discard()
             return
         }
+        let stagedPosition = replacementItem.currentTime().seconds
         guard
-            player.currentItem === restoreState.replacementItem,
-            seekCompleted
+            stagedItem.player.currentItem === replacementItem,
+            stagedPosition.isFinite,
+            abs(stagedPosition - snapshot.position) <= 0.01
         else {
-            rollbackQualitySourceRestore(restoreState)
-            failQualitySourceSelection(restoreState.snapshot)
+            stagedItem.discard()
+            failQualitySourceSelection(snapshot)
             return
         }
 
-        let snapshot = restoreState.snapshot
-        let replacementItem = restoreState.replacementItem
         finishFingerprintSampling()
         qualityTask?.cancel()
         qualityTask = nil
@@ -900,21 +900,36 @@ final class NativePlayerViewModel: ObservableObject {
                 : entry
         }
 
-        qualityRestoreState = nil
+        let previousPlayer = player
+        let replacementPlayer = stagedItem.player
+        replacementPlayer.isMuted = previousPlayer.isMuted
+        replacementPlayer.volume = previousPlayer.volume
+        replacementPlayer.defaultRate = snapshot.rate
+        detachTimeObserver()
+        PlaybackAudioSessionCoordinator.shared.detach(player: previousPlayer)
+        previousPlayer.pause()
+        player = replacementPlayer
         playbackItems = updatedItems
         playbackEntries = updatedEntries
+        committedProviderQualitySource = snapshot.source
         qualityOptions = []
         selectedQuality = nil
         qualityPreferences.setTargetHeight(snapshot.source.tierHeight)
         requestedProviderQualitySource = nil
         qualitySelectionTask = nil
+        previousPlayer.removeAllItems()
+        PlaybackAudioSessionCoordinator.shared.attach(player: replacementPlayer)
+        NowPlayingCoordinator.shared.activate(
+            player: replacementPlayer,
+            playPreviousEpisode: { [weak self] in self?.playPreviousEpisode() },
+            playNextEpisode: { [weak self] in self?.playNextEpisode() }
+        )
+        attachTimeObserver()
 
         beginPlaybackPositionStabilization(
-            generation: restoreState.positionProtectionGeneration,
             item: replacementItem,
             target: snapshot.position
         )
-        player.defaultRate = snapshot.rate
         playbackPosition = snapshot.position
         if snapshot.wasPlaying, !castManager.isCasting {
             player.playImmediately(atRate: snapshot.rate)
@@ -930,22 +945,6 @@ final class NativePlayerViewModel: ObservableObject {
         )
         updateNowPlaying(position: snapshot.position, duration: replacementItem.duration.seconds)
         beginQualityLoad(for: snapshot.source.url)
-    }
-
-    static func seek(_ player: AVPlayer, to position: Double) async -> Bool {
-        let finished = await withCheckedContinuation { continuation in
-            player.seek(
-                to: CMTime(seconds: position, preferredTimescale: 600),
-                toleranceBefore: .zero,
-                toleranceAfter: .zero
-            ) { finished in
-                continuation.resume(returning: finished)
-            }
-        }
-        let restoredPosition = player.currentTime().seconds
-        return finished
-            && restoredPosition.isFinite
-            && abs(restoredPosition - position) <= 0.01
     }
 
     private func failQualitySourceSelection(_ snapshot: QualitySourceSelectionSnapshot) {
@@ -968,39 +967,6 @@ final class NativePlayerViewModel: ObservableObject {
             && playbackItems[snapshot.currentIndex] === snapshot.currentItem
             && activeProgramURL == snapshot.currentURL
             && selectedEpisode?.mediaKey == snapshot.episode?.mediaKey
-    }
-
-    private func rollbackQualitySourceRestore(_ restoreState: QualityRestoreState) {
-        guard qualityRestoreState?.replacementItem === restoreState.replacementItem else {
-            return
-        }
-        let snapshot = restoreState.snapshot
-        qualityRestoreState = nil
-        player.pause()
-        if let previousPlayerItem = restoreState.previousPlayerItem {
-            if player.currentItem == nil {
-                player.insert(previousPlayerItem, after: nil)
-            } else {
-                player.replaceCurrentItem(with: previousPlayerItem)
-            }
-            beginProtectedSeek(
-                to: snapshot.position,
-                item: previousPlayerItem,
-                phase: .restoring
-            )
-        } else {
-            cancelPlaybackPositionProtection()
-            player.removeAllItems()
-        }
-        player.defaultRate = snapshot.rate
-        playbackPosition = snapshot.position
-        if snapshot.wasPlaying, !castManager.isCasting {
-            player.playImmediately(atRate: snapshot.rate)
-            isPlaying = true
-        } else {
-            player.pause()
-            isPlaying = false
-        }
     }
 
     private func applyProviderTier(_ tierHeight: Int, to item: AVPlayerItem) {
@@ -1035,9 +1001,6 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     private func cancelQualitySourceSelection(clearMessage: Bool) {
-        if let qualityRestoreState {
-            rollbackQualitySourceRestore(qualityRestoreState)
-        }
         qualitySelectionGeneration &+= 1
         qualitySelectionTask?.cancel()
         qualitySelectionTask = nil
@@ -1095,6 +1058,21 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     private func beginPlaybackPositionStabilization(
+        item: AVPlayerItem,
+        target: Double
+    ) {
+        let generation = beginPlaybackPositionProtection(
+            target: target,
+            item: item,
+            phase: .stabilizing
+        )
+        schedulePlaybackPositionProtectionExpiration(
+            generation: generation,
+            item: item
+        )
+    }
+
+    private func beginPlaybackPositionStabilization(
         generation: UInt,
         item: AVPlayerItem,
         target: Double
@@ -1113,6 +1091,16 @@ final class NativePlayerViewModel: ObservableObject {
             item: item,
             phase: .stabilizing
         )
+        schedulePlaybackPositionProtectionExpiration(
+            generation: generation,
+            item: item
+        )
+    }
+
+    private func schedulePlaybackPositionProtectionExpiration(
+        generation: UInt,
+        item: AVPlayerItem
+    ) {
         playbackPositionProtectionTask?.cancel()
         playbackPositionProtectionTask = Task { [weak self] in
             do {
@@ -1192,10 +1180,6 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     private func updatePlaybackState() {
-        if let qualityRestoreState,
-           player.currentItem === qualityRestoreState.replacementItem {
-            return
-        }
         guard let currentItem = player.currentItem else {
             isPlaying = false
             return
@@ -1314,10 +1298,6 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     private func updatePlaybackTimeline(position: Double) {
-        if let qualityRestoreState,
-           player.currentItem === qualityRestoreState.replacementItem {
-            return
-        }
         _ = publishPlaybackPosition(position)
         let duration = player.currentItem?.duration.seconds ?? 0
         playbackDuration = duration.isFinite ? max(0, duration) : 0
@@ -1364,7 +1344,7 @@ final class NativePlayerViewModel: ObservableObject {
             return candidate
         }
         switch protection.phase {
-        case .pendingUserSeek, .restoring, .stabilizing:
+        case .pendingUserSeek, .stabilizing:
             playbackPosition = protection.target
         }
         return playbackPosition
@@ -1374,7 +1354,7 @@ final class NativePlayerViewModel: ObservableObject {
         if let protection = playbackPositionProtection,
            player.currentItem === protection.item {
             switch protection.phase {
-            case .pendingUserSeek, .restoring, .stabilizing:
+            case .pendingUserSeek, .stabilizing:
                 return protection.target
             }
         }

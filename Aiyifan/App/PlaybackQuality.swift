@@ -236,6 +236,128 @@ struct AVPlaybackItemPreparer: PlaybackItemPreparing {
     }
 }
 
+@MainActor
+protocol PlaybackItemStaging {
+    func stage(item: AVPlayerItem, to position: Double) async -> StagedPlaybackItem?
+}
+
+struct AVPlaybackItemStager: PlaybackItemStaging {
+    func stage(item: AVPlayerItem, to position: Double) async -> StagedPlaybackItem? {
+        guard position.isFinite, position >= 0, !Task.isCancelled else {
+            return nil
+        }
+        return await AVPlaybackItemStageOperation(item: item, position: position).run()
+    }
+}
+
+@MainActor
+final class StagedPlaybackItem {
+    let player: AVQueuePlayer
+    let item: AVPlayerItem
+
+    fileprivate init(player: AVQueuePlayer, item: AVPlayerItem) {
+        self.player = player
+        self.item = item
+    }
+
+    func discard() {
+        item.cancelPendingSeeks()
+        player.pause()
+        player.removeAllItems()
+    }
+}
+
+@MainActor
+private final class AVPlaybackItemStageOperation {
+    private let item: AVPlayerItem
+    private let position: Double
+    private let player: AVQueuePlayer
+    private var readinessTask: Task<Void, Never>?
+    private var continuation: CheckedContinuation<StagedPlaybackItem?, Never>?
+    private var isFinished = false
+
+    init(item: AVPlayerItem, position: Double) {
+        self.item = item
+        self.position = position
+        player = AVQueuePlayer(items: [item])
+    }
+
+    func run() async -> StagedPlaybackItem? {
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                self.continuation = continuation
+                guard !Task.isCancelled else {
+                    finish(nil)
+                    return
+                }
+                waitUntilReady()
+            }
+        } onCancel: {
+            Task { @MainActor in
+                self.finish(nil)
+            }
+        }
+    }
+
+    private func waitUntilReady() {
+        readinessTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            while player.status == .unknown || item.status == .unknown {
+                guard player.status != .failed, item.status != .failed else {
+                    finish(nil)
+                    return
+                }
+                do {
+                    try await Task.sleep(for: .milliseconds(20))
+                } catch {
+                    finish(nil)
+                    return
+                }
+            }
+            guard player.status == .readyToPlay, item.status == .readyToPlay else {
+                finish(nil)
+                return
+            }
+            seek()
+        }
+    }
+
+    private func seek() {
+        player.seek(
+            to: CMTime(seconds: position, preferredTimescale: 600),
+            toleranceBefore: .zero,
+            toleranceAfter: .zero
+        ) { [weak self] finished in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let stagedPosition = item.currentTime().seconds
+                guard
+                    finished,
+                    stagedPosition.isFinite,
+                    abs(stagedPosition - position) <= 0.01
+                else {
+                    finish(nil)
+                    return
+                }
+                finish(StagedPlaybackItem(player: player, item: item))
+            }
+        }
+    }
+
+    private func finish(_ stagedItem: StagedPlaybackItem?) {
+        guard !isFinished, let continuation else { return }
+        isFinished = true
+        self.continuation = nil
+        readinessTask?.cancel()
+        readinessTask = nil
+        if stagedItem == nil {
+            item.cancelPendingSeeks()
+            player.removeAllItems()
+        }
+        continuation.resume(returning: stagedItem)
+    }
+}
+
 struct AVAssetPlaybackQualityLoader: PlaybackQualityLoading {
     func loadOptions(for url: URL) async throws -> [PlaybackQualityOption] {
         let asset = AVURLAsset(url: url)

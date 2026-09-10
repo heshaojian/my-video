@@ -207,9 +207,9 @@ final class NativePlayerViewModelTests: XCTestCase {
         viewModel.stop()
     }
 
-    func testQualityMenuRecordsSingleProviderSourceRequestWithoutAdaptiveVariants() async throws {
+    func testSameURLProviderQualitySelectionPersistsTierAndUpdatesFutureCastWithoutReplacement() async throws {
         let source = ProviderPlaybackSource(
-            url: URL(string: "https://media.example.com/1440.m3u8")!,
+            url: Self.seekableMediaURL,
             tierHeight: 1_440
         )
         let suiteName = "NativePlayerQualityTests.\(UUID().uuidString)"
@@ -219,6 +219,10 @@ final class NativePlayerViewModelTests: XCTestCase {
             defaults: defaults,
             storageKey: "quality"
         )
+        let preparer = ControlledPlaybackItemPreparer()
+        let stager = ControlledPlaybackItemStager()
+        let castManager = MockCastPlaybackManager()
+        castManager.isCasting = true
         let viewModel = NativePlayerViewModel(
             item: AiyifanItem(listPath: "movie", title: "Movie", quality: "4K"),
             resolver: StubPlaybackResolver(playback: NativePlayback(
@@ -230,13 +234,20 @@ final class NativePlayerViewModelTests: XCTestCase {
                 ],
                 qualitySources: [source]
             )),
+            castManager: castManager,
             qualityLoader: StubQualityLoader(options: []),
-            qualityPreferences: qualityPreferences
+            qualityPreferences: qualityPreferences,
+            itemPreparer: preparer,
+            itemStager: stager
         )
 
         viewModel.start()
-        try await waitUntil { viewModel.preparedEntryCount == 1 }
+        try await waitUntil {
+            viewModel.activeProgramURL == source.url
+                && viewModel.player.currentItem === viewModel.preparedPlayerItems.first
+        }
 
+        let currentPlayer = viewModel.player
         let currentItem = try XCTUnwrap(viewModel.preparedPlayerItems.first)
         let menuOption = try XCTUnwrap(viewModel.qualityMenuOptions.first)
         XCTAssertEqual(viewModel.qualityMenuOptions.map(\.tierHeight), [1_440])
@@ -246,28 +257,21 @@ final class NativePlayerViewModelTests: XCTestCase {
 
         viewModel.setQuality(menuOption)
 
-        XCTAssertEqual(viewModel.requestedProviderQualitySource, source)
+        XCTAssertNil(viewModel.requestedProviderQualitySource)
         XCTAssertNil(viewModel.selectedQuality)
-        XCTAssertTrue(viewModel.usesAutomaticQuality)
+        XCTAssertFalse(viewModel.usesAutomaticQuality)
+        XCTAssertTrue(viewModel.player === currentPlayer)
         XCTAssertTrue(viewModel.preparedPlayerItems.first === currentItem)
-
-        viewModel.setAutomaticQuality()
-        XCTAssertNil(viewModel.requestedProviderQualitySource)
-
-        viewModel.setQuality(menuOption)
-        XCTAssertEqual(viewModel.requestedProviderQualitySource, source)
-
-        viewModel.retry()
-        try await waitUntil {
-            viewModel.requestedProviderQualitySource == nil
-                && viewModel.preparedPlayerItems.first !== currentItem
-        }
-
-        let reloadedMenuOption = try XCTUnwrap(viewModel.qualityMenuOptions.first)
-        viewModel.setQuality(reloadedMenuOption)
-        XCTAssertEqual(viewModel.requestedProviderQualitySource, source)
+        XCTAssertTrue(viewModel.player.currentItem === currentItem)
+        XCTAssertEqual(viewModel.activeProgramURL, source.url)
+        XCTAssertEqual(viewModel.selectedQualityTier, 1_440)
+        XCTAssertEqual(qualityPreferences.targetHeight, 1_440)
+        XCTAssertTrue(qualityPreferences.hasManualSelection)
+        XCTAssertTrue(preparer.requestedURLs.isEmpty)
+        XCTAssertTrue(stager.requestedItems.isEmpty)
+        XCTAssertEqual(castManager.preparedPlans.last?.entries.first?.url, source.url)
+        XCTAssertEqual(castManager.loadIfConnectedValues.last, false)
         viewModel.stop()
-        XCTAssertNil(viewModel.requestedProviderQualitySource)
     }
 
     func testQualityMenuIgnoresStaleProviderSourceAfterReload() async throws {
@@ -338,7 +342,7 @@ final class NativePlayerViewModelTests: XCTestCase {
     }
 
     func testProviderQualitySwitchPreservesPlayingStateAndPlaybackIdentityOnSuccess() async throws {
-        let source720 = providerSource(tierHeight: 720, episodeKey: "episode-10")
+        let source720 = ProviderPlaybackSource(url: Self.seekableMediaURL, tierHeight: 720)
         let source1080 = providerSource(tierHeight: 1_080, episodeKey: "episode-10")
         let episode = Episode(mediaKey: "episode-10", title: "10", updateDate: nil)
         let item = AiyifanItem(listPath: "series", title: "Series", isSerial: true)
@@ -349,6 +353,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         let (qualityPreferences, qualityDefaults, qualitySuiteName) = qualityStore(targetHeight: 720)
         defer { qualityDefaults.removePersistentDomain(forName: qualitySuiteName) }
         let preparer = ControlledPlaybackItemPreparer()
+        let stager = ControlledPlaybackItemStager()
         let castManager = MockCastPlaybackManager()
         castManager.isCasting = true
         let viewModel = NativePlayerViewModel(
@@ -362,34 +367,54 @@ final class NativePlayerViewModelTests: XCTestCase {
             castManager: castManager,
             qualityLoader: StubQualityLoader(options: []),
             qualityPreferences: qualityPreferences,
-            itemPreparer: preparer
+            itemPreparer: preparer,
+            itemStager: stager
         )
 
         viewModel.start(monitorPlayback: true)
         try await waitUntil { viewModel.activeProgramURL == source720.url }
+        let originalPlayer = viewModel.player
         let originalItem = try XCTUnwrap(viewModel.preparedPlayerItems.first)
-        attachSeekableItem(to: viewModel)
+        XCTAssertTrue(viewModel.player.currentItem === originalItem)
         castManager.isCasting = false
         viewModel.setPlaybackRate(1.5)
         viewModel.seekCurrentProgram(to: 42)
         viewModel.play()
         XCTAssertEqual(viewModel.playbackPosition, 42, accuracy: 0.01)
+        let livePlayerRate = viewModel.player.rate
 
         let target1080 = try XCTUnwrap(viewModel.qualityMenuOptions.first { $0.tierHeight == 1_080 })
         viewModel.setQuality(target1080)
         try await waitUntil { preparer.requestedURLs == [source1080.url] }
 
         XCTAssertTrue(viewModel.preparedPlayerItems.first === originalItem)
+        XCTAssertTrue(viewModel.player === originalPlayer)
+        XCTAssertTrue(viewModel.player.currentItem === originalItem)
         XCTAssertEqual(viewModel.activeProgramURL, source720.url)
+        XCTAssertTrue(viewModel.isPlaying)
+        XCTAssertEqual(viewModel.player.rate, livePlayerRate)
         XCTAssertEqual(qualityPreferences.targetHeight, 720)
 
         let replacementItem = makeSeekablePlayerItem()
         preparer.succeed(request: 0, with: replacementItem)
+        try await waitUntil { stager.requestedItems == [replacementItem] }
+
+        XCTAssertTrue(viewModel.preparedPlayerItems.first === originalItem)
+        XCTAssertTrue(viewModel.player === originalPlayer)
+        XCTAssertTrue(viewModel.player.currentItem === originalItem)
+        XCTAssertEqual(viewModel.activeProgramURL, source720.url)
+        XCTAssertTrue(viewModel.isPlaying)
+        XCTAssertEqual(viewModel.player.rate, livePlayerRate)
+        XCTAssertEqual(qualityPreferences.targetHeight, 720)
+
+        stager.succeed(request: 0)
         try await waitUntil {
             viewModel.activeProgramURL == source1080.url
                 && viewModel.preparedPlayerItems.first === replacementItem
         }
 
+        XCTAssertFalse(viewModel.player === originalPlayer)
+        XCTAssertTrue(viewModel.player.currentItem === replacementItem)
         XCTAssertEqual(viewModel.selectedQualityTier, 1_080)
         XCTAssertEqual(viewModel.playbackPosition, 42, accuracy: 0.01)
         XCTAssertEqual(viewModel.playbackRate, 1.5)
@@ -417,14 +442,29 @@ final class NativePlayerViewModelTests: XCTestCase {
         viewModel.stop()
     }
 
+    func testPlaybackItemStagerKeepsExactItemOwnedUntilHandoff() async throws {
+        let item = makeSeekablePlayerItem()
+
+        let result = await AVPlaybackItemStager().stage(item: item, to: 42)
+        let staged = try XCTUnwrap(result)
+
+        XCTAssertTrue(staged.item === item)
+        XCTAssertTrue(staged.player.currentItem === item)
+        XCTAssertEqual(staged.player.currentTime().seconds, 42, accuracy: 0.01)
+        XCTAssertEqual(staged.item.currentTime().seconds, 42, accuracy: 0.01)
+        staged.discard()
+        XCTAssertNil(staged.player.currentItem)
+    }
+
     func testProviderQualitySwitchFailurePreservesPausedPlaybackAndPreference() async throws {
-        let source720 = providerSource(tierHeight: 720, episodeKey: "episode-10")
+        let source720 = ProviderPlaybackSource(url: Self.seekableMediaURL, tierHeight: 720)
         let source2160 = providerSource(tierHeight: 2_160, episodeKey: "episode-10")
         let source1080 = providerSource(tierHeight: 1_080, episodeKey: "episode-10")
         let episode = Episode(mediaKey: "episode-10", title: "10", updateDate: nil)
         let (qualityPreferences, defaults, suiteName) = qualityStore(targetHeight: 720)
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let preparer = ControlledPlaybackItemPreparer()
+        let stager = ControlledPlaybackItemStager()
         let castManager = MockCastPlaybackManager()
         castManager.isCasting = true
         let viewModel = NativePlayerViewModel(
@@ -438,7 +478,7 @@ final class NativePlayerViewModelTests: XCTestCase {
             qualityLoader: StubQualityLoader(options: []),
             qualityPreferences: qualityPreferences,
             itemPreparer: preparer,
-            qualitySourceSeek: { _, _ in false }
+            itemStager: stager
         )
 
         viewModel.start()
@@ -446,7 +486,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         viewModel.setPlaybackRate(1.25)
         viewModel.pause()
         let originalItem = try XCTUnwrap(viewModel.preparedPlayerItems.first)
-        attachSeekableItem(to: viewModel)
+        XCTAssertTrue(viewModel.player.currentItem === originalItem)
         castManager.isCasting = false
         viewModel.seekCurrentProgram(to: 27)
 
@@ -462,6 +502,7 @@ final class NativePlayerViewModelTests: XCTestCase {
             "2160p could not be played. Continuing with 720p."
         )
         XCTAssertTrue(viewModel.preparedPlayerItems.first === originalItem)
+        XCTAssertTrue(viewModel.player.currentItem === originalItem)
         XCTAssertEqual(viewModel.activeProgramURL, source720.url)
         XCTAssertEqual(viewModel.selectedQualityTier, 720)
         XCTAssertEqual(viewModel.playbackPosition, 27, accuracy: 0.01)
@@ -475,10 +516,20 @@ final class NativePlayerViewModelTests: XCTestCase {
         viewModel.setQuality(failing1080)
         try await waitUntil { preparer.requestedURLs.count == 2 }
         preparer.succeed(request: 1, with: makeSeekablePlayerItem())
+        try await waitUntil { stager.requestedItems.count == 1 }
+
+        XCTAssertTrue(viewModel.preparedPlayerItems.first === originalItem)
+        XCTAssertTrue(viewModel.player.currentItem === originalItem)
+        XCTAssertEqual(viewModel.activeProgramURL, source720.url)
+        XCTAssertEqual(viewModel.player.rate, 0)
+        XCTAssertEqual(qualityPreferences.targetHeight, 720)
+
+        stager.fail(request: 0)
         try await waitUntil {
             viewModel.qualitySelectionMessage == "1080p could not be played. Continuing with 720p."
         }
         XCTAssertTrue(viewModel.preparedPlayerItems.first === originalItem)
+        XCTAssertTrue(viewModel.player.currentItem === originalItem)
         XCTAssertEqual(viewModel.activeProgramURL, source720.url)
         XCTAssertEqual(viewModel.playbackPosition, 27, accuracy: 0.01)
         XCTAssertFalse(viewModel.isPlaying)
@@ -488,12 +539,13 @@ final class NativePlayerViewModelTests: XCTestCase {
     }
 
     func testNewerProviderQualitySelectionRejectsStaleCompletion() async throws {
-        let source720 = providerSource(tierHeight: 720)
+        let source720 = ProviderPlaybackSource(url: Self.seekableMediaURL, tierHeight: 720)
         let source1080 = providerSource(tierHeight: 1_080)
         let source2160 = providerSource(tierHeight: 2_160)
         let (qualityPreferences, defaults, suiteName) = qualityStore(targetHeight: 720)
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let preparer = ControlledPlaybackItemPreparer()
+        let stager = ControlledPlaybackItemStager()
         let castManager = MockCastPlaybackManager()
         castManager.isCasting = true
         let viewModel = NativePlayerViewModel(
@@ -505,7 +557,8 @@ final class NativePlayerViewModelTests: XCTestCase {
             castManager: castManager,
             qualityLoader: StubQualityLoader(options: []),
             qualityPreferences: qualityPreferences,
-            itemPreparer: preparer
+            itemPreparer: preparer,
+            itemStager: stager
         )
 
         viewModel.start()
@@ -517,6 +570,8 @@ final class NativePlayerViewModelTests: XCTestCase {
 
         let newestItem = makeSeekablePlayerItem()
         preparer.succeed(request: 1, with: newestItem)
+        try await waitUntil { stager.requestedItems == [newestItem] }
+        stager.succeed(request: 0)
         try await waitUntil { viewModel.preparedPlayerItems.first === newestItem }
 
         let staleItem = makeSeekablePlayerItem()
@@ -524,6 +579,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         try await Task.sleep(for: .milliseconds(50))
 
         XCTAssertTrue(viewModel.preparedPlayerItems.first === newestItem)
+        XCTAssertTrue(viewModel.player.currentItem === newestItem)
         XCTAssertFalse(viewModel.preparedPlayerItems.first === staleItem)
         XCTAssertEqual(viewModel.activeProgramURL, source1080.url)
         XCTAssertEqual(viewModel.selectedQualityTier, 1_080)
@@ -538,9 +594,9 @@ final class NativePlayerViewModelTests: XCTestCase {
     func testEpisodeChangeCancelsPendingProviderQualitySwitch() async throws {
         let episode10 = Episode(mediaKey: "episode-10", title: "10", updateDate: nil)
         let episode9 = Episode(mediaKey: "episode-9", title: "09", updateDate: nil)
-        let source720 = providerSource(tierHeight: 720, episodeKey: "episode-10")
+        let source720 = ProviderPlaybackSource(url: Self.seekableMediaURL, tierHeight: 720)
         let source1080 = providerSource(tierHeight: 1_080, episodeKey: "episode-10")
-        let episode9Source = providerSource(tierHeight: 720, episodeKey: "episode-9")
+        let episode9Source = ProviderPlaybackSource(url: Self.seekableMediaURL, tierHeight: 720)
         let resolver = SequencedPlaybackResolver(playbacks: [
             providerPlayback(
                 activeSource: source720,
@@ -595,7 +651,7 @@ final class NativePlayerViewModelTests: XCTestCase {
     }
 
     func testRetryAndStopCancelPendingProviderQualitySwitches() async throws {
-        let source720 = providerSource(tierHeight: 720)
+        let source720 = ProviderPlaybackSource(url: Self.seekableMediaURL, tierHeight: 720)
         let source1080 = providerSource(tierHeight: 1_080)
         let playback = providerPlayback(
             activeSource: source720,
@@ -1555,5 +1611,38 @@ private final class ControlledPlaybackItemPreparer: PlaybackItemPreparing {
         let continuation = continuations[request]
         continuations = continuations.filter { $0.key != request }
         continuation?.resume(throwing: error)
+    }
+}
+
+@MainActor
+private final class ControlledPlaybackItemStager: PlaybackItemStaging {
+    private(set) var requestedItems: [AVPlayerItem] = []
+    private(set) var requestedPositions: [Double] = []
+    private var continuations: [Int: CheckedContinuation<Bool, Never>] = [:]
+    private let stager = AVPlaybackItemStager()
+
+    func stage(item: AVPlayerItem, to position: Double) async -> StagedPlaybackItem? {
+        let request = requestedItems.count
+        requestedItems = requestedItems + [item]
+        requestedPositions = requestedPositions + [position]
+        let shouldStage = await withCheckedContinuation { continuation in
+            continuations = continuations.merging([request: continuation]) { current, _ in current }
+        }
+        guard shouldStage, !Task.isCancelled else { return nil }
+        return await stager.stage(item: item, to: position)
+    }
+
+    func succeed(request: Int) {
+        resolve(request: request, shouldStage: true)
+    }
+
+    func fail(request: Int) {
+        resolve(request: request, shouldStage: false)
+    }
+
+    private func resolve(request: Int, shouldStage: Bool) {
+        let continuation = continuations[request]
+        continuations = continuations.filter { $0.key != request }
+        continuation?.resume(returning: shouldStage)
     }
 }
