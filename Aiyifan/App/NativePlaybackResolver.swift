@@ -986,6 +986,12 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistRe
         )
     }
 
+    private let usesPlayableMedia: Bool
+
+    init(usesPlayableMedia: Bool = AiyifanFixtureRuntime.usesPlayableFixtureMedia) {
+        self.usesPlayableMedia = usesPlayableMedia
+    }
+
     static func qualitySource(for tierHeight: Int) -> ProviderPlaybackSource? {
         qualitySources.first { $0.tierHeight == tierHeight }
     }
@@ -998,7 +1004,7 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistRe
             Episode(mediaKey: "episode-2", title: "02", updateDate: "2026-09-06T10:00:00Z")
         ]
         let selected = isSerial ? (episodes.first { $0.mediaKey == preferredEpisodeKey } ?? episodes[0]) : nil
-        let programURL = AiyifanFixtureRuntime.usesPlayableFixtureMedia
+        let programURL = usesPlayableMedia
             ? URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8")!
             : Self.qualitySource(for: 720)!.url
         return NativePlayback(
@@ -1012,7 +1018,7 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistRe
                     isAdvertisement: false
                 )
             ],
-            qualitySources: Self.qualitySources,
+            qualitySources: usesPlayableMedia ? [] : Self.qualitySources,
             episodes: isSerial ? episodes : [],
             selectedEpisode: selected,
             metrics: ViewerMetrics(likes: 76, favorites: 221, score: 9.6, views: 170_000)

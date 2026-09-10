@@ -8,6 +8,35 @@ final class NativePlaybackResolverTests: XCTestCase {
         super.tearDown()
     }
 
+    func testPlayableFixtureMediaKeepsPlayableProgramWithoutFakeQualityOverride() async throws {
+        let resolver = FixtureNativePlaybackResolver(usesPlayableMedia: true)
+
+        let playback = try await resolver.resolve(
+            item: AiyifanItem(listPath: "fixture-movie", title: "Fixture Movie"),
+            preferredEpisodeKey: nil
+        )
+        let programURL = try XCTUnwrap(
+            playback.entries.first(where: { !$0.isAdvertisement })?.url
+        )
+        let selectedSource = ProviderPlaybackSourceSelector.initialSource(
+            from: playback.qualitySources,
+            currentProgramURL: programURL,
+            targetHeight: 1_080,
+            hasManualSelection: false
+        )
+
+        XCTAssertEqual(
+            programURL.absoluteString,
+            "https://devstreaming-cdn.apple.com/videos/streaming/examples/"
+                + "img_bipbop_adv_example_ts/master.m3u8"
+        )
+        XCTAssertTrue(playback.qualitySources.isEmpty)
+        XCTAssertNil(selectedSource)
+        XCTAssertFalse(playback.entries.contains {
+            $0.url.host == "media.example.com" && $0.url.path.contains("fixture-quality-")
+        })
+    }
+
     func testSerialIntentUsesProviderItemEpisodeAndCategorySignals() {
         XCTAssertTrue(SerialPlaybackIntent.infer(
             providerIsSerial: true,
