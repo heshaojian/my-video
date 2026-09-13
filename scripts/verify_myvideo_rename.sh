@@ -20,8 +20,11 @@ done
 
 scan_targets=(MyVideo MyVideoTests MyVideoUITests MyVideo.xcodeproj/project.pbxproj MyVideo.xcworkspace/contents.xcworkspacedata Podfile README.md DEVELOPMENT.md scripts/create_xcode_project.rb)
 legacy_hits="$(/usr/bin/grep -RInE 'Aiyifan|aiyifan|AIYIFAN' "${scan_targets[@]}" 2>/dev/null \
-  | /usr/bin/grep -vE 'aiyifan\.tv' \
-  | /usr/bin/grep -vE 'LibraryServicesTests\.swift:.*aiyifan://play' \
+  | /usr/bin/sed -E \
+      -e '/ProviderRequestSigner\.swift:/s/aiyifan\.tv//g' \
+      -e '/WebViewLoadTrackerTests\.swift:/s#https://www\.aiyifan\.tv/#https://provider.invalid/#g' \
+      -e '/LibraryServicesTests\.swift:/s#aiyifan://play#legacy-scheme://play#g' \
+  | /usr/bin/grep -E 'Aiyifan|aiyifan|AIYIFAN' \
   || true)"
 [[ -z "$legacy_hits" ]] || { printf '%s\n' "$legacy_hits" >&2; exit 1; }
 

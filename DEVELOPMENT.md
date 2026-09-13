@@ -1,6 +1,6 @@
-# Aiyifan Development Guide
+# MyVideo Development Guide
 
-This is the durable engineering contract for Aiyifan. Read it before changing
+This is the durable engineering contract for MyVideo. Read it before changing
 navigation, playback, provider requests, persistence, notifications, or casting.
 The goal is to preserve the behavior users rely on and avoid repeating failures
 already found during development.
@@ -10,8 +10,8 @@ already found during development.
 - The app targets iOS 17 or later and uses Swift 6, SwiftUI, AVFoundation, AVKit,
   MediaPlayer, BackgroundTasks, UserNotifications, and Google Cast.
 - Install dependencies with `pod install`.
-- Open and build `Aiyifan.xcworkspace`. Do not develop from
-  `Aiyifan.xcodeproj`; that omits CocoaPods integration.
+- Open and build `MyVideo.xcworkspace`. Do not develop from
+  `MyVideo.xcodeproj`; that omits CocoaPods integration.
 - Treat `README.md` as the quick start, this file as the engineering contract,
   and `docs/releases/` as dated verification evidence.
 - Preserve unrelated working-tree changes. Inspect `git status` and the relevant
@@ -23,7 +23,7 @@ already found during development.
 
 ```sh
 pod install
-open Aiyifan.xcworkspace
+open MyVideo.xcworkspace
 ```
 
 ## Product Contract
@@ -131,7 +131,7 @@ These are product invariants, not incidental implementation details.
   `ProviderWebURLPolicy`: HTTPS only, an approved provider domain, no embedded
   credentials, and no custom port. Never load `http`, `about`, or an arbitrary
   provider-supplied host. A `data:` URL is permitted only in DEBUG builds started
-  with `-AiyifanUseFixtureFeed`; this exception exists solely for deterministic
+  with `-MyVideoUseFixtureFeed`; this exception exists solely for deterministic
   UI fixtures and must never be widened to normal browsing.
 - Embed one `AVPlayerViewController` and keep it alive for both inline and native
   fullscreen presentation. Do not replace it with a second fullscreen player.
@@ -200,38 +200,38 @@ These are product invariants, not incidental implementation details.
 
 | Responsibility | Primary owner |
 | --- | --- |
-| App lifecycle, audio session, interruptions | `Aiyifan/App/AiyifanApp.swift` |
-| Root routing and Home UI | `Aiyifan/App/BrowserView.swift` |
-| Selection ordering and website fallback state | `Aiyifan/App/BrowserViewModel.swift` |
-| Four-category Home loading | `Aiyifan/App/AiyifanFeedService.swift` |
-| Feed cache and partial-failure behavior | `Aiyifan/App/FeedRepository.swift` |
-| All catalog queries, filters, decoding, signing | `Aiyifan/App/CategoryCatalogService.swift` |
-| Catalog pagination and query state | `Aiyifan/App/CategoryCatalogViewModel.swift` |
-| Persistent category queries | `Aiyifan/App/CatalogPreferenceStore.swift` |
-| Native catalog presentation | `Aiyifan/App/NativeCategoryCatalogView.swift` |
-| Shared poster and progress cards | `Aiyifan/App/MediaCard.swift` |
-| Global API search transport and decoding | `Aiyifan/App/ProviderSearchService.swift` |
-| Global search cancellation, paging, and UI state | `Aiyifan/App/ProviderSearchViewModel.swift` |
-| Provider sessions, redirects, hosts, certificate cache | `Aiyifan/App/ProviderRequestSigner.swift` |
-| Playback API, episodes, metrics, program/ad decoding | `Aiyifan/App/NativePlaybackResolver.swift` |
-| Player state, progress, episode and quality controls | `Aiyifan/App/NativePlayerView.swift` |
-| Retained full/mini playback ownership | `Aiyifan/App/PlaybackSessionController.swift` |
-| Mini-player presentation | `Aiyifan/App/NativeMiniPlayer.swift` |
-| HLS quality projection and preferences | `Aiyifan/App/PlaybackQuality.swift` |
-| Playback rate, sleep timer, recovery policy | `Aiyifan/App/PlaybackFeatures.swift` |
-| Lock-screen metadata and controls | `Aiyifan/App/NowPlayingCoordinator.swift` |
-| Saved persistence and update baselines | `Aiyifan/App/SavedItemsStore.swift` |
-| App-open policy and monotonic Saved reconciliation | `Aiyifan/App/SavedLibrarySynchronization.swift` |
-| Direct saved-title checking | `Aiyifan/App/SavedUpdateService.swift` |
-| Ready queue projection and sparse intent | `Aiyifan/App/ReadyToWatch.swift`, `Aiyifan/App/ReadyToWatchOverridesStore.swift` |
-| Ready queue presentation | `Aiyifan/App/ReadyToWatchView.swift`, `Aiyifan/App/SavedItemsView.swift` |
-| Skip models, projection, and persistence | `Aiyifan/App/SkipIntroOutroModels.swift`, `Aiyifan/App/SkipOpportunityProjector.swift`, `Aiyifan/App/SkipMarkerStore.swift` |
-| Visual skip hashing, detection, and sampling | `Aiyifan/App/PerceptualFrameHasher.swift`, `Aiyifan/App/SkipMarkerDetector.swift`, `Aiyifan/App/SkipFingerprintSampler.swift` |
-| Background refresh scheduling | `Aiyifan/App/BackgroundRefresh.swift` |
-| Notifications, deep links, optional iCloud | `Aiyifan/App/LibraryServices.swift` |
-| Played persistence and completion semantics | `Aiyifan/App/PlayedItemsStore.swift` |
-| AirPlay and Google Cast | `Aiyifan/App/Casting.swift` |
-| Explicit website fallback | `Aiyifan/App/WebView.swift` |
+| App lifecycle, audio session, interruptions | `MyVideo/App/MyVideoApp.swift` |
+| Root routing and Home UI | `MyVideo/App/BrowserView.swift` |
+| Selection ordering and website fallback state | `MyVideo/App/BrowserViewModel.swift` |
+| Four-category Home loading | `MyVideo/App/MyVideoFeedService.swift` |
+| Feed cache and partial-failure behavior | `MyVideo/App/FeedRepository.swift` |
+| All catalog queries, filters, decoding, signing | `MyVideo/App/CategoryCatalogService.swift` |
+| Catalog pagination and query state | `MyVideo/App/CategoryCatalogViewModel.swift` |
+| Persistent category queries | `MyVideo/App/CatalogPreferenceStore.swift` |
+| Native catalog presentation | `MyVideo/App/NativeCategoryCatalogView.swift` |
+| Shared poster and progress cards | `MyVideo/App/MediaCard.swift` |
+| Global API search transport and decoding | `MyVideo/App/ProviderSearchService.swift` |
+| Global search cancellation, paging, and UI state | `MyVideo/App/ProviderSearchViewModel.swift` |
+| Provider sessions, redirects, hosts, certificate cache | `MyVideo/App/ProviderRequestSigner.swift` |
+| Playback API, episodes, metrics, program/ad decoding | `MyVideo/App/NativePlaybackResolver.swift` |
+| Player state, progress, episode and quality controls | `MyVideo/App/NativePlayerView.swift` |
+| Retained full/mini playback ownership | `MyVideo/App/PlaybackSessionController.swift` |
+| Mini-player presentation | `MyVideo/App/NativeMiniPlayer.swift` |
+| HLS quality projection and preferences | `MyVideo/App/PlaybackQuality.swift` |
+| Playback rate, sleep timer, recovery policy | `MyVideo/App/PlaybackFeatures.swift` |
+| Lock-screen metadata and controls | `MyVideo/App/NowPlayingCoordinator.swift` |
+| Saved persistence and update baselines | `MyVideo/App/SavedItemsStore.swift` |
+| App-open policy and monotonic Saved reconciliation | `MyVideo/App/SavedLibrarySynchronization.swift` |
+| Direct saved-title checking | `MyVideo/App/SavedUpdateService.swift` |
+| Ready queue projection and sparse intent | `MyVideo/App/ReadyToWatch.swift`, `MyVideo/App/ReadyToWatchOverridesStore.swift` |
+| Ready queue presentation | `MyVideo/App/ReadyToWatchView.swift`, `MyVideo/App/SavedItemsView.swift` |
+| Skip models, projection, and persistence | `MyVideo/App/SkipIntroOutroModels.swift`, `MyVideo/App/SkipOpportunityProjector.swift`, `MyVideo/App/SkipMarkerStore.swift` |
+| Visual skip hashing, detection, and sampling | `MyVideo/App/PerceptualFrameHasher.swift`, `MyVideo/App/SkipMarkerDetector.swift`, `MyVideo/App/SkipFingerprintSampler.swift` |
+| Background refresh scheduling | `MyVideo/App/BackgroundRefresh.swift` |
+| Notifications, deep links, optional iCloud | `MyVideo/App/LibraryServices.swift` |
+| Played persistence and completion semantics | `MyVideo/App/PlayedItemsStore.swift` |
+| AirPlay and Google Cast | `MyVideo/App/Casting.swift` |
+| Explicit website fallback | `MyVideo/App/WebView.swift` |
 
 ## Critical Data Flows
 
@@ -301,7 +301,7 @@ Treat every provider value and URL as untrusted input.
   HLS URLs, playlists, or response bodies containing short-lived access data.
 - Do not weaken validation to make one provider response pass. Capture a bounded,
   sanitized fixture and update the contract deliberately.
-- Deep links accept only the `aiyifan://play` contract and bounded item payloads.
+- Deep links accept only the `myvideo://play` contract and bounded item payloads.
 - Do not hardcode credentials, signing identities, device IDs, or developer-team
   values in source code or documentation examples.
 
@@ -338,7 +338,7 @@ Treat every provider value and URL as untrusted input.
 | Skip timing breaks playback | Detection owns or blocks the player | Observe the active item as cancelable side work; playback remains authoritative |
 | Skip learns from ads or leaks stream data | Unbounded samples or provider payloads persisted | Hash bounded program frames locally and persist no URLs/media/provider bodies |
 | All filters unexpectedly reset | One shared or transient query | Persist only successful queries per stable category ID |
-| CocoaPods symbols are missing | `.xcodeproj` opened directly | Build and test `Aiyifan.xcworkspace` |
+| CocoaPods symbols are missing | `.xcodeproj` opened directly | Build and test `MyVideo.xcworkspace` |
 | Huge unrelated project-file diff | Generator run for an ordinary source edit | Regenerate only for source membership, targets, or build settings |
 | AVFoundation lifecycle test is flaky | Fake remote media item is discarded asynchronously | Assert durable session state or use playable local media |
 
@@ -387,15 +387,15 @@ Prefer affected tests during development:
 
 ```sh
 xcodebuild test \
-  -workspace Aiyifan.xcworkspace \
-  -scheme Aiyifan \
+  -workspace MyVideo.xcworkspace \
+  -scheme MyVideo \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
   -parallel-testing-enabled NO \
-  -only-testing:AiyifanTests/NativePlayerViewModelTests \
+  -only-testing:MyVideoTests/NativePlayerViewModelTests \
   CODE_SIGNING_ALLOWED=NO
 ```
 
-Use the same form with a test class or test method under `AiyifanUITests` for a
+Use the same form with a test class or test method under `MyVideoUITests` for a
 focused UI scenario.
 
 ### Major Regression
@@ -404,8 +404,8 @@ Run after major changes and before push or device deployment:
 
 ```sh
 xcodebuild test \
-  -workspace Aiyifan.xcworkspace \
-  -scheme Aiyifan \
+  -workspace MyVideo.xcworkspace \
+  -scheme MyVideo \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
   -parallel-testing-enabled NO \
   -enableCodeCoverage YES \
@@ -419,20 +419,20 @@ scenario as a release gate rather than running it after every small edit.
 
 ```sh
 xcodebuild build \
-  -workspace Aiyifan.xcworkspace \
-  -scheme Aiyifan \
+  -workspace MyVideo.xcworkspace \
+  -scheme MyVideo \
   -configuration Release \
   -destination 'generic/platform=iOS Simulator' \
   CODE_SIGNING_ALLOWED=NO
 
 xcodebuild analyze \
-  -workspace Aiyifan.xcworkspace \
-  -scheme Aiyifan \
+  -workspace MyVideo.xcworkspace \
+  -scheme MyVideo \
   -configuration Debug \
   -destination 'generic/platform=iOS Simulator' \
   CODE_SIGNING_ALLOWED=NO
 
-plutil -lint Aiyifan/Resources/Info.plist Aiyifan/Aiyifan.entitlements
+plutil -lint MyVideo/Resources/Info.plist MyVideo/MyVideo.entitlements
 pod outdated
 git diff --check
 git status --short
@@ -481,8 +481,8 @@ Use placeholders instead of committing machine-specific identifiers:
 xcrun devicectl list devices
 
 xcodebuild build \
-  -workspace Aiyifan.xcworkspace \
-  -scheme Aiyifan \
+  -workspace MyVideo.xcworkspace \
+  -scheme MyVideo \
   -configuration Debug \
   -destination 'id=<xcode-device-udid>' \
   DEVELOPMENT_TEAM=<apple-team-id> \
@@ -490,12 +490,12 @@ xcodebuild build \
 
 xcrun devicectl device install app \
   --device <coredevice-id> \
-  <derived-data-path>/Build/Products/Debug-iphoneos/Aiyifan.app
+  <derived-data-path>/Build/Products/Debug-iphoneos/MyVideo.app
 
 xcrun devicectl device process launch \
   --device <coredevice-id> \
   --terminate-existing \
-  com.john.aiyifan
+  com.john.myvideo
 ```
 
 The Xcode destination UDID and CoreDevice ID are different identifiers. Obtain
@@ -506,8 +506,8 @@ Personal Team builds keep local Saved, Played, progress, and settings but cannot
 use the iCloud entitlement. Generate an eligible iCloud build explicitly:
 
 ```sh
-AIYIFAN_DEVELOPMENT_TEAM=<apple-team-id> \
-AIYIFAN_ICLOUD_ENABLED=1 \
+MYVIDEO_DEVELOPMENT_TEAM=<apple-team-id> \
+MYVIDEO_ICLOUD_ENABLED=1 \
 ruby scripts/create_xcode_project.rb
 pod install
 ```
