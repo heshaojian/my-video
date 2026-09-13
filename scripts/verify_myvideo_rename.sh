@@ -7,13 +7,25 @@ required_paths=(
   MyVideoUITests
   MyVideo.xcodeproj/project.pbxproj
   MyVideo.xcworkspace/contents.xcworkspacedata
+  'Pods/Target Support Files/Pods-MyVideo'
+  'Pods/Target Support Files/Pods-MyVideoTests'
+  'Pods/Target Support Files/Pods-MyVideoUITests'
 )
 
 for required_path in "${required_paths[@]}"; do
   [[ -e "$required_path" ]] || { printf 'Missing required MyVideo path: %s\n' "$required_path" >&2; exit 1; }
 done
 
-legacy_paths=(Aiyifan AiyifanTests AiyifanUITests Aiyifan.xcodeproj Aiyifan.xcworkspace)
+legacy_paths=(
+  Aiyifan
+  AiyifanTests
+  AiyifanUITests
+  Aiyifan.xcodeproj
+  Aiyifan.xcworkspace
+  'Pods/Target Support Files/Pods-Aiyifan'
+  'Pods/Target Support Files/Pods-AiyifanTests'
+  'Pods/Target Support Files/Pods-AiyifanUITests'
+)
 for legacy_path in "${legacy_paths[@]}"; do
   [[ ! -e "$legacy_path" ]] || { printf 'Legacy path remains: %s\n' "$legacy_path" >&2; exit 1; }
 done
