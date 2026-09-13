@@ -22,6 +22,7 @@ This is a clean break, not a compatibility migration.
 
 ### Project structure
 
+- Rename the resolved checkout folder from `Yfsp` to `MyVideo` as the final local action, and replace the convenience symlink `/Users/john/Documents/ChatGPT/Yfsp` with `/Users/john/Documents/ChatGPT/MyVideo`.
 - Rename `Aiyifan/`, `AiyifanTests/`, and `AiyifanUITests/` to their MyVideo equivalents.
 - Rename `Aiyifan.xcodeproj` and `Aiyifan.xcworkspace` to MyVideo equivalents.
 - Rename app-specific source and test filenames and Swift symbols where they contain Aiyifan.
@@ -62,12 +63,14 @@ This is a clean break, not a compatibility migration.
 5. Run static analysis and secret/dependency checks appropriate to the project.
 6. Launch on a simulator and verify the home-screen name, in-app brand, settings copy, playback entry flow, and `myvideo://` handling.
 7. After the local gate passes, rename GitHub, update `origin`, and verify fetch access.
+8. After all commits and remote operations finish, rename the checkout folder and its convenience symlink, then verify the repository opens from the new path.
 
 ## Failure Handling
 
 - If project or CocoaPods references break, stop the repository rename and repair local configuration first.
 - If the clean-break bundle identity conflicts with signing or capabilities, report the exact identifier and entitlement mismatch rather than restoring old identifiers silently.
 - If GitHub authentication or permissions block the repository rename, leave the fully validated local rename intact and report the remaining external action.
+- Rename the checkout folder last because changing the active path can invalidate the current Codex workspace and shell working directory.
 
 ## Out of Scope
 
