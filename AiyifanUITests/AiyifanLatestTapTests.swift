@@ -1,7 +1,7 @@
 import XCTest
 
 @MainActor
-final class AiyifanLatestTapTests: XCTestCase {
+final class MyVideoLatestTapTests: XCTestCase {
     private func launchFixtureApp() -> XCUIApplication {
         launchFixtureApp(resetSavedItems: true, resetCatalogPreferences: true)
     }
@@ -11,13 +11,13 @@ final class AiyifanLatestTapTests: XCTestCase {
         resetCatalogPreferences: Bool = true
     ) -> XCUIApplication {
         let app = XCUIApplication()
-        app.launchArguments.append("-AiyifanUseFixtureFeed")
-        app.launchArguments.append("-AiyifanResetPlayedItems")
+        app.launchArguments.append("-MyVideoUseFixtureFeed")
+        app.launchArguments.append("-MyVideoResetPlayedItems")
         if resetCatalogPreferences {
-            app.launchArguments.append("-AiyifanResetCatalogPreferences")
+            app.launchArguments.append("-MyVideoResetCatalogPreferences")
         }
         if resetSavedItems {
-            app.launchArguments.append("-AiyifanResetSavedItems")
+            app.launchArguments.append("-MyVideoResetSavedItems")
         }
         app.launch()
         return app
@@ -26,11 +26,11 @@ final class AiyifanLatestTapTests: XCTestCase {
     private func launchFixtureAppWithPlayedHistory() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments += [
-            "-AiyifanUseFixtureFeed",
-            "-AiyifanResetSavedItems",
-            "-AiyifanResetPlayedItems",
-            "-AiyifanResetCatalogPreferences",
-            "-AiyifanSeedPlayedItems"
+            "-MyVideoUseFixtureFeed",
+            "-MyVideoResetSavedItems",
+            "-MyVideoResetPlayedItems",
+            "-MyVideoResetCatalogPreferences",
+            "-MyVideoSeedPlayedItems"
         ]
         app.launch()
         return app
@@ -52,7 +52,7 @@ final class AiyifanLatestTapTests: XCTestCase {
         let app = launchFixtureApp()
 
         XCTAssertTrue(app.images["homeScreenTitle-brandMark"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Aiyifan"].exists)
+        XCTAssertTrue(app.staticTexts["MyVideo"].exists)
         XCTAssertTrue(app.staticTexts["Home"].exists)
         XCTAssertTrue(app.staticTexts["homeScreenTitle"].exists)
         XCTAssertTrue(app.images["homeScreenTitle-brandMark"].exists)
@@ -321,11 +321,11 @@ final class AiyifanLatestTapTests: XCTestCase {
     func testCatalogInitialFailureCanRetryWithoutOpeningBrowser() {
         let app = XCUIApplication()
         app.launchArguments += [
-            "-AiyifanUseFixtureFeed",
-            "-AiyifanResetSavedItems",
-            "-AiyifanResetPlayedItems",
-            "-AiyifanResetCatalogPreferences",
-            "-AiyifanFixtureCatalogInitialFailure"
+            "-MyVideoUseFixtureFeed",
+            "-MyVideoResetSavedItems",
+            "-MyVideoResetPlayedItems",
+            "-MyVideoResetCatalogPreferences",
+            "-MyVideoFixtureCatalogInitialFailure"
         ]
         app.launch()
         app.buttons["browseCategory-movie"].tap()
@@ -341,11 +341,11 @@ final class AiyifanLatestTapTests: XCTestCase {
     func testCatalogLoadMoreFailureCanRetryWithoutLosingItems() {
         let app = XCUIApplication()
         app.launchArguments += [
-            "-AiyifanUseFixtureFeed",
-            "-AiyifanResetSavedItems",
-            "-AiyifanResetPlayedItems",
-            "-AiyifanResetCatalogPreferences",
-            "-AiyifanFixtureCatalogLoadMoreFailure"
+            "-MyVideoUseFixtureFeed",
+            "-MyVideoResetSavedItems",
+            "-MyVideoResetPlayedItems",
+            "-MyVideoResetCatalogPreferences",
+            "-MyVideoFixtureCatalogLoadMoreFailure"
         ]
         app.launch()
         app.buttons["browseCategory-drama"].tap()
@@ -499,11 +499,11 @@ final class AiyifanLatestTapTests: XCTestCase {
     func testFullscreenRoundTripKeepsNativePlayerSessionAlive() {
         let app = XCUIApplication()
         app.launchArguments += [
-            "-AiyifanUseFixtureFeed",
-            "-AiyifanUsePlayableFixtureMedia",
-            "-AiyifanResetSavedItems",
-            "-AiyifanResetPlayedItems",
-            "-AiyifanResetCatalogPreferences"
+            "-MyVideoUseFixtureFeed",
+            "-MyVideoUsePlayableFixtureMedia",
+            "-MyVideoResetSavedItems",
+            "-MyVideoResetPlayedItems",
+            "-MyVideoResetCatalogPreferences"
         ]
         app.launch()
         app.buttons["latestItem-fixture-movie"].tap()
@@ -667,11 +667,11 @@ final class AiyifanLatestTapTests: XCTestCase {
     func testSimulatedCastSessionOffersPersistentAndExpandedControls() {
         let app = XCUIApplication()
         app.launchArguments += [
-            "-AiyifanUseFixtureFeed",
-            "-AiyifanResetSavedItems",
-            "-AiyifanResetPlayedItems",
-            "-AiyifanResetCatalogPreferences",
-            "-AiyifanSimulateCastSession"
+            "-MyVideoUseFixtureFeed",
+            "-MyVideoResetSavedItems",
+            "-MyVideoResetPlayedItems",
+            "-MyVideoResetCatalogPreferences",
+            "-MyVideoSimulateCastSession"
         ]
         app.launch()
 
@@ -808,12 +808,12 @@ final class AiyifanLatestTapTests: XCTestCase {
     func testFiftyActionHeavyUserSessionRemainsConsistent() {
         let app = XCUIApplication()
         app.launchArguments += [
-            "-AiyifanUseFixtureFeed",
-            "-AiyifanResetSavedItems",
-            "-AiyifanResetPlayedItems",
-            "-AiyifanResetCatalogPreferences",
-            "-AiyifanSeedPlayedItems",
-            "-AiyifanSimulateCastSession"
+            "-MyVideoUseFixtureFeed",
+            "-MyVideoResetSavedItems",
+            "-MyVideoResetPlayedItems",
+            "-MyVideoResetCatalogPreferences",
+            "-MyVideoSeedPlayedItems",
+            "-MyVideoSimulateCastSession"
         ]
         app.launch()
 

@@ -3,7 +3,7 @@ import SwiftUI
 import UserNotifications
 
 @main
-struct AiyifanApp: App {
+struct MyVideoApp: App {
     init() {
         PlaybackAudioSessionCoordinator.shared.configure()
         GoogleCastManager.shared.configure()

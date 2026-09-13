@@ -27,7 +27,7 @@ final class WebViewLoadTrackerTests: XCTestCase {
         XCTAssertTrue(
             ProviderWebURLPolicy.isAllowed(
                 fixtureURL,
-                processArguments: ["Aiyifan", "-AiyifanUseFixtureFeed"]
+                processArguments: ["MyVideo", "-MyVideoUseFixtureFeed"]
             )
         )
     }

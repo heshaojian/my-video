@@ -68,7 +68,7 @@ final class NativePlayerViewModel: ObservableObject {
     @Published private(set) var skipOpportunity: SkipOpportunity?
     @Published private(set) var canUndoSkip = false
 
-    let item: AiyifanItem
+    let item: MyVideoItem
     var preparedPlayerItems: [AVPlayerItem] { playbackItems }
 
     private let resolver: any NativePlaybackResolving
@@ -158,7 +158,7 @@ final class NativePlayerViewModel: ObservableObject {
     }
 
     init(
-        item: AiyifanItem,
+        item: MyVideoItem,
         initialEpisodeKey: String? = nil,
         resolver: any NativePlaybackResolving = NativePlaybackResolver(),
         playedItemsStore: PlayedItemsStore? = nil,
@@ -994,7 +994,7 @@ final class NativePlayerViewModel: ObservableObject {
 }
 
 struct NativePlayerScreen: View {
-    let item: AiyifanItem
+    let item: MyVideoItem
     let onClose: () -> Void
     let onOpenWebsite: () -> Void
 

@@ -7,7 +7,7 @@ final class PlaybackSessionControllerTests: XCTestCase {
     func testCollapseAndExpandReuseTheSamePlayerWithoutStopping() async throws {
         let controller = makeController()
         let store = PlayedItemsStore(defaults: UserDefaults())
-        let item = AiyifanItem(listPath: "movie-a", title: "Movie A")
+        let item = MyVideoItem(listPath: "movie-a", title: "Movie A")
 
         controller.play(item: item, episodeKey: nil, playedItemsStore: store, monitorPlayback: false)
         let viewModel = try XCTUnwrap(controller.viewModel)
@@ -34,7 +34,7 @@ final class PlaybackSessionControllerTests: XCTestCase {
         let store = PlayedItemsStore(defaults: UserDefaults())
 
         controller.play(
-            item: AiyifanItem(listPath: "movie-a", title: "Movie A"),
+            item: MyVideoItem(listPath: "movie-a", title: "Movie A"),
             episodeKey: nil,
             playedItemsStore: store,
             monitorPlayback: false
@@ -43,7 +43,7 @@ final class PlaybackSessionControllerTests: XCTestCase {
         try await waitUntil { first.preparedEntryCount == 1 }
 
         controller.play(
-            item: AiyifanItem(listPath: "movie-b", title: "Movie B"),
+            item: MyVideoItem(listPath: "movie-b", title: "Movie B"),
             episodeKey: nil,
             playedItemsStore: store,
             monitorPlayback: false
@@ -60,7 +60,7 @@ final class PlaybackSessionControllerTests: XCTestCase {
     func testSelectingTheActiveTitleOnlyExpandsItsExistingSession() async throws {
         let controller = makeController()
         let store = PlayedItemsStore(defaults: UserDefaults())
-        let item = AiyifanItem(listPath: "movie-a", title: "Movie A")
+        let item = MyVideoItem(listPath: "movie-a", title: "Movie A")
 
         controller.play(item: item, episodeKey: nil, playedItemsStore: store, monitorPlayback: false)
         let original = try XCTUnwrap(controller.viewModel)
@@ -100,7 +100,7 @@ final class PlaybackSessionControllerTests: XCTestCase {
 }
 
 private struct SessionPlaybackResolver: NativePlaybackResolving {
-    func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
+    func resolve(item: MyVideoItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
         NativePlayback(entries: [
             NativePlaybackEntry(
                 url: URL(string: "https://media.example.com/\(item.id).m3u8")!,

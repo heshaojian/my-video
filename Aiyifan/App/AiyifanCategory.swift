@@ -1,6 +1,6 @@
 import Foundation
 
-enum AiyifanCategory: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
+enum MyVideoCategory: String, CaseIterable, Codable, Hashable, Identifiable, Sendable {
     case movie
     case drama
     case variety

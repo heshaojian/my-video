@@ -21,10 +21,10 @@ enum HomeFeedRefreshPolicy {
 final class BrowserViewModel: ObservableObject {
     @Published var selectedTitle: String?
     @Published var selectedURL: URL?
-    @Published var selectedItem: AiyifanItem?
-    @Published var selectedCategory: AiyifanCategory?
+    @Published var selectedItem: MyVideoItem?
+    @Published var selectedCategory: MyVideoCategory?
     @Published var selectedEpisodeKey: String?
-    @Published var latestItems: [AiyifanCategory: [AiyifanItem]] = [:]
+    @Published var latestItems: [MyVideoCategory: [MyVideoItem]] = [:]
     @Published var isLoadingLatest = false
     @Published var latestErrorMessage: String?
     @Published var latestStatusMessage: String?
@@ -98,7 +98,7 @@ final class BrowserViewModel: ObservableObject {
         hasCommittedContent = false
     }
 
-    func selectCategory(_ category: AiyifanCategory) {
+    func selectCategory(_ category: MyVideoCategory) {
         selectedTitle = category.title
         selectedURL = nil
         selectedItem = nil
@@ -112,11 +112,11 @@ final class BrowserViewModel: ObservableObject {
         selectedCategory = nil
     }
 
-    func selectItem(_ item: AiyifanItem) {
+    func selectItem(_ item: MyVideoItem) {
         selectItem(item, episodeKey: nil)
     }
 
-    func selectItem(_ item: AiyifanItem, episodeKey: String?) {
+    func selectItem(_ item: MyVideoItem, episodeKey: String?) {
         selectedTitle = item.title
         selectedURL = nil
         selectedEpisodeKey = episodeKey
@@ -134,7 +134,7 @@ final class BrowserViewModel: ObservableObject {
         selectedEpisodeKey = nil
     }
 
-    func openWebsiteFallback(for item: AiyifanItem) {
+    func openWebsiteFallback(for item: MyVideoItem) {
         guard ProviderWebURLPolicy.isAllowed(item.playURL) else {
             errorMessage = "Website fallback is unavailable for this address."
             return
@@ -214,7 +214,7 @@ final class BrowserViewModel: ObservableObject {
         latestStatusMessage = "Feed cache cleared"
     }
 
-    func openDeepLink(_ destination: AiyifanDeepLinkDestination) {
+    func openDeepLink(_ destination: MyVideoDeepLinkDestination) {
         selectedCategory = nil
         selectItem(destination.item, episodeKey: destination.episodeKey)
     }

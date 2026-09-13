@@ -7,8 +7,8 @@ final class PlaybackPreferencesStore: ObservableObject {
     @Published private(set) var playbackRate: Float
     @Published private(set) var autoplayNext: Bool
 
-    private static let rateKey = "aiyifanPlaybackRate"
-    private static let autoplayKey = "aiyifanAutoplayNext"
+    private static let rateKey = "myvideoPlaybackRate"
+    private static let autoplayKey = "myvideoAutoplayNext"
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -106,7 +106,7 @@ struct NowPlayingSnapshot: Equatable, Sendable {
     let isPlaying: Bool
 
     init(
-        item: AiyifanItem,
+        item: MyVideoItem,
         episodeTitle: String?,
         duration: Double,
         elapsed: Double,

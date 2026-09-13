@@ -52,7 +52,7 @@ final class ReadyToWatchOverridesStoreTests: XCTestCase {
 
     func testUnpinCreatesTombstoneAndAllowsAutomaticProjection() {
         let store = makeStore()
-        let show = AiyifanItem(listPath: "show", title: "Show", isSerial: true)
+        let show = MyVideoItem(listPath: "show", title: "Show", isSerial: true)
         store.pin(titleID: show.id, episodeKey: "03", at: date(10))
 
         store.unpin(titleID: show.id, at: date(20))

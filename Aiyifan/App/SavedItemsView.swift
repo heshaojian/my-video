@@ -132,7 +132,7 @@ struct SavedItemsView: View {
         }
     }
 
-    private func addToReadyAction(for item: AiyifanItem) -> (() -> Void)? {
+    private func addToReadyAction(for item: MyVideoItem) -> (() -> Void)? {
         let episodeKey = savedItemsStore.episodeUpdateState(for: item).flatMap { state in
             state.episodes.first(where: { $0.mediaKey == state.latestEpisodeKey })?.mediaKey
         }
@@ -151,7 +151,7 @@ struct SavedItemsView: View {
         )
     }
 
-    private func toggleNotifications(for item: AiyifanItem) {
+    private func toggleNotifications(for item: MyVideoItem) {
         let isEnabled = appSettings.updateAlertsEnabled && savedItemsStore.notificationsEnabled(for: item)
         if isEnabled {
             savedItemsStore.setNotificationsEnabled(false, for: item)
@@ -174,7 +174,7 @@ struct SavedItemsView: View {
 }
 
 private struct SavedItemCard: View {
-    let item: AiyifanItem
+    let item: MyVideoItem
     let episodeState: SavedEpisodeUpdateState?
     let hasNewUpdate: Bool
     let onTap: () -> Void

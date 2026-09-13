@@ -24,7 +24,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         let castManager = MockCastPlaybackManager()
         castManager.isCasting = true
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            item: MyVideoItem(listPath: "movie", title: "Movie"),
             resolver: StubPlaybackResolver(playback: playback),
             castManager: castManager,
             qualityLoader: StubQualityLoader(options: options),
@@ -70,7 +70,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         let castManager = MockCastPlaybackManager()
         castManager.isCasting = true
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            item: MyVideoItem(listPath: "movie", title: "Movie"),
             resolver: StubPlaybackResolver(playback: NativePlayback(entries: [
                 NativePlaybackEntry(
                     url: URL(string: "https://media.example.com/master.m3u8")!,
@@ -96,7 +96,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         let castManager = MockCastPlaybackManager()
         castManager.isCasting = true
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            item: MyVideoItem(listPath: "movie", title: "Movie"),
             resolver: StubPlaybackResolver(playback: NativePlayback(entries: [
                 NativePlaybackEntry(
                     url: URL(string: "https://media.example.com/master.m3u8")!,
@@ -127,7 +127,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         let castManager = MockCastPlaybackManager()
         castManager.isCasting = true
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(
+            item: MyVideoItem(
                 listPath: "movie",
                 title: "Movie",
                 quality: "1080P"
@@ -164,7 +164,7 @@ final class NativePlayerViewModelTests: XCTestCase {
             )
         ])
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(
+            item: MyVideoItem(
                 listPath: "movie",
                 title: "Movie"
             ),
@@ -201,7 +201,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         let castManager = MockCastPlaybackManager()
         castManager.isCasting = true
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(
+            item: MyVideoItem(
                 listPath: "te-li-du-xing",
                 title: "特立独行",
                 quality: "4K"
@@ -241,7 +241,7 @@ final class NativePlayerViewModelTests: XCTestCase {
             selectedEpisode: episodes[0]
         )
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(
+            item: MyVideoItem(
                 listPath: "series",
                 title: "Series",
                 isSerial: true,
@@ -270,7 +270,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         ]
         var observations: [[EpisodeSelection]] = []
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "series", title: "Series", isSerial: true),
+            item: MyVideoItem(listPath: "series", title: "Series", isSerial: true),
             resolver: StubPlaybackResolver(playback: NativePlayback(
                 entries: [NativePlaybackEntry(
                     url: URL(string: "https://media.example.com/episode-10.m3u8")!,
@@ -292,7 +292,7 @@ final class NativePlayerViewModelTests: XCTestCase {
     func testKnownLatestStartsBeforeIndependentEpisodeListRecoveryCompletes() async throws {
         var observations: [[EpisodeSelection]] = []
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(
+            item: MyVideoItem(
                 listPath: "series",
                 title: "Series",
                 isSerial: true,
@@ -326,7 +326,7 @@ final class NativePlayerViewModelTests: XCTestCase {
             metrics: metrics
         )
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "movie", title: "Original Title"),
+            item: MyVideoItem(listPath: "movie", title: "Original Title"),
             resolver: StubPlaybackResolver(playback: playback)
         )
 
@@ -348,7 +348,7 @@ final class NativePlayerViewModelTests: XCTestCase {
 
     func testMovieWithoutEpisodesDoesNotExposeEpisodeControl() {
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "movie", title: "Movie", isSerial: false),
+            item: MyVideoItem(listPath: "movie", title: "Movie", isSerial: false),
             resolver: StubPlaybackResolver(playback: NativePlayback(entries: []))
         )
 
@@ -358,7 +358,7 @@ final class NativePlayerViewModelTests: XCTestCase {
 
     func testPlayedEpisodeKeyRestoresEpisodeControlForLegacyItem() async throws {
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "legacy-series", title: "Legacy Series"),
+            item: MyVideoItem(listPath: "legacy-series", title: "Legacy Series"),
             initialEpisodeKey: "episode-4",
             resolver: FixtureNativePlaybackResolver()
         )
@@ -384,7 +384,7 @@ final class NativePlayerViewModelTests: XCTestCase {
 
     func testPresentationTransitionDoesNotStopUntilScreenActuallyDisappears() {
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            item: MyVideoItem(listPath: "movie", title: "Movie"),
             resolver: StubPlaybackResolver(playback: NativePlayback(entries: []))
         )
         viewModel.player.insert(
@@ -417,7 +417,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         ], episodes: [episode], selectedEpisode: episode)
         let resolver = CountingPlaybackResolver(playback: playback)
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "media-key", title: "Movie"),
+            item: MyVideoItem(listPath: "media-key", title: "Movie"),
             resolver: resolver
         )
 
@@ -435,7 +435,7 @@ final class NativePlayerViewModelTests: XCTestCase {
 
     func testResolverErrorBecomesUserFacingPlaybackError() async throws {
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "media-key", title: "Movie"),
+            item: MyVideoItem(listPath: "media-key", title: "Movie"),
             resolver: StubPlaybackResolver(error: .loginRequired)
         )
 
@@ -449,7 +449,7 @@ final class NativePlayerViewModelTests: XCTestCase {
     func testAdvertisementEntriesAreNeverPreparedOrShown() async throws {
         let playback = playbackWithAdvertisement()
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            item: MyVideoItem(listPath: "movie", title: "Movie"),
             resolver: StubPlaybackResolver(playback: playback)
         )
         viewModel.start()
@@ -461,7 +461,7 @@ final class NativePlayerViewModelTests: XCTestCase {
 
     func testRemovingAdvertisementPreservesExistingMuteChoice() async throws {
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            item: MyVideoItem(listPath: "movie", title: "Movie"),
             resolver: StubPlaybackResolver(playback: playbackWithAdvertisement())
         )
         viewModel.player.isMuted = true
@@ -475,7 +475,7 @@ final class NativePlayerViewModelTests: XCTestCase {
     func testPlayedHistoryAdvancesOnlyWhileProgramIsActuallyPlaying() async throws {
         let (store, defaults, suiteName) = playedStore()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let item = AiyifanItem(listPath: "series", title: "Series")
+        let item = MyVideoItem(listPath: "series", title: "Series")
         let viewModel = NativePlayerViewModel(
             item: item,
             resolver: StubPlaybackResolver(playback: playbackWithAdvertisement()),
@@ -517,7 +517,7 @@ final class NativePlayerViewModelTests: XCTestCase {
     func testResumeAndEpisodeSelectionUseEpisodeSpecificRecord() async throws {
         let (store, defaults, suiteName) = playedStore()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let item = AiyifanItem(listPath: "series", title: "Series")
+        let item = MyVideoItem(listPath: "series", title: "Series")
         let older = Episode(mediaKey: "episode-3", title: "03", updateDate: nil)
         store.record(item: item, episode: older, position: 42, duration: 100)
         let viewModel = NativePlayerViewModel(
@@ -540,7 +540,7 @@ final class NativePlayerViewModelTests: XCTestCase {
     func testResolvedPlaybackPreparesCastQueueAtResumePosition() async throws {
         let (store, defaults, suiteName) = playedStore()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let item = AiyifanItem(listPath: "series", title: "Series")
+        let item = MyVideoItem(listPath: "series", title: "Series")
         let episode = Episode(mediaKey: "episode-4", title: "04", updateDate: nil)
         store.record(item: item, episode: episode, position: 42, duration: 100)
         let castManager = MockCastPlaybackManager()
@@ -565,7 +565,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         let castManager = MockCastPlaybackManager()
         castManager.isCasting = true
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            item: MyVideoItem(listPath: "movie", title: "Movie"),
             resolver: StubPlaybackResolver(playback: playbackWithAdvertisement()),
             castManager: castManager
         )
@@ -579,7 +579,7 @@ final class NativePlayerViewModelTests: XCTestCase {
 
     func testPlaybackEntryUpdatesTimelineState() async throws {
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            item: MyVideoItem(listPath: "movie", title: "Movie"),
             resolver: StubPlaybackResolver(playback: playbackWithAdvertisement())
         )
 
@@ -595,7 +595,7 @@ final class NativePlayerViewModelTests: XCTestCase {
     func testLocalTransportSkipButtonsMoveProgramPositionByTenSeconds() async throws {
         let castManager = MockCastPlaybackManager()
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            item: MyVideoItem(listPath: "movie", title: "Movie"),
             castManager: castManager
         )
         attachSeekableItem(to: viewModel)
@@ -613,7 +613,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         let castManager = MockCastPlaybackManager()
         castManager.isCasting = true
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            item: MyVideoItem(listPath: "movie", title: "Movie"),
             castManager: castManager
         )
         attachSeekableItem(to: viewModel)
@@ -627,7 +627,7 @@ final class NativePlayerViewModelTests: XCTestCase {
 
     func testManualSeekCancelsPendingAutoplay() async throws {
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "series", title: "Series"),
+            item: MyVideoItem(listPath: "series", title: "Series"),
             initialEpisodeKey: "episode-3",
             resolver: EpisodeAwareStubResolver()
         )
@@ -658,7 +658,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         )))
         let castManager = MockCastPlaybackManager()
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "series", title: "Series", isSerial: true),
+            item: MyVideoItem(listPath: "series", title: "Series", isSerial: true),
             resolver: StubPlaybackResolver(playback: playbackWithAdvertisement()),
             castManager: castManager,
             skipMarkerStore: skipStore
@@ -682,7 +682,7 @@ final class NativePlayerViewModelTests: XCTestCase {
     func testManualSkipCorrectionsPersistAndMoviesNeverOfferSkip() async throws {
         let skipStore = makeSkipStore()
         let series = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "series", title: "Series", isSerial: true),
+            item: MyVideoItem(listPath: "series", title: "Series", isSerial: true),
             resolver: StubPlaybackResolver(playback: playbackWithAdvertisement()),
             skipMarkerStore: skipStore
         )
@@ -697,7 +697,7 @@ final class NativePlayerViewModelTests: XCTestCase {
         XCTAssertEqual(skipStore.profile(for: "series")?.outroStartSecondsRemaining, 20)
 
         let movie = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "movie", title: "Movie", isSerial: false),
+            item: MyVideoItem(listPath: "movie", title: "Movie", isSerial: false),
             resolver: StubPlaybackResolver(playback: NativePlayback(entries: [
                 NativePlaybackEntry(
                     url: URL(string: "https://media.example.com/movie.m3u8")!,
@@ -717,7 +717,7 @@ final class NativePlayerViewModelTests: XCTestCase {
 
     func testPreferredEpisodeInfersSerialSkipSupportWithoutProviderFlag() async throws {
         let skipStore = makeSkipStore()
-        let item = AiyifanItem(listPath: "inferred-series", title: "Inferred Series", isSerial: false)
+        let item = MyVideoItem(listPath: "inferred-series", title: "Inferred Series", isSerial: false)
         let viewModel = NativePlayerViewModel(
             item: item,
             initialEpisodeKey: "episode-4",
@@ -739,7 +739,7 @@ final class NativePlayerViewModelTests: XCTestCase {
     func testProgramWithoutAdvertisementKeepsResumePendingUntilPlayerIsReady() async throws {
         let (store, defaults, suiteName) = playedStore()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let item = AiyifanItem(listPath: "movie", title: "Movie")
+        let item = MyVideoItem(listPath: "movie", title: "Movie")
         store.record(item: item, episode: nil, position: 42, duration: 100)
         let playback = NativePlayback(entries: [
             NativePlaybackEntry(
@@ -767,7 +767,7 @@ final class NativePlayerViewModelTests: XCTestCase {
 
     func testNextAndPreviousEpisodeFollowChronologicalOrder() async throws {
         let viewModel = NativePlayerViewModel(
-            item: AiyifanItem(listPath: "series", title: "Series"),
+            item: MyVideoItem(listPath: "series", title: "Series"),
             initialEpisodeKey: "episode-3",
             resolver: EpisodeAwareStubResolver()
         )
@@ -864,7 +864,7 @@ private struct StubPlaybackResolver: NativePlaybackResolving {
         self.error = error
     }
 
-    func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
+    func resolve(item: MyVideoItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
         if let error {
             throw error
         }
@@ -880,7 +880,7 @@ private actor CountingPlaybackResolver: NativePlaybackResolving {
         self.playback = playback
     }
 
-    func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
+    func resolve(item: MyVideoItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
         count += 1
         return playback
     }
@@ -891,7 +891,7 @@ private actor CountingPlaybackResolver: NativePlaybackResolving {
 }
 
 private struct EpisodeAwareStubResolver: NativePlaybackResolving {
-    func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
+    func resolve(item: MyVideoItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
         let episodes = [
             Episode(mediaKey: "episode-4", title: "04", updateDate: nil),
             Episode(mediaKey: "episode-3", title: "03", updateDate: nil)
@@ -909,7 +909,7 @@ private struct EpisodeAwareStubResolver: NativePlaybackResolving {
 }
 
 private struct IndependentEpisodeResolver: NativePlaybackResolving, EpisodePlaylistResolving {
-    func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
+    func resolve(item: MyVideoItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
         NativePlayback(
             entries: [NativePlaybackEntry(
                 url: URL(string: "https://media.example.com/episode-10.m3u8")!,
@@ -919,7 +919,7 @@ private struct IndependentEpisodeResolver: NativePlaybackResolving, EpisodePlayl
         )
     }
 
-    func loadEpisodes(for item: AiyifanItem, expectedEpisodeKey: String?) async throws -> [Episode] {
+    func loadEpisodes(for item: MyVideoItem, expectedEpisodeKey: String?) async throws -> [Episode] {
         try await Task.sleep(for: .milliseconds(20))
         return [
             Episode(mediaKey: "episode-10", title: "10", updateDate: nil),

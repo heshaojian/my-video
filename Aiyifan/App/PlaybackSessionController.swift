@@ -9,7 +9,7 @@ enum PlaybackSessionPresentation: Equatable, Sendable {
 @MainActor
 final class PlaybackSessionController: ObservableObject {
     typealias ViewModelFactory = @MainActor (
-        _ item: AiyifanItem,
+        _ item: MyVideoItem,
         _ episodeKey: String?,
         _ playedItemsStore: PlayedItemsStore,
         _ onEpisodesObserved: @escaping NativePlayerViewModel.EpisodeObservationHandler
@@ -18,7 +18,7 @@ final class PlaybackSessionController: ObservableObject {
     @Published private(set) var presentation = PlaybackSessionPresentation.inactive
     @Published private(set) var viewModel: NativePlayerViewModel?
 
-    var item: AiyifanItem? { viewModel?.item }
+    var item: MyVideoItem? { viewModel?.item }
 
     private let makeViewModel: ViewModelFactory
 
@@ -27,7 +27,7 @@ final class PlaybackSessionController: ObservableObject {
     }
 
     func play(
-        item: AiyifanItem,
+        item: MyVideoItem,
         episodeKey: String?,
         playedItemsStore: PlayedItemsStore,
         monitorPlayback: Bool,
@@ -66,12 +66,12 @@ final class PlaybackSessionController: ObservableObject {
     }
 
     private static func makeDefaultViewModel(
-        item: AiyifanItem,
+        item: MyVideoItem,
         episodeKey: String?,
         playedItemsStore: PlayedItemsStore,
         onEpisodesObserved: @escaping NativePlayerViewModel.EpisodeObservationHandler
     ) -> NativePlayerViewModel {
-        let usesFixturePlayback = ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed")
+        let usesFixturePlayback = ProcessInfo.processInfo.arguments.contains("-MyVideoUseFixtureFeed")
         let resolver: any NativePlaybackResolving = usesFixturePlayback
             ? FixtureNativePlaybackResolver()
             : NativePlaybackResolver()

@@ -17,7 +17,7 @@ struct ProviderSearchQuery: Equatable, Sendable {
 }
 
 struct ProviderSearchPage: Equatable, Sendable {
-    let items: [AiyifanItem]
+    let items: [MyVideoItem]
     let page: Int
     let isLastPage: Bool
     let totalCount: Int
@@ -38,9 +38,9 @@ extension ProviderSearchError: LocalizedError {
         case .invalidRequest:
             return "The requested search page is invalid."
         case .invalidResponse:
-            return "Aiyifan returned an invalid search response."
+            return "MyVideo returned an invalid search response."
         case .httpStatus:
-            return "Aiyifan could not load these search results."
+            return "MyVideo could not load these search results."
         }
     }
 }
@@ -80,7 +80,7 @@ enum ProviderSearchRequestBuilder {
 }
 
 enum ProviderSearchResponseDecoder {
-    private static let supportedCategoryPrefixes = Set(AiyifanCategory.allCases.map(\.catalogCID))
+    private static let supportedCategoryPrefixes = Set(MyVideoCategory.allCases.map(\.catalogCID))
 
     static func decode(_ data: Data, page: Int, pageSize: Int) throws -> ProviderSearchPage {
         let catalogPage: CategoryCatalogPage
@@ -130,7 +130,7 @@ struct ProviderSearchService: @unchecked Sendable, ProviderSearchServing {
     }
 
     func search(query: ProviderSearchQuery, page: Int, pageSize: Int) async throws -> ProviderSearchPage {
-        if ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed") {
+        if ProcessInfo.processInfo.arguments.contains("-MyVideoUseFixtureFeed") {
             return try await FixtureProviderSearch.shared.page(query: query, page: page, pageSize: pageSize)
         }
 
@@ -234,31 +234,31 @@ private actor FixtureProviderSearch {
         }
 
         let arguments = ProcessInfo.processInfo.arguments
-        if arguments.contains("-AiyifanFixtureSearchDelay") {
+        if arguments.contains("-MyVideoFixtureSearchDelay") {
             try await Task.sleep(for: .milliseconds(250))
         }
         let failureKey = "\(query.tags)-\(page)"
-        let shouldFail = (arguments.contains("-AiyifanFixtureSearchInitialFailure") && page == 1)
-            || (arguments.contains("-AiyifanFixtureSearchLoadMoreFailure") && page == 2)
+        let shouldFail = (arguments.contains("-MyVideoFixtureSearchInitialFailure") && page == 1)
+            || (arguments.contains("-MyVideoFixtureSearchLoadMoreFailure") && page == 2)
         if shouldFail, !failedRequests.contains(failureKey) {
             failedRequests = failedRequests.union([failureKey])
             throw URLError(.timedOut)
         }
-        if arguments.contains("-AiyifanFixtureSearchEmpty") {
+        if arguments.contains("-MyVideoFixtureSearchEmpty") {
             return ProviderSearchPage(items: [], page: page, isLastPage: true, totalCount: 0)
         }
 
         let totalCount = 48
         let start = min((page - 1) * pageSize, totalCount)
         let end = min(start + pageSize, totalCount)
-        let categories = AiyifanCategory.allCases
+        let categories = MyVideoCategory.allCases
         let items = (start..<end).map { offset in
             let index = offset + 1
             let category = categories[offset % categories.count]
             let stableKey = index <= categories.count
                 ? "fixture-search-\(category.id)"
                 : "fixture-search-\(category.id)-\(index)"
-            return AiyifanItem(
+            return MyVideoItem(
                 listPath: stableKey,
                 title: "\(query.tags) Result \(index)",
                 subTitle: category == .movie ? "2026" : "Episode \(index)",

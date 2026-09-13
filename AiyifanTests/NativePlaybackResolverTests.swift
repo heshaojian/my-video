@@ -11,19 +11,19 @@ final class NativePlaybackResolverTests: XCTestCase {
     func testSerialIntentUsesProviderItemEpisodeAndCategorySignals() {
         XCTAssertTrue(SerialPlaybackIntent.infer(
             providerIsSerial: true,
-            item: AiyifanItem(listPath: "movie", title: "Provider Serial")
+            item: MyVideoItem(listPath: "movie", title: "Provider Serial")
         ))
         XCTAssertTrue(SerialPlaybackIntent.infer(
             providerIsSerial: false,
-            item: AiyifanItem(listPath: "series", title: "Series", isSerial: true)
+            item: MyVideoItem(listPath: "series", title: "Series", isSerial: true)
         ))
         XCTAssertTrue(SerialPlaybackIntent.infer(
             providerIsSerial: false,
-            item: AiyifanItem(listPath: "anime", title: "Anime", categoryPath: "0,1,6,24")
+            item: MyVideoItem(listPath: "anime", title: "Anime", categoryPath: "0,1,6,24")
         ))
         XCTAssertTrue(SerialPlaybackIntent.infer(
             providerIsSerial: false,
-            item: AiyifanItem(
+            item: MyVideoItem(
                 listPath: "stale-provider-serial-flag",
                 title: "Series With Stale Provider Flag",
                 isSerial: false,
@@ -32,11 +32,11 @@ final class NativePlaybackResolverTests: XCTestCase {
         ))
         XCTAssertFalse(SerialPlaybackIntent.infer(
             providerIsSerial: false,
-            item: AiyifanItem(listPath: "movie", title: "Movie", categoryPath: "0,1,3,8")
+            item: MyVideoItem(listPath: "movie", title: "Movie", categoryPath: "0,1,3,8")
         ))
         XCTAssertFalse(SerialPlaybackIntent.infer(
             providerIsSerial: false,
-            item: AiyifanItem(
+            item: MyVideoItem(
                 listPath: "movie",
                 title: "Movie With Quality Row",
                 isSerial: false,
@@ -217,7 +217,7 @@ final class NativePlaybackResolverTests: XCTestCase {
     }
 
     func testResolverRejectsCleartextPlaybackPage() {
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "media-key",
             title: "Cleartext",
             url: "http://m.yfsp.tv/play/media-key"
@@ -428,7 +428,7 @@ final class NativePlaybackResolverTests: XCTestCase {
         configuration.protocolClasses = [ResolverURLProtocol.self]
         let session = URLSession(configuration: configuration)
         defer { session.invalidateAndCancel() }
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "series-key",
             title: "Ten Episode Series",
             url: "https://m.yfsp.tv/play/series-key",
@@ -496,7 +496,7 @@ final class NativePlaybackResolverTests: XCTestCase {
         configuration.protocolClasses = [ResolverURLProtocol.self]
         let session = URLSession(configuration: configuration)
         defer { session.invalidateAndCancel() }
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "movie-key",
             title: "Movie",
             url: "https://m.yfsp.tv/play/movie-key",
@@ -567,7 +567,7 @@ final class NativePlaybackResolverTests: XCTestCase {
         configuration.protocolClasses = [ResolverURLProtocol.self]
         let session = URLSession(configuration: configuration)
         defer { session.invalidateAndCancel() }
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "NjvfTz4MVG6",
             title: "披荆斩棘2026",
             url: "https://m.yfsp.tv/play/NjvfTz4MVG6",
@@ -618,7 +618,7 @@ final class NativePlaybackResolverTests: XCTestCase {
         configuration.protocolClasses = [ResolverURLProtocol.self]
         let session = URLSession(configuration: configuration)
         defer { session.invalidateAndCancel() }
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "series-key",
             title: "Series",
             url: "https://m.yfsp.tv/play/series-key",
@@ -663,7 +663,7 @@ final class NativePlaybackResolverTests: XCTestCase {
         configuration.protocolClasses = [ResolverURLProtocol.self]
         let session = URLSession(configuration: configuration)
         defer { session.invalidateAndCancel() }
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "series-key",
             title: "Series",
             url: "https://m.yfsp.tv/play/series-key",
@@ -707,7 +707,7 @@ final class NativePlaybackResolverTests: XCTestCase {
         configuration.protocolClasses = [ResolverURLProtocol.self]
         let session = URLSession(configuration: configuration)
         defer { session.invalidateAndCancel() }
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "series-key",
             title: "Series",
             url: "https://m.yfsp.tv/play/series-key",
@@ -753,7 +753,7 @@ final class NativePlaybackResolverTests: XCTestCase {
         configuration.protocolClasses = [ResolverURLProtocol.self]
         let session = URLSession(configuration: configuration)
         defer { session.invalidateAndCancel() }
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "movie-key",
             title: "Login Required",
             url: "https://m.yfsp.tv/play/movie-key"
@@ -779,7 +779,7 @@ final class NativePlaybackResolverTests: XCTestCase {
         configuration.protocolClasses = [ResolverURLProtocol.self]
         let session = URLSession(configuration: configuration)
         defer { session.invalidateAndCancel() }
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "movie-key",
             title: "Cancelled",
             url: "https://m.yfsp.tv/play/movie-key"
@@ -832,7 +832,7 @@ final class NativePlaybackResolverTests: XCTestCase {
         configuration.protocolClasses = [ResolverURLProtocol.self]
         let session = URLSession(configuration: configuration)
         defer { session.invalidateAndCancel() }
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "series-key",
             title: "Ten Episode Series",
             url: "https://m.yfsp.tv/play/series-key",
@@ -884,7 +884,7 @@ final class NativePlaybackResolverTests: XCTestCase {
         configuration.protocolClasses = [ResolverURLProtocol.self]
         let session = URLSession(configuration: configuration)
         defer { session.invalidateAndCancel() }
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "series-key",
             title: "Series",
             url: "https://m.yfsp.tv/play/series-key",
@@ -918,7 +918,7 @@ final class NativePlaybackResolverTests: XCTestCase {
         configuration.protocolClasses = [ResolverURLProtocol.self]
         let session = URLSession(configuration: configuration)
         defer { session.invalidateAndCancel() }
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "series-key",
             title: "Redirected",
             url: "https://m.yfsp.tv/play/series-key"

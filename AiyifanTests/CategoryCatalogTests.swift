@@ -23,12 +23,12 @@ final class CategoryCatalogContractTests: XCTestCase {
     }
 
     func testCategoriesUseProviderCatalogIdentifiers() {
-        XCTAssertEqual(AiyifanCategory.movie.catalogCID, "0,1,3")
-        XCTAssertEqual(AiyifanCategory.drama.catalogCID, "0,1,4")
-        XCTAssertEqual(AiyifanCategory.variety.catalogCID, "0,1,5")
-        XCTAssertEqual(AiyifanCategory.anime.catalogCID, "0,1,6")
-        XCTAssertEqual(AiyifanCategory.allCases.map(\.id), ["movie", "drama", "variety", "anime"])
-        XCTAssertEqual(AiyifanCategory.allCases.map(\.title), ["Movies", "Series", "Variety", "Anime"])
+        XCTAssertEqual(MyVideoCategory.movie.catalogCID, "0,1,3")
+        XCTAssertEqual(MyVideoCategory.drama.catalogCID, "0,1,4")
+        XCTAssertEqual(MyVideoCategory.variety.catalogCID, "0,1,5")
+        XCTAssertEqual(MyVideoCategory.anime.catalogCID, "0,1,6")
+        XCTAssertEqual(MyVideoCategory.allCases.map(\.id), ["movie", "drama", "variety", "anime"])
+        XCTAssertEqual(MyVideoCategory.allCases.map(\.title), ["Movies", "Series", "Variety", "Anime"])
     }
 
     func testRequestBuilderSignsCatalogRequestDeterministically() throws {
@@ -100,10 +100,10 @@ final class CategoryCatalogContractTests: XCTestCase {
     }
 
     func testCategoriesMapToProviderGenreEndpoints() {
-        XCTAssertEqual(AiyifanCategory.movie.genreEndpointPath, "/api/list/FilmType")
-        XCTAssertEqual(AiyifanCategory.drama.genreEndpointPath, "/api/list/TvType")
-        XCTAssertEqual(AiyifanCategory.variety.genreEndpointPath, "/api/list/VarietyType")
-        XCTAssertEqual(AiyifanCategory.anime.genreEndpointPath, "/api/list/AnimeType")
+        XCTAssertEqual(MyVideoCategory.movie.genreEndpointPath, "/api/list/FilmType")
+        XCTAssertEqual(MyVideoCategory.drama.genreEndpointPath, "/api/list/TvType")
+        XCTAssertEqual(MyVideoCategory.variety.genreEndpointPath, "/api/list/VarietyType")
+        XCTAssertEqual(MyVideoCategory.anime.genreEndpointPath, "/api/list/AnimeType")
     }
 
     func testFilterDecoderCombinesConditionsAndCategoryGenres() throws {
@@ -390,11 +390,11 @@ final class CatalogPreferenceStoreTests: XCTestCase {
 final class CategoryCatalogViewModelTests: XCTestCase {
     override func setUp() {
         super.setUp()
-        UserDefaults.standard.removeObject(forKey: "aiyifanCatalogPreferencesV1")
+        UserDefaults.standard.removeObject(forKey: "myvideoCatalogPreferencesV1")
     }
 
     override func tearDown() {
-        UserDefaults.standard.removeObject(forKey: "aiyifanCatalogPreferencesV1")
+        UserDefaults.standard.removeObject(forKey: "myvideoCatalogPreferencesV1")
         super.tearDown()
     }
 
@@ -425,9 +425,9 @@ final class CategoryCatalogViewModelTests: XCTestCase {
     func testOnlySuccessfulFilterAndSortChangesArePersisted() async {
         let (store, defaults, suite) = preferenceStore()
         defer { defaults.removePersistentDomain(forName: suite) }
-        let original = AiyifanItem(listPath: "original", title: "Original")
-        let filtered = AiyifanItem(listPath: "filtered", title: "Filtered")
-        let sorted = AiyifanItem(listPath: "sorted", title: "Sorted")
+        let original = MyVideoItem(listPath: "original", title: "Original")
+        let filtered = MyVideoItem(listPath: "filtered", title: "Filtered")
+        let sorted = MyVideoItem(listPath: "sorted", title: "Sorted")
         let service = TransactionalCategoryCatalogService(original: original, filtered: filtered, sorted: sorted)
         let viewModel = CategoryCatalogViewModel(
             category: .drama,
@@ -480,8 +480,8 @@ final class CategoryCatalogViewModelTests: XCTestCase {
     }
 
     func testFilterDraftCancelAndApplyAreTransactional() async {
-        let original = AiyifanItem(listPath: "original", title: "Original")
-        let filtered = AiyifanItem(listPath: "filtered", title: "Filtered")
+        let original = MyVideoItem(listPath: "original", title: "Original")
+        let filtered = MyVideoItem(listPath: "filtered", title: "Filtered")
         let service = TransactionalCategoryCatalogService(original: original, filtered: filtered)
         let viewModel = CategoryCatalogViewModel(category: .drama, pageSize: 24, service: service)
 
@@ -512,8 +512,8 @@ final class CategoryCatalogViewModelTests: XCTestCase {
     }
 
     func testSortAppliesImmediatelyAndResetsPagination() async {
-        let original = AiyifanItem(listPath: "original", title: "Original")
-        let sorted = AiyifanItem(listPath: "sorted", title: "Sorted")
+        let original = MyVideoItem(listPath: "original", title: "Original")
+        let sorted = MyVideoItem(listPath: "sorted", title: "Sorted")
         let service = TransactionalCategoryCatalogService(original: original, sorted: sorted)
         let viewModel = CategoryCatalogViewModel(category: .anime, pageSize: 24, service: service)
 
@@ -528,9 +528,9 @@ final class CategoryCatalogViewModelTests: XCTestCase {
     }
 
     func testInitialLoadAndPaginationDeduplicateItems() async {
-        let first = AiyifanItem(listPath: "one", title: "One")
-        let duplicate = AiyifanItem(listPath: "two", title: "Two")
-        let third = AiyifanItem(listPath: "three", title: "Three")
+        let first = MyVideoItem(listPath: "one", title: "One")
+        let duplicate = MyVideoItem(listPath: "two", title: "Two")
+        let third = MyVideoItem(listPath: "three", title: "Three")
         let service = StubCategoryCatalogService(pages: [
             1: .success(CategoryCatalogPage(items: [first, duplicate], page: 1, isLastPage: false)),
             2: .success(CategoryCatalogPage(items: [duplicate, third], page: 2, isLastPage: true))
@@ -548,8 +548,8 @@ final class CategoryCatalogViewModelTests: XCTestCase {
     }
 
     func testLoadMoreFailureKeepsItemsAndRetrySucceeds() async {
-        let first = AiyifanItem(listPath: "one", title: "One")
-        let second = AiyifanItem(listPath: "two", title: "Two")
+        let first = MyVideoItem(listPath: "one", title: "One")
+        let second = MyVideoItem(listPath: "two", title: "Two")
         let service = StubCategoryCatalogService(pages: [
             1: .success(CategoryCatalogPage(items: [first], page: 1, isLastPage: false)),
             2: .failureThenSuccess(CategoryCatalogPage(items: [second], page: 2, isLastPage: true))
@@ -568,8 +568,8 @@ final class CategoryCatalogViewModelTests: XCTestCase {
     }
 
     func testRefreshReplacesItemsAndIgnoresOlderInitialResponse() async throws {
-        let old = AiyifanItem(listPath: "old", title: "Old")
-        let fresh = AiyifanItem(listPath: "fresh", title: "Fresh")
+        let old = MyVideoItem(listPath: "old", title: "Old")
+        let fresh = MyVideoItem(listPath: "fresh", title: "Fresh")
         let service = SequencedCategoryCatalogService(old: old, fresh: fresh)
         let viewModel = CategoryCatalogViewModel(category: .drama, pageSize: 24, service: service)
 
@@ -655,14 +655,14 @@ final class CategoryCatalogViewModelTests: XCTestCase {
 private actor QueryRecordingCatalogService: CategoryCatalogServing {
     private var queries: [CatalogQuery] = []
 
-    func fetchPage(category: AiyifanCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
+    func fetchPage(category: MyVideoCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
         try await fetchPage(query: CatalogQuery(category: category), page: page, pageSize: pageSize)
     }
 
     func fetchPage(query: CatalogQuery, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
         queries.append(query)
         return CategoryCatalogPage(
-            items: [AiyifanItem(listPath: "result", title: "Result")],
+            items: [MyVideoItem(listPath: "result", title: "Result")],
             page: page,
             isLastPage: true
         )
@@ -676,20 +676,20 @@ private actor QueryRecordingCatalogService: CategoryCatalogServing {
 private actor StaleOptionCatalogService: CategoryCatalogServing {
     private var queries: [CatalogQuery] = []
 
-    func fetchPage(category: AiyifanCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
+    func fetchPage(category: MyVideoCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
         try await fetchPage(query: CatalogQuery(category: category), page: page, pageSize: pageSize)
     }
 
     func fetchPage(query: CatalogQuery, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
         queries.append(query)
         return CategoryCatalogPage(
-            items: [AiyifanItem(listPath: query.language ?? "default", title: "Result")],
+            items: [MyVideoItem(listPath: query.language ?? "default", title: "Result")],
             page: page,
             isLastPage: true
         )
     }
 
-    func fetchFilters(category: AiyifanCategory) async throws -> CatalogFilterSet {
+    func fetchFilters(category: MyVideoCategory) async throws -> CatalogFilterSet {
         CatalogFilterSet(
             genres: [],
             regions: [],
@@ -719,7 +719,7 @@ private actor StubCategoryCatalogService: CategoryCatalogServing {
         self.pages = pages
     }
 
-    func fetchPage(category: AiyifanCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
+    func fetchPage(category: MyVideoCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
         let attempt = attempts[page, default: 0]
         attempts = attempts.merging([page: attempt + 1], uniquingKeysWith: { _, new in new })
         guard let response = pages[page] else { throw URLError(.resourceUnavailable) }
@@ -736,16 +736,16 @@ private actor StubCategoryCatalogService: CategoryCatalogServing {
 }
 
 private actor SequencedCategoryCatalogService: CategoryCatalogServing {
-    private let old: AiyifanItem
-    private let fresh: AiyifanItem
+    private let old: MyVideoItem
+    private let fresh: MyVideoItem
     private var callCount = 0
 
-    init(old: AiyifanItem, fresh: AiyifanItem) {
+    init(old: MyVideoItem, fresh: MyVideoItem) {
         self.old = old
         self.fresh = fresh
     }
 
-    func fetchPage(category: AiyifanCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
+    func fetchPage(category: MyVideoCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
         callCount += 1
         if callCount == 1 {
             try await Task.sleep(for: .milliseconds(100))
@@ -756,18 +756,18 @@ private actor SequencedCategoryCatalogService: CategoryCatalogServing {
 }
 
 private actor TransactionalCategoryCatalogService: CategoryCatalogServing {
-    private let original: AiyifanItem
-    private let filtered: AiyifanItem?
-    private let sorted: AiyifanItem?
+    private let original: MyVideoItem
+    private let filtered: MyVideoItem?
+    private let sorted: MyVideoItem?
     private var filteredAttempts = 0
 
-    init(original: AiyifanItem, filtered: AiyifanItem? = nil, sorted: AiyifanItem? = nil) {
+    init(original: MyVideoItem, filtered: MyVideoItem? = nil, sorted: MyVideoItem? = nil) {
         self.original = original
         self.filtered = filtered
         self.sorted = sorted
     }
 
-    func fetchPage(category: AiyifanCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
+    func fetchPage(category: MyVideoCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
         CategoryCatalogPage(items: [original], page: page, isLastPage: true, totalCount: 1)
     }
 
@@ -783,7 +783,7 @@ private actor TransactionalCategoryCatalogService: CategoryCatalogServing {
         return CategoryCatalogPage(items: [original], page: page, isLastPage: true, totalCount: 1)
     }
 
-    func fetchFilters(category: AiyifanCategory) async throws -> CatalogFilterSet {
+    func fetchFilters(category: MyVideoCategory) async throws -> CatalogFilterSet {
         CatalogFilterSet(
             genres: [],
             regions: [],
@@ -799,14 +799,14 @@ private actor TransactionalCategoryCatalogService: CategoryCatalogServing {
 }
 
 private actor RacingPaginationCatalogService: CategoryCatalogServing {
-    func fetchPage(category: AiyifanCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
+    func fetchPage(category: MyVideoCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
         try await fetchPage(query: CatalogQuery(category: category), page: page, pageSize: pageSize)
     }
 
     func fetchPage(query: CatalogQuery, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
         if query.language == "英语" {
             return CategoryCatalogPage(
-                items: [AiyifanItem(listPath: "filtered", title: "Filtered")],
+                items: [MyVideoItem(listPath: "filtered", title: "Filtered")],
                 page: 1,
                 isLastPage: true,
                 totalCount: 1
@@ -815,14 +815,14 @@ private actor RacingPaginationCatalogService: CategoryCatalogServing {
         if page == 2 {
             try await Task.sleep(for: .milliseconds(100))
             return CategoryCatalogPage(
-                items: [AiyifanItem(listPath: "stale", title: "Stale")],
+                items: [MyVideoItem(listPath: "stale", title: "Stale")],
                 page: 2,
                 isLastPage: true,
                 totalCount: 2
             )
         }
         return CategoryCatalogPage(
-            items: [AiyifanItem(listPath: "original", title: "Original")],
+            items: [MyVideoItem(listPath: "original", title: "Original")],
             page: 1,
             isLastPage: false,
             totalCount: 2
@@ -833,31 +833,31 @@ private actor RacingPaginationCatalogService: CategoryCatalogServing {
 private actor RefreshWinsCatalogService: CategoryCatalogServing {
     private var unfilteredCallCount = 0
 
-    func fetchPage(category: AiyifanCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
+    func fetchPage(category: MyVideoCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
         try await fetchPage(query: CatalogQuery(category: category), page: page, pageSize: pageSize)
     }
 
     func fetchPage(query: CatalogQuery, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
         if query.language == "英语" {
             try await Task.sleep(for: .milliseconds(100))
-            return CategoryCatalogPage(items: [AiyifanItem(listPath: "stale", title: "Stale")], page: 1, isLastPage: true)
+            return CategoryCatalogPage(items: [MyVideoItem(listPath: "stale", title: "Stale")], page: 1, isLastPage: true)
         }
         unfilteredCallCount += 1
         let id = unfilteredCallCount == 1 ? "original" : "refreshed"
-        return CategoryCatalogPage(items: [AiyifanItem(listPath: id, title: id)], page: 1, isLastPage: true)
+        return CategoryCatalogPage(items: [MyVideoItem(listPath: id, title: id)], page: 1, isLastPage: true)
     }
 }
 
 private actor QueryWinsCatalogService: CategoryCatalogServing {
-    func fetchPage(category: AiyifanCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
+    func fetchPage(category: MyVideoCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
         try await fetchPage(query: CatalogQuery(category: category), page: page, pageSize: pageSize)
     }
 
     func fetchPage(query: CatalogQuery, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
         if query.language == "英语" {
-            return CategoryCatalogPage(items: [AiyifanItem(listPath: "filtered", title: "Filtered")], page: 1, isLastPage: true)
+            return CategoryCatalogPage(items: [MyVideoItem(listPath: "filtered", title: "Filtered")], page: 1, isLastPage: true)
         }
         try await Task.sleep(for: .milliseconds(100))
-        return CategoryCatalogPage(items: [AiyifanItem(listPath: "stale", title: "Stale")], page: 1, isLastPage: true)
+        return CategoryCatalogPage(items: [MyVideoItem(listPath: "stale", title: "Stale")], page: 1, isLastPage: true)
     }
 }

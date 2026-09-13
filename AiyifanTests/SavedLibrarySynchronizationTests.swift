@@ -3,7 +3,7 @@ import XCTest
 
 final class SavedLibrarySynchronizationTests: XCTestCase {
     func testPosterProjectionKeepsUpdateAndMetadataInTwoGroups() {
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "series",
             title: "A Long Series Title",
             subTitle: "09",
@@ -19,7 +19,7 @@ final class SavedLibrarySynchronizationTests: XCTestCase {
     }
 
     func testSavedPosterProjectionPrefersReconciledLatestEpisode() {
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "series",
             title: "Series",
             subTitle: "09",
@@ -44,7 +44,7 @@ final class SavedLibrarySynchronizationTests: XCTestCase {
 
     func testPosterProjectionOmitsMissingMetadataWithoutEmptySeparators() {
         let projection = PosterCardProjection(
-            item: AiyifanItem(listPath: "movie", title: "Movie", subTitle: "Updated")
+            item: MyVideoItem(listPath: "movie", title: "Movie", subTitle: "Updated")
         )
 
         XCTAssertEqual(projection.updateText, "Updated")
@@ -171,7 +171,7 @@ final class SavedLibrarySynchronizationTests: XCTestCase {
     }
 
     func testCatalogMergeUsesNewProviderValuesWithoutErasingKnownMetadata() {
-        let saved = AiyifanItem(
+        let saved = MyVideoItem(
             listPath: "series",
             title: "Original",
             verticalImg: "https://example.com/poster.jpg",
@@ -181,7 +181,7 @@ final class SavedLibrarySynchronizationTests: XCTestCase {
             isSerial: true,
             score: 8.5
         )
-        let observation = AiyifanItem(
+        let observation = MyVideoItem(
             listPath: "series",
             title: "Updated title",
             subTitle: "10",
@@ -208,7 +208,7 @@ final class SavedLibraryObservationStoreTests: XCTestCase {
         let suiteName = "SavedLibraryObservationStoreTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let item = AiyifanItem(listPath: "series", title: "Series", isSerial: true)
+        let item = MyVideoItem(listPath: "series", title: "Series", isSerial: true)
         let store = SavedItemsStore(defaults: defaults)
         store.toggle(item)
         store.setNotificationsEnabled(false, for: item)
@@ -239,14 +239,14 @@ final class SavedLibraryObservationStoreTests: XCTestCase {
         let suiteName = "SavedLibraryObservationStoreTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let first = AiyifanItem(listPath: "first", title: "First", subTitle: "09")
-        let second = AiyifanItem(listPath: "second", title: "Second")
+        let first = MyVideoItem(listPath: "first", title: "First", subTitle: "09")
+        let second = MyVideoItem(listPath: "second", title: "Second")
         let store = SavedItemsStore(defaults: defaults)
         store.toggle(second)
         store.toggle(first)
 
         _ = store.refreshUpdateMarkers(with: [
-            .drama: [AiyifanItem(listPath: "first", title: "First", subTitle: "10")]
+            .drama: [MyVideoItem(listPath: "first", title: "First", subTitle: "10")]
         ])
 
         XCTAssertEqual(store.items.map(\.id), [first.id, second.id])
@@ -258,7 +258,7 @@ final class SavedLibraryObservationStoreTests: XCTestCase {
         let suiteName = "SavedLibraryObservationStoreTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "series",
             title: "Series",
             subTitle: "09",
@@ -283,7 +283,7 @@ final class SavedLibraryObservationStoreTests: XCTestCase {
         )
 
         _ = store.refreshUpdateMarkers(with: [
-            .drama: [AiyifanItem(
+            .drama: [MyVideoItem(
                 listPath: "series",
                 title: "Series",
                 subTitle: "09",

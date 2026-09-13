@@ -7,7 +7,7 @@ final class ProviderSearchViewModel: ObservableObject {
     @Published private(set) var isExpanded = false
     @Published var query = ""
     @Published private(set) var submittedQuery: String?
-    @Published private(set) var items: [AiyifanItem] = []
+    @Published private(set) var items: [MyVideoItem] = []
     @Published private(set) var totalCount = 0
     @Published private(set) var nextPage = 1
     @Published private(set) var reachedEnd = false
@@ -117,7 +117,7 @@ final class ProviderSearchViewModel: ObservableObject {
         return await loadInitial(query: validatedQuery, generation: generation)
     }
 
-    func loadMoreIfNeeded(currentItem: AiyifanItem) async {
+    func loadMoreIfNeeded(currentItem: MyVideoItem) async {
         guard
             !reachedEnd,
             !isLoadingInitial,

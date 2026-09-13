@@ -2,10 +2,10 @@ import Foundation
 
 @MainActor
 final class CategoryCatalogViewModel: ObservableObject {
-    let category: AiyifanCategory
+    let category: MyVideoCategory
     let pageSize: Int
 
-    @Published private(set) var items: [AiyifanItem] = []
+    @Published private(set) var items: [MyVideoItem] = []
     @Published private(set) var nextPage = 1
     @Published private(set) var reachedEnd = false
     @Published private(set) var isLoadingInitial = false
@@ -28,7 +28,7 @@ final class CategoryCatalogViewModel: ObservableObject {
     private var generation = 0
 
     init(
-        category: AiyifanCategory,
+        category: MyVideoCategory,
         pageSize: Int = 24,
         service: any CategoryCatalogServing = CategoryCatalogService(),
         preferenceStore: CatalogPreferenceStore = .shared
@@ -123,7 +123,7 @@ final class CategoryCatalogViewModel: ObservableObject {
         return await applyQuery(query)
     }
 
-    func loadMoreIfNeeded(currentItem: AiyifanItem) async {
+    func loadMoreIfNeeded(currentItem: MyVideoItem) async {
         guard
             !reachedEnd,
             !isLoadingInitial,

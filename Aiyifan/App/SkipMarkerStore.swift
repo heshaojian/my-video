@@ -48,7 +48,7 @@ final class SkipMarkerStore: ObservableObject {
 
     private static let profileStorageVersion = 1
     private static let fingerprintStorageVersion = 1
-    private static let profileStorageKey = "aiyifanSkipProfilesV1"
+    private static let profileStorageKey = "myvideoSkipProfilesV1"
     private static let fingerprintFilename = "skip-fingerprints-v1.json"
 
     private let profilePersistence: SkipDataPersistence
@@ -607,7 +607,7 @@ final class SkipMarkerStore: ObservableObject {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? FileManager.default.temporaryDirectory
         return base
-            .appendingPathComponent("Aiyifan", isDirectory: true)
+            .appendingPathComponent("MyVideo", isDirectory: true)
             .appendingPathComponent(fingerprintFilename, isDirectory: false)
     }
 }

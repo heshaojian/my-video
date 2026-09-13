@@ -10,7 +10,7 @@ struct PosterCardProjection: Equatable, Sendable {
     let updateText: String
     let metadataText: String?
 
-    init(item: AiyifanItem, episodeState: SavedEpisodeUpdateState? = nil) {
+    init(item: MyVideoItem, episodeState: SavedEpisodeUpdateState? = nil) {
         title = item.title
         let latestEpisodeTitle = episodeState.flatMap { state in
             state.episodes.first(where: { $0.mediaKey == state.latestEpisodeKey })?.title
@@ -87,7 +87,7 @@ enum PosterMediaCardActionStyle {
 }
 
 struct PosterMediaCard: View {
-    let item: AiyifanItem
+    let item: MyVideoItem
     let projection: PosterCardProjection
     let layout: PosterMediaCardLayout
     let actionStyle: PosterMediaCardActionStyle
@@ -99,7 +99,7 @@ struct PosterMediaCard: View {
     let onAction: () -> Void
 
     init(
-        item: AiyifanItem,
+        item: MyVideoItem,
         layout: PosterMediaCardLayout,
         actionStyle: PosterMediaCardActionStyle,
         itemIdentifier: String,
@@ -204,7 +204,7 @@ struct PosterMediaCard: View {
 }
 
 struct ProgressMediaCard<TrailingActions: View>: View {
-    let item: AiyifanItem
+    let item: MyVideoItem
     let subtitle: String?
     let progress: Double
     let progressLabel: String?
@@ -214,7 +214,7 @@ struct ProgressMediaCard<TrailingActions: View>: View {
     @ViewBuilder let trailingActions: () -> TrailingActions
 
     init(
-        item: AiyifanItem,
+        item: MyVideoItem,
         subtitle: String?,
         progress: Double,
         progressLabel: String?,

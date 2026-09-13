@@ -36,11 +36,11 @@ struct LibraryScreenHeader<Trailing: View>: View {
                 .scaledToFit()
                 .frame(width: 44, height: 44)
                 .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .accessibilityLabel("Aiyifan logo")
+                .accessibilityLabel("MyVideo logo")
                 .accessibilityIdentifier("\(accessibilityIdentifier)-brandMark")
 
             VStack(alignment: .leading, spacing: 1) {
-                Text("Aiyifan")
+                Text("MyVideo")
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.cyan)
 

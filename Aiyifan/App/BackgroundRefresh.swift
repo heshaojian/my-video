@@ -2,7 +2,7 @@ import BackgroundTasks
 import Foundation
 
 enum BackgroundRefreshScheduler {
-    static let identifier = "com.john.aiyifan.refresh"
+    static let identifier = "com.john.myvideo.refresh"
 
     static func schedule() {
         let request = BGAppRefreshTaskRequest(identifier: identifier)

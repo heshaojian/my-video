@@ -3,7 +3,7 @@ import SwiftUI
 struct ProviderSearchResultsView: View {
     @ObservedObject var viewModel: ProviderSearchViewModel
     @ObservedObject var savedItemsStore: SavedItemsStore
-    let onSelectItem: (AiyifanItem) -> Void
+    let onSelectItem: (MyVideoItem) -> Void
 
     private let columns = [
         GridItem(.adaptive(minimum: 145, maximum: 180), spacing: 14)

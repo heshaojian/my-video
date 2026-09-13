@@ -18,7 +18,7 @@ enum PlayedPositionFormatter {
 }
 
 struct PlayedRecord: Codable, Equatable, Identifiable, Sendable {
-    let item: AiyifanItem
+    let item: MyVideoItem
     let episodeKey: String?
     let episodeTitle: String?
     let position: Double
@@ -52,7 +52,7 @@ struct PlayedRecord: Codable, Equatable, Identifiable, Sendable {
 final class PlayedItemsStore: ObservableObject {
     @Published private(set) var items: [PlayedRecord]
 
-    static let storageKey = "playedAiyifanItems"
+    static let storageKey = "playedMyVideoItems"
     private static let storageVersion = 1
 
     private let defaults: UserDefaults
@@ -62,21 +62,21 @@ final class PlayedItemsStore: ObservableObject {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
-        if ProcessInfo.processInfo.arguments.contains("-AiyifanResetPlayedItems") {
+        if ProcessInfo.processInfo.arguments.contains("-MyVideoResetPlayedItems") {
             defaults.removeObject(forKey: Self.storageKey)
         }
 
         items = Self.restore(from: defaults, decoder: decoder)
 
-        if ProcessInfo.processInfo.arguments.contains("-AiyifanSeedPlayedItems") {
-            let item = AiyifanItem(listPath: "fixture-drama", title: "Fixture Series", isSerial: true)
+        if ProcessInfo.processInfo.arguments.contains("-MyVideoSeedPlayedItems") {
+            let item = MyVideoItem(listPath: "fixture-drama", title: "Fixture Series", isSerial: true)
             let episode = Episode(mediaKey: "episode-4", title: "04", updateDate: nil)
             record(item: item, episode: episode, position: 40, duration: 100)
         }
     }
 
     func record(
-        item: AiyifanItem,
+        item: MyVideoItem,
         episode: Episode?,
         position: Double,
         duration: Double,
@@ -95,7 +95,7 @@ final class PlayedItemsStore: ObservableObject {
         replace(with: updatedItems)
     }
 
-    func record(for item: AiyifanItem, episodeKey: String?) -> PlayedRecord? {
+    func record(for item: MyVideoItem, episodeKey: String?) -> PlayedRecord? {
         let id = "\(item.id)::\(episodeKey ?? "movie")"
         return items.first { $0.id == id }
     }
@@ -113,7 +113,7 @@ final class PlayedItemsStore: ObservableObject {
     }
 
     func markWatched(
-        item: AiyifanItem,
+        item: MyVideoItem,
         episode: Episode?,
         playedAt: Date = Date()
     ) {
@@ -138,7 +138,7 @@ final class PlayedItemsStore: ObservableObject {
         replaceRecord(record, position: 0, completionOverride: nil)
     }
 
-    func removeAll(for item: AiyifanItem) {
+    func removeAll(for item: MyVideoItem) {
         replace(with: items.filter { $0.item.id != item.id })
     }
 

@@ -104,7 +104,7 @@ final class ReadyToWatchProjectorTests: XCTestCase {
     func testProjectionRejectsUnsavedMalformedCompletedAndDuplicateInputs() {
         let saved = item("saved")
         let unsaved = item("unsaved")
-        let malformed = AiyifanItem(listPath: "   ", title: "Malformed")
+        let malformed = MyVideoItem(listPath: "   ", title: "Malformed")
         let duplicateUpdate = update(saved, episode: "03", detectedAt: 100)
 
         let entries = project(
@@ -128,7 +128,7 @@ final class ReadyToWatchProjectorTests: XCTestCase {
     }
 
     func testProjectionRejectsSavedItemWhoseIdentifierNeedsNormalization() {
-        let malformed = AiyifanItem(listPath: " padded ", title: "Malformed", isSerial: true)
+        let malformed = MyVideoItem(listPath: " padded ", title: "Malformed", isSerial: true)
         let overrides = ReadyToWatchOverrides(pins: [
             ReadyPin(
                 titleID: "padded",
@@ -142,7 +142,7 @@ final class ReadyToWatchProjectorTests: XCTestCase {
     }
 
     private func project(
-        saved: [AiyifanItem],
+        saved: [MyVideoItem],
         updates: [ReadyToWatchUpdate] = [],
         played: [PlayedRecord] = [],
         overrides: ReadyToWatchOverrides = ReadyToWatchOverrides()
@@ -155,12 +155,12 @@ final class ReadyToWatchProjectorTests: XCTestCase {
         )
     }
 
-    private func item(_ id: String) -> AiyifanItem {
-        AiyifanItem(listPath: id, title: id, isSerial: true)
+    private func item(_ id: String) -> MyVideoItem {
+        MyVideoItem(listPath: id, title: id, isSerial: true)
     }
 
     private func update(
-        _ item: AiyifanItem,
+        _ item: MyVideoItem,
         episode: String,
         detectedAt: TimeInterval
     ) -> ReadyToWatchUpdate {
@@ -172,7 +172,7 @@ final class ReadyToWatchProjectorTests: XCTestCase {
     }
 
     private func record(
-        _ item: AiyifanItem,
+        _ item: MyVideoItem,
         episode: String?,
         position: Double,
         duration: Double = 100,

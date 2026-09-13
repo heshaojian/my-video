@@ -13,7 +13,7 @@ struct ReadyToWatchUpdate: Codable, Equatable, Sendable {
 }
 
 struct ReadyToWatchEntry: Equatable, Identifiable, Sendable {
-    let item: AiyifanItem
+    let item: MyVideoItem
     let episodeKey: String?
     let episodeTitle: String?
     let source: ReadyToWatchSource
@@ -28,7 +28,7 @@ struct ReadyToWatchEntry: Equatable, Identifiable, Sendable {
 
 enum ReadyToWatchProjector {
     static func project(
-        savedItems: [AiyifanItem],
+        savedItems: [MyVideoItem],
         updates: [ReadyToWatchUpdate],
         playedRecords: [PlayedRecord],
         overrides: ReadyToWatchOverrides
@@ -123,7 +123,7 @@ enum ReadyToWatchProjector {
         let date: Date
     }
 
-    private static func validSavedItems(_ items: [AiyifanItem]) -> [String: AiyifanItem] {
+    private static func validSavedItems(_ items: [MyVideoItem]) -> [String: MyVideoItem] {
         items.reduce(into: [:]) { result, item in
             let itemID = item.id.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !itemID.isEmpty, itemID == item.id, result[itemID] == nil else { return }
@@ -133,7 +133,7 @@ enum ReadyToWatchProjector {
 
     private static func newestUpdates(
         _ updates: [ReadyToWatchUpdate],
-        savedByID: [String: AiyifanItem]
+        savedByID: [String: MyVideoItem]
     ) -> [String: ReadyToWatchUpdate] {
         updates.reduce(into: [:]) { result, update in
             guard
@@ -156,7 +156,7 @@ enum ReadyToWatchProjector {
 
     private static func newestIncompleteRecords(
         _ records: [PlayedRecord],
-        savedByID: [String: AiyifanItem]
+        savedByID: [String: MyVideoItem]
     ) -> [String: PlayedRecord] {
         records.reduce(into: [:]) { result, record in
             guard let savedItem = savedByID[record.item.id], isValidIncomplete(record, item: savedItem) else {
@@ -173,7 +173,7 @@ enum ReadyToWatchProjector {
         }
     }
 
-    private static func isValidIncomplete(_ record: PlayedRecord, item: AiyifanItem) -> Bool {
+    private static func isValidIncomplete(_ record: PlayedRecord, item: MyVideoItem) -> Bool {
         guard
             record.position.isFinite,
             record.position > 0,
@@ -199,7 +199,7 @@ enum ReadyToWatchProjector {
 
     private static func newestMatchingRecord(
         in records: [PlayedRecord],
-        item: AiyifanItem,
+        item: MyVideoItem,
         episodeKey: String?
     ) -> PlayedRecord? {
         records

@@ -1,8 +1,8 @@
 import Foundation
 
 struct FeedRefreshResult: Sendable {
-    let items: [AiyifanCategory: [AiyifanItem]]
-    let staleCategories: Set<AiyifanCategory>
+    let items: [MyVideoCategory: [MyVideoItem]]
+    let staleCategories: Set<MyVideoCategory>
     let refreshedAt: Date?
     let totalFailureMessage: String?
 
@@ -19,12 +19,12 @@ struct FeedRefreshResult: Sendable {
 }
 
 struct FeedCacheSnapshot: Codable, Sendable {
-    let items: [String: [AiyifanItem]]
+    let items: [String: [MyVideoItem]]
     let refreshedAt: Date
 }
 
 final class FeedCacheStore: @unchecked Sendable {
-    private static let storageKey = "aiyifanFeedCacheV1"
+    private static let storageKey = "myvideoFeedCacheV1"
     private let defaults: UserDefaults
 
     init(defaults: UserDefaults = .standard) {
@@ -41,7 +41,7 @@ final class FeedCacheStore: @unchecked Sendable {
         return snapshot
     }
 
-    func save(_ items: [AiyifanCategory: [AiyifanItem]], refreshedAt: Date = Date()) {
+    func save(_ items: [MyVideoCategory: [MyVideoItem]], refreshedAt: Date = Date()) {
         let rawItems = Dictionary(uniqueKeysWithValues: items.map { ($0.key.rawValue, $0.value) })
         let snapshot = FeedCacheSnapshot(items: rawItems, refreshedAt: refreshedAt)
         guard let data = try? JSONEncoder().encode(snapshot) else {
@@ -56,11 +56,11 @@ final class FeedCacheStore: @unchecked Sendable {
 }
 
 actor FeedRepository {
-    private let service: any AiyifanFeedServing
+    private let service: any MyVideoFeedServing
     private let cache: FeedCacheStore
 
     init(
-        service: any AiyifanFeedServing = AiyifanFeedService(),
+        service: any MyVideoFeedServing = MyVideoFeedService(),
         cache: FeedCacheStore = FeedCacheStore()
     ) {
         self.service = service
@@ -71,8 +71,8 @@ actor FeedRepository {
         let cachedSnapshot = cache.load()
         let cachedItems = Self.categoryItems(from: cachedSnapshot)
         let service = service
-        let fetched = await withTaskGroup(of: (AiyifanCategory, [AiyifanItem]?).self) { group in
-            for category in AiyifanCategory.allCases {
+        let fetched = await withTaskGroup(of: (MyVideoCategory, [MyVideoItem]?).self) { group in
+            for category in MyVideoCategory.allCases {
                 group.addTask {
                     do {
                         return (category, try await service.fetchLatest(category: category))
@@ -82,16 +82,16 @@ actor FeedRepository {
                 }
             }
 
-            var values: [(AiyifanCategory, [AiyifanItem]?)] = []
+            var values: [(MyVideoCategory, [MyVideoItem]?)] = []
             for await value in group {
                 values.append(value)
             }
             return values
         }
 
-        var combined: [AiyifanCategory: [AiyifanItem]] = [:]
-        var stale: Set<AiyifanCategory> = []
-        var successful: [AiyifanCategory: [AiyifanItem]] = [:]
+        var combined: [MyVideoCategory: [MyVideoItem]] = [:]
+        var stale: Set<MyVideoCategory> = []
+        var successful: [MyVideoCategory: [MyVideoItem]] = [:]
         for (category, items) in fetched {
             if let items {
                 combined[category] = items
@@ -110,7 +110,7 @@ actor FeedRepository {
             items: combined,
             staleCategories: stale,
             refreshedAt: successful.isEmpty ? cachedSnapshot?.refreshedAt : now,
-            totalFailureMessage: combined.isEmpty ? "Aiyifan could not refresh the latest titles. Check your connection and try again." : nil
+            totalFailureMessage: combined.isEmpty ? "MyVideo could not refresh the latest titles. Check your connection and try again." : nil
         )
     }
 
@@ -118,12 +118,12 @@ actor FeedRepository {
         cache.clear()
     }
 
-    private static func categoryItems(from snapshot: FeedCacheSnapshot?) -> [AiyifanCategory: [AiyifanItem]] {
+    private static func categoryItems(from snapshot: FeedCacheSnapshot?) -> [MyVideoCategory: [MyVideoItem]] {
         guard let snapshot else {
             return [:]
         }
         return Dictionary(uniqueKeysWithValues: snapshot.items.compactMap { key, value in
-            AiyifanCategory(rawValue: key).map { ($0, value) }
+            MyVideoCategory(rawValue: key).map { ($0, value) }
         })
     }
 }

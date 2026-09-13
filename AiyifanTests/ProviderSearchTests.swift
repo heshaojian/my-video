@@ -369,7 +369,7 @@ final class ProviderSearchViewModelTests: XCTestCase {
     }
 
     func testSubmitTrimsQueryAndPublishesResults() async {
-        let result = AiyifanItem(listPath: "movie-one", title: "Movie One", categoryPath: "0,1,3")
+        let result = MyVideoItem(listPath: "movie-one", title: "Movie One", categoryPath: "0,1,3")
         let service = SearchStubService(responses: [
             .success(ProviderSearchPage(items: [result], page: 1, isLastPage: true, totalCount: 1))
         ])
@@ -425,7 +425,7 @@ final class ProviderSearchViewModelTests: XCTestCase {
     }
 
     func testFailureKeepsSubmittedQueryAndRetrySucceeds() async {
-        let result = AiyifanItem(listPath: "retry-result", title: "Retry Result", categoryPath: "0,1,3")
+        let result = MyVideoItem(listPath: "retry-result", title: "Retry Result", categoryPath: "0,1,3")
         let service = SearchStubService(responses: [
             .failure(URLError(.timedOut)),
             .success(ProviderSearchPage(items: [result], page: 1, isLastPage: true, totalCount: 1))
@@ -448,8 +448,8 @@ final class ProviderSearchViewModelTests: XCTestCase {
     }
 
     func testPaginationDeduplicatesAndCanRetry() async throws {
-        let first = AiyifanItem(listPath: "one", title: "One", categoryPath: "0,1,3")
-        let second = AiyifanItem(listPath: "two", title: "Two", categoryPath: "0,1,4")
+        let first = MyVideoItem(listPath: "one", title: "One", categoryPath: "0,1,3")
+        let second = MyVideoItem(listPath: "two", title: "Two", categoryPath: "0,1,4")
         let service = SearchStubService(responses: [
             .success(ProviderSearchPage(items: [first], page: 1, isLastPage: false, totalCount: 2)),
             .failure(URLError(.networkConnectionLost)),
@@ -474,7 +474,7 @@ final class ProviderSearchViewModelTests: XCTestCase {
     }
 
     func testCancelCollapsesClearsAndCancelsPendingSearch() async throws {
-        let result = AiyifanItem(listPath: "late", title: "Late", categoryPath: "0,1,3")
+        let result = MyVideoItem(listPath: "late", title: "Late", categoryPath: "0,1,3")
         let service = SearchStubService(responses: [
             .delayed(.milliseconds(200), ProviderSearchPage(items: [result], page: 1, isLastPage: true, totalCount: 1))
         ])
@@ -497,8 +497,8 @@ final class ProviderSearchViewModelTests: XCTestCase {
     }
 
     func testNewSubmissionSuppressesStaleResultEvenWhenServiceIgnoresCancellation() async throws {
-        let stale = AiyifanItem(listPath: "stale", title: "Stale", categoryPath: "0,1,3")
-        let fresh = AiyifanItem(listPath: "fresh", title: "Fresh", categoryPath: "0,1,4")
+        let stale = MyVideoItem(listPath: "stale", title: "Stale", categoryPath: "0,1,3")
+        let fresh = MyVideoItem(listPath: "fresh", title: "Fresh", categoryPath: "0,1,4")
         let service = SearchStubService(responses: [
             .uncancellable(.milliseconds(100), ProviderSearchPage(items: [stale], page: 1, isLastPage: true, totalCount: 1)),
             .success(ProviderSearchPage(items: [fresh], page: 1, isLastPage: true, totalCount: 1))
@@ -520,9 +520,9 @@ final class ProviderSearchViewModelTests: XCTestCase {
     }
 
     func testNewSubmissionDuringPaginationClearsStaleLoadingState() async throws {
-        let first = AiyifanItem(listPath: "first", title: "First", categoryPath: "0,1,3")
-        let stale = AiyifanItem(listPath: "stale-page", title: "Stale Page", categoryPath: "0,1,3")
-        let fresh = AiyifanItem(listPath: "fresh", title: "Fresh", categoryPath: "0,1,4")
+        let first = MyVideoItem(listPath: "first", title: "First", categoryPath: "0,1,3")
+        let stale = MyVideoItem(listPath: "stale-page", title: "Stale Page", categoryPath: "0,1,3")
+        let fresh = MyVideoItem(listPath: "fresh", title: "Fresh", categoryPath: "0,1,4")
         let service = SearchStubService(responses: [
             .success(ProviderSearchPage(items: [first], page: 1, isLastPage: false, totalCount: 2)),
             .uncancellable(.milliseconds(100), ProviderSearchPage(items: [stale], page: 2, isLastPage: true, totalCount: 2)),
@@ -549,7 +549,7 @@ final class ProviderSearchViewModelTests: XCTestCase {
     }
 
     func testInitialSearchSkipsFilteredEmptyPagesUntilSupportedResultsAppear() async {
-        let supported = AiyifanItem(listPath: "supported", title: "Supported", categoryPath: "0,1,6")
+        let supported = MyVideoItem(listPath: "supported", title: "Supported", categoryPath: "0,1,6")
         let service = SearchStubService(responses: [
             .success(ProviderSearchPage(items: [], page: 1, isLastPage: false, totalCount: 2)),
             .success(ProviderSearchPage(items: [supported], page: 2, isLastPage: true, totalCount: 2))
@@ -569,8 +569,8 @@ final class ProviderSearchViewModelTests: XCTestCase {
     }
 
     func testPaginationSkipsFilteredEmptyPagesUntilSupportedResultsAppear() async {
-        let first = AiyifanItem(listPath: "first", title: "First", categoryPath: "0,1,3")
-        let later = AiyifanItem(listPath: "later", title: "Later", categoryPath: "0,1,5")
+        let first = MyVideoItem(listPath: "first", title: "First", categoryPath: "0,1,3")
+        let later = MyVideoItem(listPath: "later", title: "Later", categoryPath: "0,1,5")
         let service = SearchStubService(responses: [
             .success(ProviderSearchPage(items: [first], page: 1, isLastPage: false, totalCount: 3)),
             .success(ProviderSearchPage(items: [], page: 2, isLastPage: false, totalCount: 3)),
@@ -590,7 +590,7 @@ final class ProviderSearchViewModelTests: XCTestCase {
     }
 
     func testFilteredEmptyPageSkippingIsBoundedAndCanContinue() async {
-        let later = AiyifanItem(listPath: "later", title: "Later", categoryPath: "0,1,5")
+        let later = MyVideoItem(listPath: "later", title: "Later", categoryPath: "0,1,5")
         let service = SearchStubService(responses: [
             .success(ProviderSearchPage(items: [], page: 1, isLastPage: false, totalCount: 5)),
             .success(ProviderSearchPage(items: [], page: 2, isLastPage: false, totalCount: 5)),

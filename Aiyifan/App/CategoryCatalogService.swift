@@ -2,12 +2,12 @@ import CoreFoundation
 import Foundation
 
 struct CategoryCatalogPage: Equatable, Sendable {
-    let items: [AiyifanItem]
+    let items: [MyVideoItem]
     let page: Int
     let isLastPage: Bool
     let totalCount: Int
 
-    init(items: [AiyifanItem], page: Int, isLastPage: Bool, totalCount: Int? = nil) {
+    init(items: [MyVideoItem], page: Int, isLastPage: Bool, totalCount: Int? = nil) {
         self.items = items
         self.page = page
         self.isLastPage = isLastPage
@@ -44,7 +44,7 @@ enum CatalogSerialStatus: String, CaseIterable, Codable, Sendable {
 }
 
 struct CatalogQuery: Equatable, Sendable {
-    let category: AiyifanCategory
+    let category: MyVideoCategory
     let genreCID: String?
     let region: String?
     let language: String?
@@ -55,7 +55,7 @@ struct CatalogQuery: Equatable, Sendable {
     let descending: Bool
 
     init(
-        category: AiyifanCategory,
+        category: MyVideoCategory,
         genreCID: String? = nil,
         region: String? = nil,
         language: String? = nil,
@@ -77,7 +77,7 @@ struct CatalogQuery: Equatable, Sendable {
     }
 
     init(
-        validating category: AiyifanCategory,
+        validating category: MyVideoCategory,
         genreCID: String? = nil,
         region: String? = nil,
         language: String? = nil,
@@ -218,7 +218,7 @@ enum CatalogFilterResponseDecoder {
     static func decode(
         conditionData: Data,
         genreData: Data,
-        category: AiyifanCategory
+        category: MyVideoCategory
     ) throws -> CatalogFilterSet {
         let conditionInfo = try infoArray(from: conditionData)
         guard
@@ -326,7 +326,7 @@ enum CategoryCatalogMetadataRequestBuilder {
     }
 
     static func makeGenresURL(
-        category: AiyifanCategory,
+        category: MyVideoCategory,
         siteHost: String,
         certificate: PlaybackCertificate
     ) throws -> URL {
@@ -340,9 +340,9 @@ enum CategoryCatalogMetadataRequestBuilder {
 }
 
 protocol CategoryCatalogServing: Sendable {
-    func fetchPage(category: AiyifanCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage
+    func fetchPage(category: MyVideoCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage
     func fetchPage(query: CatalogQuery, page: Int, pageSize: Int) async throws -> CategoryCatalogPage
-    func fetchFilters(category: AiyifanCategory) async throws -> CatalogFilterSet
+    func fetchFilters(category: MyVideoCategory) async throws -> CatalogFilterSet
 }
 
 extension CategoryCatalogServing {
@@ -350,7 +350,7 @@ extension CategoryCatalogServing {
         try await fetchPage(category: query.category, page: page, pageSize: pageSize)
     }
 
-    func fetchFilters(category: AiyifanCategory) async throws -> CatalogFilterSet {
+    func fetchFilters(category: MyVideoCategory) async throws -> CatalogFilterSet {
         throw CategoryCatalogError.invalidResponse
     }
 }
@@ -368,11 +368,11 @@ extension CategoryCatalogError: LocalizedError {
         case .invalidRequest:
             return "The requested catalog page is invalid."
         case .invalidResponse:
-            return "Aiyifan returned an invalid catalog response."
+            return "MyVideo returned an invalid catalog response."
         case .insecureArtwork:
-            return "Aiyifan returned an insecure artwork URL."
+            return "MyVideo returned an insecure artwork URL."
         case .httpStatus:
-            return "Aiyifan could not load this catalog page."
+            return "MyVideo could not load this catalog page."
         }
     }
 }
@@ -462,7 +462,7 @@ enum CategoryCatalogResponseDecoder {
         )
     }
 
-    private static func decodeItem(_ raw: [String: Any]) throws -> AiyifanItem {
+    private static func decodeItem(_ raw: [String: Any]) throws -> MyVideoItem {
         guard
             let key = string(raw["key"]),
             key.range(of: #"^[A-Za-z0-9_-]{1,128}$"#, options: .regularExpression) != nil,
@@ -474,7 +474,7 @@ enum CategoryCatalogResponseDecoder {
         }
 
         let artwork = try secureArtwork(raw["image"] ?? raw["img"] ?? raw["verticalImg"])
-        return AiyifanItem(
+        return MyVideoItem(
             listPath: key,
             title: title,
             image: artwork,
@@ -580,12 +580,12 @@ struct CategoryCatalogService: @unchecked Sendable, CategoryCatalogServing {
         self.certificateCache = certificateCache
     }
 
-    func fetchPage(category: AiyifanCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
+    func fetchPage(category: MyVideoCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
         try await fetchPage(query: CatalogQuery(category: category), page: page, pageSize: pageSize)
     }
 
     func fetchPage(query: CatalogQuery, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
-        if ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed") {
+        if ProcessInfo.processInfo.arguments.contains("-MyVideoUseFixtureFeed") {
             return try await FixtureCategoryCatalog.shared.page(query: query, page: page, pageSize: pageSize)
         }
 
@@ -610,8 +610,8 @@ struct CategoryCatalogService: @unchecked Sendable, CategoryCatalogServing {
         return try CategoryCatalogResponseDecoder.decode(data, page: page, pageSize: pageSize)
     }
 
-    func fetchFilters(category: AiyifanCategory) async throws -> CatalogFilterSet {
-        if ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed") {
+    func fetchFilters(category: MyVideoCategory) async throws -> CatalogFilterSet {
+        if ProcessInfo.processInfo.arguments.contains("-MyVideoUseFixtureFeed") {
             return try FixtureCategoryCatalog.filters(category: category)
         }
         if let cached = await filterCache.value(for: category) {
@@ -652,7 +652,7 @@ struct CategoryCatalogService: @unchecked Sendable, CategoryCatalogServing {
         return data
     }
 
-    private func certificate(for category: AiyifanCategory) async throws -> PlaybackCertificate {
+    private func certificate(for category: MyVideoCategory) async throws -> PlaybackCertificate {
         guard
             let host = category.url.host,
             let domain = RemoteResourceHostValidator.matchingProviderDomain(for: host)
@@ -688,13 +688,13 @@ struct CategoryCatalogService: @unchecked Sendable, CategoryCatalogServing {
 
 actor CategoryCatalogFilterCache {
     static let shared = CategoryCatalogFilterCache()
-    private var values: [AiyifanCategory: CatalogFilterSet] = [:]
+    private var values: [MyVideoCategory: CatalogFilterSet] = [:]
 
-    func value(for category: AiyifanCategory) -> CatalogFilterSet? {
+    func value(for category: MyVideoCategory) -> CatalogFilterSet? {
         values[category]
     }
 
-    func store(_ filters: CatalogFilterSet, for category: AiyifanCategory) {
+    func store(_ filters: CatalogFilterSet, for category: MyVideoCategory) {
         values = values.merging([category: filters], uniquingKeysWith: { _, new in new })
     }
 }
@@ -706,8 +706,8 @@ private actor FixtureCategoryCatalog {
     func page(query: CatalogQuery, page: Int, pageSize: Int) throws -> CategoryCatalogPage {
         let category = query.category
         let arguments = ProcessInfo.processInfo.arguments
-        let shouldFailInitial = arguments.contains("-AiyifanFixtureCatalogInitialFailure") && page == 1
-        let shouldFailMore = arguments.contains("-AiyifanFixtureCatalogLoadMoreFailure") && page == 2
+        let shouldFailInitial = arguments.contains("-MyVideoFixtureCatalogInitialFailure") && page == 1
+        let shouldFailMore = arguments.contains("-MyVideoFixtureCatalogLoadMoreFailure") && page == 2
         let failureKey = "\(category.id)-\(page)"
         if (shouldFailInitial || shouldFailMore), !failedRequests.contains(failureKey) {
             failedRequests = failedRequests.union([failureKey])
@@ -715,7 +715,7 @@ private actor FixtureCategoryCatalog {
         }
 
         let allItems = (1...30).map { index in
-            AiyifanItem(
+            MyVideoItem(
                 listPath: "fixture-catalog-\(category.id)-\(index)",
                 title: "Fixture \(category.title) \(index)",
                 subTitle: category == .movie ? "2026" : "更新至 \(index) 集",
@@ -759,7 +759,7 @@ private actor FixtureCategoryCatalog {
         )
     }
 
-    private func sortValue(for item: AiyifanItem, sort: CatalogSort) -> Double {
+    private func sortValue(for item: MyVideoItem, sort: CatalogSort) -> Double {
         let index = Double(item.popularity ?? 0)
         switch sort {
         case .updated: return 31 - index
@@ -768,7 +768,7 @@ private actor FixtureCategoryCatalog {
         }
     }
 
-    static func filters(category: AiyifanCategory) throws -> CatalogFilterSet {
+    static func filters(category: MyVideoCategory) throws -> CatalogFilterSet {
         CatalogFilterSet(
             genres: [try CatalogFilterOption(title: "剧情", value: "\(category.catalogCID),999")],
             regions: [

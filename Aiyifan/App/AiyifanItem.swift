@@ -7,7 +7,7 @@ enum ProviderWebURLPolicy {
     ) -> Bool {
 #if DEBUG
         if url.scheme?.lowercased() == "data" {
-            return processArguments.contains("-AiyifanUseFixtureFeed")
+            return processArguments.contains("-MyVideoUseFixtureFeed")
         }
 #endif
         guard
@@ -24,7 +24,7 @@ enum ProviderWebURLPolicy {
     }
 }
 
-struct AiyifanItem: Codable, Equatable, Identifiable, Sendable {
+struct MyVideoItem: Codable, Equatable, Identifiable, Sendable {
     let listPath: String
     let title: String
     let image: String?

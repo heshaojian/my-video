@@ -5,8 +5,8 @@ import XCTest
 @MainActor
 final class LibraryFeaturesTests: XCTestCase {
     func testContinueWatchingKeepsLatestIncompleteEpisodePerTitle() {
-        let show = AiyifanItem(listPath: "show", title: "Show")
-        let movie = AiyifanItem(listPath: "movie", title: "Movie")
+        let show = MyVideoItem(listPath: "show", title: "Show")
+        let movie = MyVideoItem(listPath: "movie", title: "Movie")
         let records = [
             record(item: show, episode: "03", position: 20, duration: 100, date: 300),
             record(item: show, episode: "02", position: 40, duration: 100, date: 200),
@@ -51,7 +51,7 @@ final class LibraryFeaturesTests: XCTestCase {
 
     func testExactEpisodeSelectionPublishesEpisodeKeyBeforeItem() {
         let viewModel = BrowserViewModel()
-        let item = AiyifanItem(listPath: "series", title: "Series", isSerial: true)
+        let item = MyVideoItem(listPath: "series", title: "Series", isSerial: true)
         var observedEpisodeKey: String?
         let observation = viewModel.$selectedItem
             .dropFirst()
@@ -65,7 +65,7 @@ final class LibraryFeaturesTests: XCTestCase {
     }
 
     private func record(
-        item: AiyifanItem,
+        item: MyVideoItem,
         episode: String?,
         position: Double,
         duration: Double,

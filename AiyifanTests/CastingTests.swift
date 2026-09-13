@@ -92,7 +92,7 @@ final class CastingTests: XCTestCase {
         ])
 
         let plan = try CastPlaybackPlanBuilder.make(
-            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            item: MyVideoItem(listPath: "movie", title: "Movie"),
             playback: playback,
             programPosition: 42
         )
@@ -104,7 +104,7 @@ final class CastingTests: XCTestCase {
 
     func testPlanIncludesEpisodeAndArtworkMetadata() throws {
         let episode = Episode(mediaKey: "episode-4", title: "04", updateDate: nil)
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "series",
             title: "Series",
             verticalImg: "https://images.example.com/poster.jpg"
@@ -132,7 +132,7 @@ final class CastingTests: XCTestCase {
         ])
 
         XCTAssertThrowsError(try CastPlaybackPlanBuilder.make(
-            item: AiyifanItem(listPath: "movie", title: "Movie"),
+            item: MyVideoItem(listPath: "movie", title: "Movie"),
             playback: playback,
             programPosition: 0
         ))

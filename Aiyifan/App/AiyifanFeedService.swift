@@ -1,27 +1,27 @@
 import Foundation
 
-enum AiyifanFeedError: Error {
+enum MyVideoFeedError: Error {
     case missingPageData
     case missingFeed
 }
 
-protocol AiyifanFeedServing: Sendable {
-    func fetchLatest(category: AiyifanCategory) async throws -> [AiyifanItem]
+protocol MyVideoFeedServing: Sendable {
+    func fetchLatest(category: MyVideoCategory) async throws -> [MyVideoItem]
 }
 
-struct AiyifanFeedService: @unchecked Sendable, AiyifanFeedServing {
+struct MyVideoFeedService: @unchecked Sendable, MyVideoFeedServing {
     private let catalogService: any CategoryCatalogServing
     private let usesFixtureFeed: Bool
 
     init(
         catalogService: any CategoryCatalogServing = CategoryCatalogService(),
-        usesFixtureFeed: Bool = ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed")
+        usesFixtureFeed: Bool = ProcessInfo.processInfo.arguments.contains("-MyVideoUseFixtureFeed")
     ) {
         self.catalogService = catalogService
         self.usesFixtureFeed = usesFixtureFeed
     }
 
-    func fetchLatest(category: AiyifanCategory) async throws -> [AiyifanItem] {
+    func fetchLatest(category: MyVideoCategory) async throws -> [MyVideoItem] {
         if usesFixtureFeed {
             return Self.fixtureItems(for: category)
         }
@@ -33,7 +33,7 @@ struct AiyifanFeedService: @unchecked Sendable, AiyifanFeedServing {
         ).items
     }
 
-    private static func fixtureItems(for category: AiyifanCategory) -> [AiyifanItem] {
+    private static func fixtureItems(for category: MyVideoCategory) -> [MyVideoItem] {
         let html = """
         <html><body>
         <p>Playback page ready</p>
@@ -43,7 +43,7 @@ struct AiyifanFeedService: @unchecked Sendable, AiyifanFeedServing {
         let fixtureURL = "data:text/html;base64,\(Data(html.utf8).base64EncodedString())"
 
         return [
-            AiyifanItem(
+            MyVideoItem(
                 listPath: "fixture-\(category.id)",
                 title: "Fixture \(category.title)",
                 subTitle: category == .movie ? "New release" : "Episode 10",

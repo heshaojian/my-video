@@ -2,7 +2,7 @@ import SwiftUI
 
 struct NativeCategoryCatalogView: View {
     @ObservedObject var savedItemsStore: SavedItemsStore
-    let onSelectItem: (AiyifanItem) -> Void
+    let onSelectItem: (MyVideoItem) -> Void
     let onClose: () -> Void
 
     @StateObject private var viewModel: CategoryCatalogViewModel
@@ -13,9 +13,9 @@ struct NativeCategoryCatalogView: View {
     ]
 
     init(
-        category: AiyifanCategory,
+        category: MyVideoCategory,
         savedItemsStore: SavedItemsStore,
-        onSelectItem: @escaping (AiyifanItem) -> Void,
+        onSelectItem: @escaping (MyVideoItem) -> Void,
         onClose: @escaping () -> Void
     ) {
         self.savedItemsStore = savedItemsStore

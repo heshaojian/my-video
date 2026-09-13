@@ -7,7 +7,7 @@ final class PlayedItemsStoreTests: XCTestCase {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let store = PlayedItemsStore(defaults: defaults)
-        let item = AiyifanItem(listPath: "series", title: "Series")
+        let item = MyVideoItem(listPath: "series", title: "Series")
         let olderDate = Date(timeIntervalSince1970: 100)
         let newerDate = Date(timeIntervalSince1970: 200)
 
@@ -34,7 +34,7 @@ final class PlayedItemsStoreTests: XCTestCase {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
         let store = PlayedItemsStore(defaults: defaults)
-        let item = AiyifanItem(listPath: "series", title: "Series")
+        let item = MyVideoItem(listPath: "series", title: "Series")
         let episode = Episode(mediaKey: "episode-4", title: "04", updateDate: nil)
 
         store.record(item: item, episode: episode, position: 10, duration: 100, playedAt: Date(timeIntervalSince1970: 100))
@@ -45,7 +45,7 @@ final class PlayedItemsStoreTests: XCTestCase {
     }
 
     func testResumeClampsPositionAndCompletedRecordRestarts() {
-        let item = AiyifanItem(listPath: "movie", title: "Movie")
+        let item = MyVideoItem(listPath: "movie", title: "Movie")
         let active = PlayedRecord(
             item: item,
             episodeKey: nil,
@@ -82,8 +82,8 @@ final class PlayedItemsStoreTests: XCTestCase {
     func testRemoveAndClearPersistAcrossStoreInstances() {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let first = AiyifanItem(listPath: "first", title: "First")
-        let second = AiyifanItem(listPath: "second", title: "Second")
+        let first = MyVideoItem(listPath: "first", title: "First")
+        let second = MyVideoItem(listPath: "second", title: "Second")
         let store = PlayedItemsStore(defaults: defaults)
         store.record(item: first, episode: nil, position: 10, duration: 100)
         store.record(item: second, episode: nil, position: 20, duration: 100)
@@ -98,7 +98,7 @@ final class PlayedItemsStoreTests: XCTestCase {
     func testPersistenceKeepsValidRecordsWhenOneStoredRecordIsCorrupt() throws {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let item = AiyifanItem(listPath: "movie", title: "Movie")
+        let item = MyVideoItem(listPath: "movie", title: "Movie")
         let valid = PlayedRecord(
             item: item,
             episodeKey: nil,
@@ -123,7 +123,7 @@ final class PlayedItemsStoreTests: XCTestCase {
     func testWatchedUnwatchedRestartAndTitleResetPersist() {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let item = AiyifanItem(listPath: "series", title: "Series")
+        let item = MyVideoItem(listPath: "series", title: "Series")
         let first = Episode(mediaKey: "episode-1", title: "01", updateDate: nil)
         let second = Episode(mediaKey: "episode-2", title: "02", updateDate: nil)
         let store = PlayedItemsStore(defaults: defaults)
@@ -147,7 +147,7 @@ final class PlayedItemsStoreTests: XCTestCase {
     func testMarkUnstartedExactEpisodeWatchedPersistsCompletionOverride() {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let item = AiyifanItem(listPath: "series", title: "Series", isSerial: true)
+        let item = MyVideoItem(listPath: "series", title: "Series", isSerial: true)
         let episode = Episode(mediaKey: "episode-8", title: "08", updateDate: nil)
         let store = PlayedItemsStore(defaults: defaults)
 

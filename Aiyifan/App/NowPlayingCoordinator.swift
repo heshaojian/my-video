@@ -6,7 +6,7 @@ enum NowPlayingMetadataBuilder {
     static func values(for snapshot: NowPlayingSnapshot) -> [String: Any] {
         [
             MPMediaItemPropertyTitle: snapshot.title,
-            MPMediaItemPropertyAlbumTitle: snapshot.subtitle ?? "Aiyifan",
+            MPMediaItemPropertyAlbumTitle: snapshot.subtitle ?? "MyVideo",
             MPMediaItemPropertyPlaybackDuration: snapshot.duration,
             MPNowPlayingInfoPropertyElapsedPlaybackTime: snapshot.elapsed,
             MPNowPlayingInfoPropertyPlaybackRate: snapshot.isPlaying ? snapshot.rate : 0,

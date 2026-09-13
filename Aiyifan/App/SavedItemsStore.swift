@@ -68,12 +68,12 @@ struct SavedEpisodeUpdateState: Codable, Equatable, Sendable {
 
 @MainActor
 final class SavedItemsStore: ObservableObject {
-    @Published private(set) var items: [AiyifanItem]
+    @Published private(set) var items: [MyVideoItem]
     @Published private(set) var newUpdateItemIDs: Set<String> = []
     @Published private(set) var lastDirectUpdateCheck: Date?
 
-    private static let storageKey = "savedAiyifanItems"
-    private static let metadataStorageKey = "savedAiyifanMetadata"
+    private static let storageKey = "savedMyVideoItems"
+    private static let metadataStorageKey = "savedMyVideoMetadata"
     private let defaults: UserDefaults
     private let encoder = JSONEncoder()
     private var metadata: SavedItemsMetadata
@@ -81,13 +81,13 @@ final class SavedItemsStore: ObservableObject {
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
 
-        if ProcessInfo.processInfo.arguments.contains("-AiyifanResetSavedItems") {
+        if ProcessInfo.processInfo.arguments.contains("-MyVideoResetSavedItems") {
             defaults.removeObject(forKey: Self.storageKey)
             defaults.removeObject(forKey: Self.metadataStorageKey)
         }
 
         if let data = defaults.data(forKey: Self.storageKey),
-           let decodedItems = try? JSONDecoder().decode([AiyifanItem].self, from: data) {
+           let decodedItems = try? JSONDecoder().decode([MyVideoItem].self, from: data) {
             items = Self.sanitizedItems(decodedItems)
         } else {
             items = []
@@ -103,13 +103,13 @@ final class SavedItemsStore: ObservableObject {
         updateNewItemIDs()
     }
 
-    func contains(_ item: AiyifanItem) -> Bool {
+    func contains(_ item: MyVideoItem) -> Bool {
         items.contains { $0.id == item.id }
     }
 
-    func toggle(_ item: AiyifanItem) {
+    func toggle(_ item: MyVideoItem) {
         guard Self.isValidItem(item) else { return }
-        let updatedItems: [AiyifanItem]
+        let updatedItems: [MyVideoItem]
 
         if contains(item) {
             updatedItems = items.filter { $0.id != item.id }
@@ -125,14 +125,14 @@ final class SavedItemsStore: ObservableObject {
     }
 
     @discardableResult
-    func refreshUpdateMarkers(with feeds: [AiyifanCategory: [AiyifanItem]]) -> [AiyifanItem] {
+    func refreshUpdateMarkers(with feeds: [MyVideoCategory: [MyVideoItem]]) -> [MyVideoItem] {
         let refreshedItems = feeds.values.flatMap { $0 }
-        let observedByID = refreshedItems.reduce(into: [String: AiyifanItem]()) { result, item in
+        let observedByID = refreshedItems.reduce(into: [String: MyVideoItem]()) { result, item in
             if result[item.id] == nil { result[item.id] = item }
         }
         var updatedMarkers = metadata.markers
         var updatedSeenMarkers = metadata.seenMarkers
-        var changedItems: [AiyifanItem] = []
+        var changedItems: [MyVideoItem] = []
 
         let updatedItems = items.map { savedItem in
             guard let observed = observedByID[savedItem.id] else { return savedItem }
@@ -168,11 +168,11 @@ final class SavedItemsStore: ObservableObject {
         return changedItems
     }
 
-    func hasNewUpdate(_ item: AiyifanItem) -> Bool {
+    func hasNewUpdate(_ item: MyVideoItem) -> Bool {
         newUpdateItemIDs.contains(item.id)
     }
 
-    func markUpdateSeen(_ item: AiyifanItem) {
+    func markUpdateSeen(_ item: MyVideoItem) {
         var seenMarkers = metadata.seenMarkers
         if let marker = metadata.markers[item.id] {
             seenMarkers[item.id] = marker
@@ -198,7 +198,7 @@ final class SavedItemsStore: ObservableObject {
         updateNewItemIDs()
     }
 
-    func markEpisodeUpdateSeen(_ item: AiyifanItem, episodeKey: String?) {
+    func markEpisodeUpdateSeen(_ item: MyVideoItem, episodeKey: String?) {
         guard
             let episodeKey = episodeKey?.trimmingCharacters(in: .whitespacesAndNewlines).nonEmpty,
             let state = metadata.episodeUpdateStates[item.id],
@@ -223,16 +223,16 @@ final class SavedItemsStore: ObservableObject {
         updateNewItemIDs()
     }
 
-    func notificationsEnabled(for item: AiyifanItem) -> Bool {
+    func notificationsEnabled(for item: MyVideoItem) -> Bool {
         metadata.notificationPreferences[item.id] ?? true
     }
 
-    func checkedEpisodeKey(for item: AiyifanItem) -> String? {
+    func checkedEpisodeKey(for item: MyVideoItem) -> String? {
         metadata.episodeUpdateStates[item.id]?.latestEpisodeKey
             ?? metadata.episodeMarkers[item.id]
     }
 
-    func episodeUpdateState(for item: AiyifanItem) -> SavedEpisodeUpdateState? {
+    func episodeUpdateState(for item: MyVideoItem) -> SavedEpisodeUpdateState? {
         metadata.episodeUpdateStates[item.id]
     }
 
@@ -258,7 +258,7 @@ final class SavedItemsStore: ObservableObject {
         }
     }
 
-    func setNotificationsEnabled(_ enabled: Bool, for item: AiyifanItem) {
+    func setNotificationsEnabled(_ enabled: Bool, for item: MyVideoItem) {
         var preferences = metadata.notificationPreferences
         preferences[item.id] = enabled
         metadata = SavedItemsMetadata(
@@ -283,7 +283,7 @@ final class SavedItemsStore: ObservableObject {
         var seenEpisodeMarkers = metadata.seenEpisodeMarkers
         var episodeUpdateStates = metadata.episodeUpdateStates
         var updates: [SavedEpisodeUpdate] = []
-        let savedByID = items.reduce(into: [String: AiyifanItem]()) { result, item in
+        let savedByID = items.reduce(into: [String: MyVideoItem]()) { result, item in
             if result[item.id] == nil { result[item.id] = item }
         }
         let observationDate = observedAt ?? checkedAt ?? Date()
@@ -349,14 +349,14 @@ final class SavedItemsStore: ObservableObject {
         return recordEpisodeChecks([snapshot], checkedAt: nil, observedAt: observedAt)
     }
 
-    func mergeFromCloud(_ cloudItems: [AiyifanItem]) {
+    func mergeFromCloud(_ cloudItems: [MyVideoItem]) {
         let merged = Self.sanitizedItems(items + cloudItems)
         items = merged
         persist(merged)
         updateNewItemIDs()
     }
 
-    private func persist(_ items: [AiyifanItem]) {
+    private func persist(_ items: [MyVideoItem]) {
         guard let data = try? encoder.encode(items) else {
             return
         }
@@ -384,21 +384,21 @@ final class SavedItemsStore: ObservableObject {
         })
     }
 
-    private static func updateKey(for item: AiyifanItem) -> String {
+    private static func updateKey(for item: MyVideoItem) -> String {
         [item.subTitle, item.addTime]
             .compactMap { $0?.trimmingCharacters(in: .whitespacesAndNewlines) }
             .filter { !$0.isEmpty }
             .joined(separator: "|")
     }
 
-    private static func sanitizedItems(_ candidates: [AiyifanItem]) -> [AiyifanItem] {
-        candidates.reduce(into: [AiyifanItem]()) { result, item in
+    private static func sanitizedItems(_ candidates: [MyVideoItem]) -> [MyVideoItem] {
+        candidates.reduce(into: [MyVideoItem]()) { result, item in
             guard isValidItem(item), !result.contains(where: { $0.id == item.id }) else { return }
             result.append(item)
         }
     }
 
-    private static func isValidItem(_ item: AiyifanItem) -> Bool {
+    private static func isValidItem(_ item: MyVideoItem) -> Bool {
         let id = item.id.trimmingCharacters(in: .whitespacesAndNewlines)
         return !id.isEmpty
             && id == item.id

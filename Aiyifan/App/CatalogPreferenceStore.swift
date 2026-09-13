@@ -30,7 +30,7 @@ final class CatalogPreferenceStore {
             descending = query.descending
         }
 
-        func query(for category: AiyifanCategory) -> CatalogQuery? {
+        func query(for category: MyVideoCategory) -> CatalogQuery? {
             guard let sort = CatalogSort(rawValue: sort) else {
                 return nil
             }
@@ -60,15 +60,15 @@ final class CatalogPreferenceStore {
     private let defaults: UserDefaults
     private let storageKey: String
 
-    init(defaults: UserDefaults = .standard, storageKey: String = "aiyifanCatalogPreferencesV1") {
+    init(defaults: UserDefaults = .standard, storageKey: String = "myvideoCatalogPreferencesV1") {
         self.defaults = defaults
         self.storageKey = storageKey
-        if ProcessInfo.processInfo.arguments.contains("-AiyifanResetCatalogPreferences") {
+        if ProcessInfo.processInfo.arguments.contains("-MyVideoResetCatalogPreferences") {
             defaults.removeObject(forKey: storageKey)
         }
     }
 
-    func query(for category: AiyifanCategory) -> CatalogQuery? {
+    func query(for category: MyVideoCategory) -> CatalogQuery? {
         payload()?.queries[category.rawValue]?.query(for: category)
     }
 
@@ -84,7 +84,7 @@ final class CatalogPreferenceStore {
         persist(Payload(version: 1, queries: updated))
     }
 
-    func clearFilters(for category: AiyifanCategory) {
+    func clearFilters(for category: MyVideoCategory) {
         let current = query(for: category) ?? CatalogQuery(category: category)
         save(CatalogQuery(
             category: category,

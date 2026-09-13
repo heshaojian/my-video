@@ -6,7 +6,7 @@ final class SavedItemsStoreTests: XCTestCase {
     func testTogglePersistsSavedItemAcrossStoreInstances() {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let item = AiyifanItem(listPath: "saved-drama", title: "Saved Drama")
+        let item = MyVideoItem(listPath: "saved-drama", title: "Saved Drama")
         let store = SavedItemsStore(defaults: defaults)
 
         store.toggle(item)
@@ -18,7 +18,7 @@ final class SavedItemsStoreTests: XCTestCase {
     func testToggleRemovesExistingSavedItem() {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let item = AiyifanItem(listPath: "saved-drama", title: "Saved Drama")
+        let item = MyVideoItem(listPath: "saved-drama", title: "Saved Drama")
         let store = SavedItemsStore(defaults: defaults)
         store.toggle(item)
 
@@ -31,8 +31,8 @@ final class SavedItemsStoreTests: XCTestCase {
     func testFeedRefreshDetectsNewUpdateAfterBaselineAndCanMarkItSeen() {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let original = AiyifanItem(listPath: "saved-drama", title: "Saved Drama", subTitle: "Episode 3")
-        let updated = AiyifanItem(listPath: "saved-drama", title: "Saved Drama", subTitle: "Episode 4")
+        let original = MyVideoItem(listPath: "saved-drama", title: "Saved Drama", subTitle: "Episode 3")
+        let updated = MyVideoItem(listPath: "saved-drama", title: "Saved Drama", subTitle: "Episode 4")
         let store = SavedItemsStore(defaults: defaults)
         store.toggle(original)
 
@@ -49,7 +49,7 @@ final class SavedItemsStoreTests: XCTestCase {
     func testPerTitleNotificationPreferencePersists() {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let item = AiyifanItem(listPath: "saved-drama", title: "Saved Drama")
+        let item = MyVideoItem(listPath: "saved-drama", title: "Saved Drama")
         let store = SavedItemsStore(defaults: defaults)
         store.toggle(item)
 
@@ -61,7 +61,7 @@ final class SavedItemsStoreTests: XCTestCase {
     func testDirectEpisodeChecksBaselineThenDetectAndPersistANewEpisode() {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let item = AiyifanItem(listPath: "saved-drama", title: "Saved Drama", isSerial: true)
+        let item = MyVideoItem(listPath: "saved-drama", title: "Saved Drama", isSerial: true)
         let store = SavedItemsStore(defaults: defaults)
         store.toggle(item)
         let firstCheck = Date(timeIntervalSince1970: 100)
@@ -122,7 +122,7 @@ final class SavedItemsStoreTests: XCTestCase {
     func testEpisodeSnapshotIsBoundedAndKeepsNewestFirstOrder() {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let item = AiyifanItem(listPath: "long-series", title: "Long Series", isSerial: true)
+        let item = MyVideoItem(listPath: "long-series", title: "Long Series", isSerial: true)
         let store = SavedItemsStore(defaults: defaults)
         store.toggle(item)
         let episodes = (1...140).reversed().map {
@@ -144,8 +144,8 @@ final class SavedItemsStoreTests: XCTestCase {
     func testPartialEpisodeCheckRetainsOtherTitleAndGlobalCompletionDate() {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let first = AiyifanItem(listPath: "first-series", title: "First", isSerial: true)
-        let second = AiyifanItem(listPath: "second-series", title: "Second", isSerial: true)
+        let first = MyVideoItem(listPath: "first-series", title: "First", isSerial: true)
+        let second = MyVideoItem(listPath: "second-series", title: "Second", isSerial: true)
         let store = SavedItemsStore(defaults: defaults)
         store.toggle(first)
         store.toggle(second)
@@ -176,7 +176,7 @@ final class SavedItemsStoreTests: XCTestCase {
     func testUnsavingRemovesRetainedEpisodeState() {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let item = AiyifanItem(listPath: "saved-drama", title: "Saved Drama", isSerial: true)
+        let item = MyVideoItem(listPath: "saved-drama", title: "Saved Drama", isSerial: true)
         let store = SavedItemsStore(defaults: defaults)
         store.toggle(item)
         _ = store.recordEpisodeChecks(
@@ -194,7 +194,7 @@ final class SavedItemsStoreTests: XCTestCase {
     func testMarkEpisodeUpdateSeenOnlyAcknowledgesTheExactLatestEpisode() {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let item = AiyifanItem(listPath: "saved-drama", title: "Saved Drama", isSerial: true)
+        let item = MyVideoItem(listPath: "saved-drama", title: "Saved Drama", isSerial: true)
         let store = SavedItemsStore(defaults: defaults)
         store.toggle(item)
         _ = store.recordEpisodeChecks(
@@ -217,11 +217,11 @@ final class SavedItemsStoreTests: XCTestCase {
     func testRestoreDropsMalformedAndDuplicateSavedItems() throws {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let valid = AiyifanItem(listPath: "valid", title: "Valid")
-        let malformed = AiyifanItem(listPath: " padded ", title: "Malformed")
+        let valid = MyVideoItem(listPath: "valid", title: "Valid")
+        let malformed = MyVideoItem(listPath: " padded ", title: "Malformed")
         defaults.set(
             try JSONEncoder().encode([valid, valid, malformed]),
-            forKey: "savedAiyifanItems"
+            forKey: "savedMyVideoItems"
         )
 
         let restored = SavedItemsStore(defaults: defaults)
@@ -232,14 +232,14 @@ final class SavedItemsStoreTests: XCTestCase {
     func testOldMetadataDecodesIntoSeenEpisodeState() throws {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let item = AiyifanItem(listPath: "legacy-series", title: "Legacy", isSerial: true)
+        let item = MyVideoItem(listPath: "legacy-series", title: "Legacy", isSerial: true)
         let store = SavedItemsStore(defaults: defaults)
         store.toggle(item)
         let legacyMetadata = try JSONSerialization.data(withJSONObject: [
             "episodeMarkers": [item.id: "episode-7"],
             "seenEpisodeMarkers": [item.id: "episode-7"]
         ])
-        defaults.set(legacyMetadata, forKey: "savedAiyifanMetadata")
+        defaults.set(legacyMetadata, forKey: "savedMyVideoMetadata")
 
         let restored = SavedItemsStore(defaults: defaults)
 

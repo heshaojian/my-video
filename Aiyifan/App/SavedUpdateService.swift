@@ -21,7 +21,7 @@ struct SavedEpisodeSnapshot: Equatable, Sendable {
 }
 
 struct SavedEpisodeUpdate: Equatable, Sendable {
-    let item: AiyifanItem
+    let item: MyVideoItem
     let episode: EpisodeSelection
 }
 
@@ -53,7 +53,7 @@ struct SavedUpdateMonitorResult: Equatable, Sendable {
 
 protocol SavedEpisodeResolving: Sendable {
     func episodesForSavedUpdate(
-        for item: AiyifanItem,
+        for item: MyVideoItem,
         expectedEpisodeKey: String?
     ) async throws -> [EpisodeSelection]?
 }
@@ -75,7 +75,7 @@ enum SavedUpdateChecker {
     }
 
     static func check(
-        items: [AiyifanItem],
+        items: [MyVideoItem],
         expectedEpisodeKeys: [String: String] = [:],
         resolver: any SavedEpisodeResolving = NativePlaybackResolver(),
         maximumConcurrentChecks: Int = 3
@@ -134,7 +134,7 @@ enum SavedUpdateChecker {
     }
 
     private static func addCheck(
-        for item: AiyifanItem,
+        for item: MyVideoItem,
         expectedEpisodeKey: String?,
         resolver: any SavedEpisodeResolving,
         to group: inout TaskGroup<Outcome>
@@ -225,7 +225,7 @@ final class SavedUpdateMonitor: ObservableObject {
     }
 
     private static func makeDefaultResolver() -> any SavedEpisodeResolving {
-        if ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed") {
+        if ProcessInfo.processInfo.arguments.contains("-MyVideoUseFixtureFeed") {
             return FixtureNativePlaybackResolver()
         }
         return NativePlaybackResolver()

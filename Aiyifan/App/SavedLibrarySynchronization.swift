@@ -156,12 +156,12 @@ enum SavedEpisodeSnapshotReconciler {
 
 enum SavedCatalogItemReconciler {
     static func merge(
-        saved: AiyifanItem,
-        observed: AiyifanItem,
+        saved: MyVideoItem,
+        observed: MyVideoItem,
         episodeState: SavedEpisodeUpdateState? = nil
-    ) -> AiyifanItem {
+    ) -> MyVideoItem {
         guard saved.id == observed.id else { return saved }
-        let merged = AiyifanItem(
+        let merged = MyVideoItem(
             listPath: saved.listPath,
             title: preferred(observed.title, fallback: saved.title),
             image: preferred(observed.image, fallback: saved.image),
@@ -188,8 +188,8 @@ enum SavedCatalogItemReconciler {
 
     static func applying(
         episodeState: SavedEpisodeUpdateState?,
-        to item: AiyifanItem
-    ) -> AiyifanItem {
+        to item: MyVideoItem
+    ) -> MyVideoItem {
         guard
             let episodeState,
             let latestEpisode = episodeState.episodes.first(where: {
@@ -198,7 +198,7 @@ enum SavedCatalogItemReconciler {
         else {
             return item
         }
-        return AiyifanItem(
+        return MyVideoItem(
             listPath: item.listPath,
             title: item.title,
             image: item.image,

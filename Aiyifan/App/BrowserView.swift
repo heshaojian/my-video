@@ -57,8 +57,8 @@ struct BrowserView: View {
         .animation(.easeInOut(duration: 0.2), value: playbackSession.presentation)
         .onChange(of: viewModel.selectedItem) { _, item in
             guard let item else { return }
-            let monitorsPlayback = !ProcessInfo.processInfo.arguments.contains("-AiyifanUseFixtureFeed")
-                || ProcessInfo.processInfo.arguments.contains("-AiyifanUsePlayableFixtureMedia")
+            let monitorsPlayback = !ProcessInfo.processInfo.arguments.contains("-MyVideoUseFixtureFeed")
+                || ProcessInfo.processInfo.arguments.contains("-MyVideoUsePlayableFixtureMedia")
             playbackSession.play(
                 item: item,
                 episodeKey: viewModel.selectedEpisodeKey,
@@ -72,7 +72,7 @@ struct BrowserView: View {
             viewModel.closePlayer()
         }
         .onOpenURL { url in
-            if let destination = AiyifanDeepLink.parse(url) {
+            if let destination = MyVideoDeepLink.parse(url) {
                 viewModel.openDeepLink(destination)
             }
         }
@@ -120,7 +120,7 @@ struct BrowserView: View {
 
                         if let errorMessage = viewModel.errorMessage {
                             ContentUnavailableView(
-                                "Could not load Aiyifan",
+                                "Could not load MyVideo",
                                 systemImage: "wifi.exclamationmark",
                                 description: Text(errorMessage)
                             )
@@ -129,7 +129,7 @@ struct BrowserView: View {
                         } else if !viewModel.hasCommittedContent && viewModel.estimatedProgress < 1 {
                             VStack(spacing: 12) {
                                 ProgressView()
-                                Text("Loading Aiyifan")
+                                Text("Loading MyVideo")
                                     .font(.footnote)
                                     .foregroundStyle(.secondary)
                             }
@@ -254,12 +254,12 @@ private struct HeaderView: View {
 
     var body: some View {
         HStack {
-            Text("Aiyifan")
+            Text("MyVideo")
                 .font(.headline)
 
             Spacer()
 
-            Text(viewModel.selectedTitle ?? "Aiyifan")
+            Text(viewModel.selectedTitle ?? "MyVideo")
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
@@ -377,7 +377,7 @@ private struct HomeView: View {
                                     .foregroundStyle(.white)
                                     .padding(.horizontal)
                             } else {
-                                ForEach(AiyifanCategory.allCases) { category in
+                                ForEach(MyVideoCategory.allCases) { category in
                                     HomeCategorySection(
                                         category: category,
                                         items: viewModel.latestItems[category] ?? [],
@@ -414,8 +414,8 @@ private struct HomeView: View {
         ContinueWatchingProjector.records(from: playedItemsStore.items)
     }
 
-    private var newForYou: [AiyifanItem] {
-        AiyifanCategory.allCases
+    private var newForYou: [MyVideoItem] {
+        MyVideoCategory.allCases
             .flatMap { viewModel.latestItems[$0] ?? [] }
             .filter(savedItemsStore.hasNewUpdate)
     }
@@ -489,7 +489,7 @@ private struct HomeView: View {
         Task { _ = await searchViewModel.submit() }
     }
 
-    private func toggleSaved(_ item: AiyifanItem) {
+    private func toggleSaved(_ item: MyVideoItem) {
         savedItemsStore.toggle(item)
         savedItemsStore.refreshUpdateMarkers(with: viewModel.latestItems)
     }
@@ -536,9 +536,9 @@ private struct ContinueWatchingSection: View {
 }
 
 private struct NewForYouSection: View {
-    let items: [AiyifanItem]
-    let onPlay: (AiyifanItem) -> Void
-    let onMarkSeen: (AiyifanItem) -> Void
+    let items: [MyVideoItem]
+    let onPlay: (MyVideoItem) -> Void
+    let onMarkSeen: (MyVideoItem) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -570,12 +570,12 @@ private struct NewForYouSection: View {
 }
 
 private struct HomeCategorySection: View {
-    let category: AiyifanCategory
-    let items: [AiyifanItem]
+    let category: MyVideoCategory
+    let items: [MyVideoItem]
     let onSelectCategory: () -> Void
-    let onSelectItem: (AiyifanItem) -> Void
-    let isSaved: (AiyifanItem) -> Bool
-    let onToggleSaved: (AiyifanItem) -> Void
+    let onSelectItem: (MyVideoItem) -> Void
+    let isSaved: (MyVideoItem) -> Bool
+    let onToggleSaved: (MyVideoItem) -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {

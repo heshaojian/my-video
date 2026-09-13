@@ -3,7 +3,7 @@ import SwiftUI
 import UIKit
 @testable import Aiyifan
 
-final class AiyifanItemURLTests: XCTestCase {
+final class MyVideoItemURLTests: XCTestCase {
     @MainActor
     func testLibraryChromeTextMeetsContrastOnDarkBackground() {
         let background = RGBAColor(LibraryScreenChrome.background)
@@ -30,7 +30,7 @@ final class AiyifanItemURLTests: XCTestCase {
     }
 
     func testPlayURLUsesExplicitRelativePlayPath() {
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "ignored",
             title: "Drama",
             url: "/play/drama-media-key"
@@ -40,13 +40,13 @@ final class AiyifanItemURLTests: XCTestCase {
     }
 
     func testPlayURLUsesRawMediaKeyWhenNoURLIsPresent() {
-        let item = AiyifanItem(listPath: "raw-media-key", title: "Movie")
+        let item = MyVideoItem(listPath: "raw-media-key", title: "Movie")
 
         XCTAssertEqual(item.playURL.absoluteString, "https://m.yfsp.tv/play/raw-media-key")
     }
 
     func testThumbnailURLNormalizesProtocolRelativeImageURL() {
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "raw-media-key",
             title: "Movie",
             verticalImg: "//static.yfsp.tv/poster.jpg"
@@ -196,7 +196,7 @@ final class AiyifanItemURLTests: XCTestCase {
 
     @MainActor
     func testSelectingItemRoutesToNativePlayerWithoutOpeningBrowser() {
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "native-media-key",
             title: "Native Movie"
         )
@@ -224,7 +224,7 @@ final class AiyifanItemURLTests: XCTestCase {
 
     @MainActor
     func testWebsiteFallbackRequiresExplicitStateTransition() {
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "fallback-media-key",
             title: "Fallback Movie",
             url: "/play/fallback-media-key"
@@ -252,7 +252,7 @@ final class AiyifanItemURLTests: XCTestCase {
         ]
 
         for unsafeURL in unsafeURLs {
-            let item = AiyifanItem(
+            let item = MyVideoItem(
                 listPath: "safe-media-key",
                 title: "Fallback Movie",
                 url: unsafeURL

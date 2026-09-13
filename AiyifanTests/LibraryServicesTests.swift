@@ -18,18 +18,20 @@ final class LibraryServicesTests: XCTestCase {
         XCTAssertEqual(restored.cloudSyncEnabled, AppCapabilities.iCloudSyncAvailable)
     }
 
-    func testDeepLinkRoundTripAndRejectsUntrustedScheme() throws {
-        let item = AiyifanItem(listPath: "series/42", title: "A Show")
-        let url = try XCTUnwrap(AiyifanDeepLink.makeURL(item: item, episodeKey: "ep-4"))
-        let destination = try XCTUnwrap(AiyifanDeepLink.parse(url))
+    func testDeepLinkRoundTripAndRejectsUntrustedAndLegacySchemes() throws {
+        let item = MyVideoItem(listPath: "series/42", title: "A Show")
+        let url = try XCTUnwrap(MyVideoDeepLink.makeURL(item: item, episodeKey: "ep-4"))
+        let destination = try XCTUnwrap(MyVideoDeepLink.parse(url))
 
+        XCTAssertEqual(url.scheme, "myvideo")
         XCTAssertEqual(destination.item, item)
         XCTAssertEqual(destination.episodeKey, "ep-4")
-        XCTAssertNil(AiyifanDeepLink.parse(URL(string: "https://example.com/play?id=42")!))
+        XCTAssertNil(MyVideoDeepLink.parse(URL(string: "https://example.com/play?id=42")!))
+        XCTAssertNil(MyVideoDeepLink.parse(URL(string: "aiyifan://play?id=42")!))
     }
 
     func testCloudMergeKeepsUniqueSavedAndNewestPlayedRecord() {
-        let item = AiyifanItem(listPath: "series", title: "Series")
+        let item = MyVideoItem(listPath: "series", title: "Series")
         let old = PlayedRecord(
             item: item, episodeKey: "ep-1", episodeTitle: "01", position: 10,
             duration: 100, lastPlayedAt: Date(timeIntervalSince1970: 1)
@@ -48,7 +50,7 @@ final class LibraryServicesTests: XCTestCase {
     }
 
     func testCloudSyncReportsUnavailableWhenBuildHasNoICloudEntitlement() {
-        let item = AiyifanItem(listPath: "saved", title: "Saved")
+        let item = MyVideoItem(listPath: "saved", title: "Saved")
 
         let result = CloudLibrarySync.shared.synchronize(
             savedItems: [item],
@@ -62,22 +64,22 @@ final class LibraryServicesTests: XCTestCase {
     }
 
     func testNotificationBatchIncludesOnlyEnabledNewItems() throws {
-        let first = AiyifanItem(listPath: "one", title: "One", subTitle: "EP 2")
-        let second = AiyifanItem(listPath: "two", title: "Two", subTitle: "EP 4")
+        let first = MyVideoItem(listPath: "one", title: "One", subTitle: "EP 2")
+        let second = MyVideoItem(listPath: "two", title: "Two", subTitle: "EP 4")
 
         let batch = try XCTUnwrap(NotificationBatch.make(
             items: [first, second],
             notificationsEnabled: { $0.id == first.id }
         ))
 
-        XCTAssertEqual(batch.title, "Aiyifan: 1 new update")
+        XCTAssertEqual(batch.title, "MyVideo: 1 new update")
         XCTAssertTrue(batch.body.contains("One"))
         XCTAssertFalse(batch.body.contains("Two"))
-        XCTAssertEqual(AiyifanDeepLink.parse(batch.deepLink)?.item, first)
+        XCTAssertEqual(MyVideoDeepLink.parse(batch.deepLink)?.item, first)
     }
 
     func testEpisodeUpdateNotificationDeepLinksToTheNewEpisode() throws {
-        let item = AiyifanItem(listPath: "series", title: "Series", isSerial: true)
+        let item = MyVideoItem(listPath: "series", title: "Series", isSerial: true)
         let update = SavedEpisodeUpdate(
             item: item,
             episode: EpisodeSelection(mediaKey: "episode-8", title: "8")
@@ -89,7 +91,7 @@ final class LibraryServicesTests: XCTestCase {
         ))
 
         XCTAssertTrue(batch.body.contains("Episode 8"))
-        XCTAssertEqual(AiyifanDeepLink.parse(batch.deepLink)?.episodeKey, "episode-8")
+        XCTAssertEqual(MyVideoDeepLink.parse(batch.deepLink)?.episodeKey, "episode-8")
     }
 
     func testDailySavedUpdatePolicyRunsWhenNoCheckExistsOrDayElapsed() {
@@ -179,7 +181,7 @@ final class LibraryServicesTests: XCTestCase {
     func testCancellingSavedUpdateCheckDoesNotScheduleMoreItems() async throws {
         let resolver = BlockingSavedEpisodeResolver()
         let items = (1...3).map {
-            AiyifanItem(listPath: "series-\($0)", title: "Series \($0)", isSerial: true)
+            MyVideoItem(listPath: "series-\($0)", title: "Series \($0)", isSerial: true)
         }
         let task = Task {
             await SavedUpdateChecker.check(
@@ -206,7 +208,7 @@ private actor BlockingSavedEpisodeResolver: SavedEpisodeResolving {
     private var startedItemIDs: [String] = []
 
     func episodesForSavedUpdate(
-        for item: AiyifanItem,
+        for item: MyVideoItem,
         expectedEpisodeKey: String?
     ) async throws -> [EpisodeSelection]? {
         startedItemIDs.append(item.id)
@@ -236,7 +238,7 @@ final class FeedRepositoryTests: XCTestCase {
         let suite = "FeedRepositoryTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
-        let cached = AiyifanItem(listPath: "cached-series", title: "Cached Series")
+        let cached = MyVideoItem(listPath: "cached-series", title: "Cached Series")
         let cache = FeedCacheStore(defaults: defaults)
         cache.save([.drama: [cached]], refreshedAt: Date(timeIntervalSince1970: 1))
         let service = StubFeedService(failing: [.drama])
@@ -257,11 +259,11 @@ final class FeedRepositoryTests: XCTestCase {
         defer { defaults.removePersistentDomain(forName: suite) }
         let cache = FeedCacheStore(defaults: defaults)
         cache.save(
-            [.drama: [AiyifanItem(listPath: "cached", title: "Cached")]],
+            [.drama: [MyVideoItem(listPath: "cached", title: "Cached")]],
             refreshedAt: Date(timeIntervalSince1970: 1)
         )
         let repository = FeedRepository(
-            service: StubFeedService(failing: Set(AiyifanCategory.allCases)),
+            service: StubFeedService(failing: Set(MyVideoCategory.allCases)),
             cache: cache
         )
 
@@ -276,7 +278,7 @@ final class FeedRepositoryTests: XCTestCase {
         let defaults = UserDefaults(suiteName: suite)!
         defer { defaults.removePersistentDomain(forName: suite) }
         let repository = FeedRepository(
-            service: StubFeedService(failing: Set(AiyifanCategory.allCases)),
+            service: StubFeedService(failing: Set(MyVideoCategory.allCases)),
             cache: FeedCacheStore(defaults: defaults)
         )
 
@@ -325,7 +327,7 @@ final class HomeFeedFreshnessTests: XCTestCase {
         )
         let viewModel = BrowserViewModel(feedRepository: repository)
         let now = Date(timeIntervalSince1970: 10_000)
-        viewModel.latestItems = [.movie: [AiyifanItem(listPath: "existing", title: "Existing")]]
+        viewModel.latestItems = [.movie: [MyVideoItem(listPath: "existing", title: "Existing")]]
         viewModel.lastFeedRefresh = now.addingTimeInterval(-899)
 
         let refreshedFreshFeed = await viewModel.loadLatestIfNeeded(now: now)
@@ -338,12 +340,12 @@ final class HomeFeedFreshnessTests: XCTestCase {
         let staleRequestCount = await service.requestCount()
         XCTAssertTrue(refreshedStaleFeed)
         XCTAssertTrue(viewModel.lastLoadProducedFreshContent)
-        XCTAssertEqual(staleRequestCount, AiyifanCategory.allCases.count)
+        XCTAssertEqual(staleRequestCount, MyVideoCategory.allCases.count)
 
         let forcedRefresh = await viewModel.loadLatestIfNeeded(force: true, now: now)
         let forcedRequestCount = await service.requestCount()
         XCTAssertTrue(forcedRefresh)
-        XCTAssertEqual(forcedRequestCount, AiyifanCategory.allCases.count * 2)
+        XCTAssertEqual(forcedRequestCount, MyVideoCategory.allCases.count * 2)
     }
 
     func testViewModelMarksCacheOnlyFailureAsNotFresh() async {
@@ -352,11 +354,11 @@ final class HomeFeedFreshnessTests: XCTestCase {
         defer { defaults.removePersistentDomain(forName: suite) }
         let cache = FeedCacheStore(defaults: defaults)
         cache.save(
-            [.movie: [AiyifanItem(listPath: "cached", title: "Cached")]],
+            [.movie: [MyVideoItem(listPath: "cached", title: "Cached")]],
             refreshedAt: Date(timeIntervalSince1970: 1)
         )
         let repository = FeedRepository(
-            service: StubFeedService(failing: Set(AiyifanCategory.allCases)),
+            service: StubFeedService(failing: Set(MyVideoCategory.allCases)),
             cache: cache
         )
         let viewModel = BrowserViewModel(feedRepository: repository)
@@ -368,10 +370,10 @@ final class HomeFeedFreshnessTests: XCTestCase {
     }
 }
 
-final class AiyifanFeedServiceTests: XCTestCase {
+final class MyVideoFeedServiceTests: XCTestCase {
     func testFixtureLatestFeedReturnsStableCategoryItemWithoutCatalogRequest() async throws {
         let catalog = LatestCatalogRecordingService()
-        let service = AiyifanFeedService(catalogService: catalog, usesFixtureFeed: true)
+        let service = MyVideoFeedService(catalogService: catalog, usesFixtureFeed: true)
 
         let items = try await service.fetchLatest(category: .drama)
         let request = await catalog.lastRequest()
@@ -387,7 +389,7 @@ final class AiyifanFeedServiceTests: XCTestCase {
 
     func testLatestUsesEightItemUpdatedDescendingCatalogQuery() async throws {
         let catalog = LatestCatalogRecordingService()
-        let service = AiyifanFeedService(catalogService: catalog)
+        let service = MyVideoFeedService(catalogService: catalog)
 
         let items = try await service.fetchLatest(category: .movie)
         let request = await catalog.lastRequest()
@@ -408,14 +410,14 @@ private actor LatestCatalogRecordingService: CategoryCatalogServing {
 
     private var requests: [Request] = []
 
-    func fetchPage(category: AiyifanCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
+    func fetchPage(category: MyVideoCategory, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
         try await fetchPage(query: CatalogQuery(category: category), page: page, pageSize: pageSize)
     }
 
     func fetchPage(query: CatalogQuery, page: Int, pageSize: Int) async throws -> CategoryCatalogPage {
         requests.append(Request(query: query, page: page, pageSize: pageSize))
         return CategoryCatalogPage(
-            items: [AiyifanItem(listPath: "latest", title: "Provider Title", score: 9.4)],
+            items: [MyVideoItem(listPath: "latest", title: "Provider Title", score: 9.4)],
             page: page,
             isLastPage: true
         )
@@ -426,23 +428,23 @@ private actor LatestCatalogRecordingService: CategoryCatalogServing {
     }
 }
 
-private struct StubFeedService: AiyifanFeedServing {
-    let failing: Set<AiyifanCategory>
+private struct StubFeedService: MyVideoFeedServing {
+    let failing: Set<MyVideoCategory>
 
-    func fetchLatest(category: AiyifanCategory) async throws -> [AiyifanItem] {
+    func fetchLatest(category: MyVideoCategory) async throws -> [MyVideoItem] {
         if failing.contains(category) {
             throw URLError(.notConnectedToInternet)
         }
-        return [AiyifanItem(listPath: "live-\(category.id)", title: category.title)]
+        return [MyVideoItem(listPath: "live-\(category.id)", title: category.title)]
     }
 }
 
-private actor CountingFeedService: AiyifanFeedServing {
+private actor CountingFeedService: MyVideoFeedServing {
     private var count = 0
 
-    func fetchLatest(category: AiyifanCategory) async throws -> [AiyifanItem] {
+    func fetchLatest(category: MyVideoCategory) async throws -> [MyVideoItem] {
         count += 1
-        return [AiyifanItem(listPath: "fresh-\(category.id)", title: "Fresh \(category.title)")]
+        return [MyVideoItem(listPath: "fresh-\(category.id)", title: "Fresh \(category.title)")]
     }
 
     func requestCount() -> Int {

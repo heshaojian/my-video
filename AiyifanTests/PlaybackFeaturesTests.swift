@@ -204,7 +204,7 @@ final class PlaybackFeaturesTests: XCTestCase {
     }
 
     func testNowPlayingSnapshotUsesProgramMetadata() {
-        let item = AiyifanItem(
+        let item = MyVideoItem(
             listPath: "series",
             title: "City Lights",
             image: "https://images.example.com/poster.jpg"
@@ -249,7 +249,7 @@ final class PlaybackFeaturesTests: XCTestCase {
     }
 
     func testNowPlayingMetadataIncludesLockScreenPlaybackFields() {
-        let item = AiyifanItem(listPath: "series", title: "City Lights")
+        let item = MyVideoItem(listPath: "series", title: "City Lights")
         let snapshot = NowPlayingSnapshot(
             item: item,
             episodeTitle: "12",

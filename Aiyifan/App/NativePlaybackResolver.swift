@@ -58,7 +58,7 @@ struct VideoPlaybackContext: Equatable, Sendable {
 enum SerialPlaybackIntent {
     static func infer(
         providerIsSerial: Bool,
-        item: AiyifanItem,
+        item: MyVideoItem,
         preferredEpisodeKey: String? = nil
     ) -> Bool {
         if providerIsSerial || item.isSerial == true || preferredEpisodeKey != nil {
@@ -144,11 +144,11 @@ extension NativePlaybackError: LocalizedError {
         case .invalidMediaKey:
             return "This title has an invalid media identifier."
         case .unsupportedSite:
-            return "This title is not hosted by a supported Aiyifan site."
+            return "This title is not hosted by a supported MyVideo site."
         case .missingConfiguration:
-            return "Aiyifan did not provide the playback configuration."
+            return "MyVideo did not provide the playback configuration."
         case .invalidResponse:
-            return "Aiyifan returned an invalid playback response."
+            return "MyVideo returned an invalid playback response."
         case .loginRequired:
             return "This title requires you to sign in on the website."
         case .previewOnly:
@@ -597,15 +597,15 @@ enum NativePlaybackResponseDecoder {
 }
 
 protocol NativePlaybackResolving: Sendable {
-    func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback
+    func resolve(item: MyVideoItem, preferredEpisodeKey: String?) async throws -> NativePlayback
 }
 
 protocol EpisodePlaylistResolving: Sendable {
-    func loadEpisodes(for item: AiyifanItem, expectedEpisodeKey: String?) async throws -> [Episode]
+    func loadEpisodes(for item: MyVideoItem, expectedEpisodeKey: String?) async throws -> [Episode]
 }
 
 extension NativePlaybackResolving {
-    func resolve(item: AiyifanItem) async throws -> NativePlayback {
+    func resolve(item: MyVideoItem) async throws -> NativePlayback {
         try await resolve(item: item, preferredEpisodeKey: nil)
     }
 }
@@ -628,7 +628,7 @@ struct NativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving
         self.region = ProviderRegion.normalized(region)
     }
 
-    static func validatePage(_ item: AiyifanItem) throws -> String {
+    static func validatePage(_ item: MyVideoItem) throws -> String {
         guard
             item.playURL.scheme?.lowercased() == "https",
             let pageHost = item.playURL.host
@@ -643,7 +643,7 @@ struct NativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving
         return pageHost
     }
 
-    func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
+    func resolve(item: MyVideoItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
         let pageHost = try Self.validatePage(item)
         return try await withFreshCertificateRetry(pageHost: pageHost) {
             try await resolveOnce(
@@ -655,7 +655,7 @@ struct NativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving
     }
 
     private func resolveOnce(
-        item: AiyifanItem,
+        item: MyVideoItem,
         preferredEpisodeKey: String?,
         pageHost: String
     ) async throws -> NativePlayback {
@@ -732,7 +732,7 @@ struct NativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving
         )
     }
 
-    func loadEpisodes(for item: AiyifanItem, expectedEpisodeKey: String?) async throws -> [Episode] {
+    func loadEpisodes(for item: MyVideoItem, expectedEpisodeKey: String?) async throws -> [Episode] {
         let pageHost = try Self.validatePage(item)
         return try await withFreshCertificateRetry(pageHost: pageHost) {
             try await loadEpisodesOnce(
@@ -744,7 +744,7 @@ struct NativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving
     }
 
     private func loadEpisodesOnce(
-        for item: AiyifanItem,
+        for item: MyVideoItem,
         expectedEpisodeKey: String?,
         pageHost: String
     ) async throws -> [Episode] {
@@ -831,7 +831,7 @@ struct NativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving
         return error is URLError
     }
 
-    private func certificate(for item: AiyifanItem, pageHost: String) async throws -> PlaybackCertificate {
+    private func certificate(for item: MyVideoItem, pageHost: String) async throws -> PlaybackCertificate {
         guard let domain = RemoteResourceHostValidator.matchingProviderDomain(for: pageHost) else {
             throw NativePlaybackError.unsupportedSite
         }
@@ -875,7 +875,7 @@ struct NativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving
 
 extension NativePlaybackResolver: SavedEpisodeResolving {
     func episodesForSavedUpdate(
-        for item: AiyifanItem,
+        for item: MyVideoItem,
         expectedEpisodeKey: String?
     ) async throws -> [EpisodeSelection]? {
         let pageHost = try Self.validatePage(item)
@@ -889,7 +889,7 @@ extension NativePlaybackResolver: SavedEpisodeResolving {
     }
 
     private func episodesForSavedUpdateOnce(
-        for item: AiyifanItem,
+        for item: MyVideoItem,
         expectedEpisodeKey: String?,
         pageHost: String
     ) async throws -> [EpisodeSelection]? {
@@ -924,7 +924,7 @@ extension NativePlaybackResolver: SavedEpisodeResolving {
 }
 
 struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving, SavedEpisodeResolving {
-    func resolve(item: AiyifanItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
+    func resolve(item: MyVideoItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
         let isSerial = item.isSerial == true || item.latestEpisodeKey != nil || preferredEpisodeKey != nil
         let episodes = [
             Episode(mediaKey: "episode-10", title: "10", updateDate: "2026-09-07T10:00:00Z"),
@@ -932,7 +932,7 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistRe
             Episode(mediaKey: "episode-2", title: "02", updateDate: "2026-09-06T10:00:00Z")
         ]
         let selected = isSerial ? (episodes.first { $0.mediaKey == preferredEpisodeKey } ?? episodes[0]) : nil
-        let usesPlayableMedia = ProcessInfo.processInfo.arguments.contains("-AiyifanUsePlayableFixtureMedia")
+        let usesPlayableMedia = ProcessInfo.processInfo.arguments.contains("-MyVideoUsePlayableFixtureMedia")
         let programURL = usesPlayableMedia
             ? URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8")!
             : URL(string: "https://media.example.com/\(selected?.mediaKey ?? item.listPath).m3u8")!
@@ -954,7 +954,7 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistRe
     }
 
     func episodesForSavedUpdate(
-        for item: AiyifanItem,
+        for item: MyVideoItem,
         expectedEpisodeKey: String?
     ) async throws -> [EpisodeSelection]? {
         guard item.isSerial == true || item.latestEpisodeKey != nil else { return nil }
@@ -962,7 +962,7 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistRe
             .map { EpisodeSelection(mediaKey: $0.mediaKey, title: $0.title) }
     }
 
-    func loadEpisodes(for item: AiyifanItem, expectedEpisodeKey: String?) async throws -> [Episode] {
+    func loadEpisodes(for item: MyVideoItem, expectedEpisodeKey: String?) async throws -> [Episode] {
         guard item.isSerial == true || item.latestEpisodeKey != nil || expectedEpisodeKey != nil else {
             return []
         }

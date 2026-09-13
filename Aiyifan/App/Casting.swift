@@ -115,7 +115,7 @@ struct CastMuteState: Equatable, Sendable {
 
 enum CastPlaybackPlanBuilder {
     static func make(
-        item: AiyifanItem,
+        item: MyVideoItem,
         playback: NativePlayback,
         programPosition: Double
     ) throws -> CastPlaybackPlan {
@@ -178,7 +178,7 @@ final class GoogleCastManager: NSObject, ObservableObject, CastPlaybackManaging 
     private var preparedPlan: CastPlaybackPlan?
     private var muteState = CastMuteState()
     private weak var mediaClient: GCKRemoteMediaClient?
-    private let simulatesSession = ProcessInfo.processInfo.arguments.contains("-AiyifanSimulateCastSession")
+    private let simulatesSession = ProcessInfo.processInfo.arguments.contains("-MyVideoSimulateCastSession")
 
     func configure() {
         guard !isConfigured else {
@@ -353,7 +353,7 @@ final class GoogleCastManager: NSObject, ObservableObject, CastPlaybackManaging 
             queueItemBuilder.mediaInformation = mediaBuilder.build()
             queueItemBuilder.autoplay = true
             queueItemBuilder.startTime = entry.startPosition
-            queueItemBuilder.customData = ["aiyifanAdvertisement": entry.isAdvertisement]
+            queueItemBuilder.customData = ["myvideoAdvertisement": entry.isAdvertisement]
             return queueItemBuilder.build()
         }
 
@@ -489,7 +489,7 @@ extension GoogleCastManager: @preconcurrency GCKRemoteMediaClientListener {
 
         if
             let value = mediaStatus.currentQueueItem?.customData as? [String: Any],
-            let isAdvertisement = value["aiyifanAdvertisement"] as? Bool,
+            let isAdvertisement = value["myvideoAdvertisement"] as? Bool,
             let session = GCKCastContext.sharedInstance().sessionManager.currentSession
         {
             applyMutePolicy(isAdvertisement: isAdvertisement, session: session)

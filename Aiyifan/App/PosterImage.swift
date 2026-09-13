@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 struct PosterImage: View {
-    let item: AiyifanItem
+    let item: MyVideoItem
 
     @StateObject private var loader = PosterImageLoader()
 
@@ -183,7 +183,7 @@ enum PosterImageSession {
         configuration.urlCache = URLCache(
             memoryCapacity: 24 * 1_024 * 1_024,
             diskCapacity: 80 * 1_024 * 1_024,
-            diskPath: "AiyifanPosterImages"
+            diskPath: "MyVideoPosterImages"
         )
         return URLSession(
             configuration: configuration,

@@ -264,7 +264,7 @@ final class PlaybackQualityPreferenceStore {
     private let defaults: UserDefaults
     private let storageKey: String
 
-    init(defaults: UserDefaults = .standard, storageKey: String = "aiyifanPlaybackQualityV1") {
+    init(defaults: UserDefaults = .standard, storageKey: String = "myvideoPlaybackQualityV1") {
         self.defaults = defaults
         self.storageKey = storageKey
     }

@@ -218,7 +218,7 @@ final class ReadyToWatchOverridesStore: ObservableObject {
     @Published private(set) var persistenceErrorMessage: String?
     @Published private(set) var hasPendingPersistence = false
 
-    nonisolated static let storageKey = "aiyifanReadyToWatchOverrides"
+    nonisolated static let storageKey = "myvideoReadyToWatchOverrides"
     private static let storageVersion = 1
 
     private let persistence: ReadyToWatchOverridesPersistence
@@ -229,7 +229,7 @@ final class ReadyToWatchOverridesStore: ObservableObject {
         defaults: UserDefaults = .standard,
         tokenGenerator: @escaping () -> String = { UUID().uuidString }
     ) {
-        if ProcessInfo.processInfo.arguments.contains("-AiyifanResetSavedItems") {
+        if ProcessInfo.processInfo.arguments.contains("-MyVideoResetSavedItems") {
             defaults.removeObject(forKey: Self.storageKey)
         }
         self.persistence = .userDefaults(defaults)
