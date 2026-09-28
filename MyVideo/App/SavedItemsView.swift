@@ -115,10 +115,11 @@ struct SavedItemsView: View {
     }
 
     private func markWatched(_ entry: ReadyToWatchEntry) {
-        let episode = entry.episodeKey.map {
-            Episode(mediaKey: $0, title: entry.episodeTitle ?? $0, updateDate: nil)
-        }
-        playedItemsStore.markWatched(item: entry.item, episode: episode)
+        playedItemsStore.markWatched(
+            item: entry.item,
+            episodeKey: entry.episodeKey,
+            episodeTitle: entry.episodeTitle
+        )
         if entry.isNew {
             savedItemsStore.markEpisodeUpdateSeen(entry.item, episodeKey: entry.episodeKey)
         }

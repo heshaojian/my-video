@@ -15,6 +15,14 @@ struct PlaybackTrackDescriptor: Equatable, Sendable {
     let isPlayable: Bool
 }
 
+struct ProviderPlaybackSource: Equatable, Identifiable, Sendable {
+    let url: URL
+    let tierHeight: Int
+
+    var id: Int { tierHeight }
+    var title: String { "\(tierHeight)p" }
+}
+
 struct PlaybackQualityOption: Equatable, Identifiable, Sendable {
     let width: Int
     let height: Int
@@ -31,13 +39,17 @@ struct PlaybackQualityOption: Equatable, Identifiable, Sendable {
 
 struct PlaybackQualityMenuOption: Equatable, Identifiable, Sendable {
     let tierHeight: Int
-    let isPlayable: Bool
+    let adaptiveOption: PlaybackQualityOption?
+    let providerSource: ProviderPlaybackSource?
 
     var id: Int { tierHeight }
     var title: String { "\(tierHeight)p" }
+    var isSelectable: Bool { adaptiveOption != nil || providerSource != nil }
 }
 
 enum PlaybackQualityProjector {
+    private static let providerTiers: Set<Int> = [144, 240, 360, 480, 576, 720, 1_080, 1_440, 2_160]
+
     static func options(from descriptors: [PlaybackVariantDescriptor]) -> [PlaybackQualityOption] {
         let valid = descriptors.compactMap(option(from:))
         let grouped = Dictionary(grouping: valid, by: \.tierHeight)
@@ -79,6 +91,8 @@ enum PlaybackQualityProjector {
         switch (landscapeWidth, landscapeHeight) {
         case let (width, height) where width >= 3_840 || height >= 2_160:
             return 2_160
+        case let (width, height) where width >= 2_560 || height >= 1_440:
+            return 1_440
         case let (width, height) where width >= 1_920 || height >= 1_080:
             return 1_080
         case let (width, height) where width >= 1_280 || height >= 720:
@@ -96,6 +110,10 @@ enum PlaybackQualityProjector {
         default:
             return nil
         }
+    }
+
+    static func normalizedTier(from providerValue: Int) -> Int? {
+        providerTiers.contains(providerValue) ? providerValue : nil
     }
 
     private static func option(from descriptor: PlaybackVariantDescriptor) -> PlaybackQualityOption? {
@@ -127,28 +145,40 @@ enum PlaybackQualityProjector {
 }
 
 enum PlaybackQualityMenuProjector {
-    private static let advertisedTiers = [2_160, 1_080, 720, 576, 480, 360, 240, 144]
-
     static func options(
-        playableOptions: [PlaybackQualityOption],
-        catalogQuality: String?
+        adaptiveOptions: [PlaybackQualityOption],
+        providerSources: [ProviderPlaybackSource]
     ) -> [PlaybackQualityMenuOption] {
-        guard !playableOptions.isEmpty else { return [] }
-        let playableTiers = Set(playableOptions.map(\.tierHeight))
-        let knownTiers = playableTiers.union(advertisedTiers(upTo: maximumTier(from: catalogQuality), playableTiers: playableTiers))
-        return knownTiers
+        let adaptiveByTier = firstAdaptiveOptionByTier(adaptiveOptions)
+        let providerByTier = firstProviderSourceByTier(providerSources)
+        let tiers = Set(adaptiveByTier.keys).union(providerByTier.keys)
+        return tiers
             .sorted(by: >)
             .map { tier in
-                PlaybackQualityMenuOption(tierHeight: tier, isPlayable: playableTiers.contains(tier))
+                PlaybackQualityMenuOption(
+                    tierHeight: tier,
+                    adaptiveOption: adaptiveByTier[tier],
+                    providerSource: providerByTier[tier]
+                )
             }
     }
 
-    private static func advertisedTiers(upTo maximumTier: Int?, playableTiers: Set<Int>) -> Set<Int> {
-        guard let maximumTier else { return [] }
-        let minimumPlayableTier = playableTiers.min()
-        return Set(advertisedTiers.filter { tier in
-            tier <= maximumTier && (minimumPlayableTier.map { tier >= $0 } ?? true)
-        })
+    private static func firstAdaptiveOptionByTier(
+        _ options: [PlaybackQualityOption]
+    ) -> [Int: PlaybackQualityOption] {
+        options.reduce(into: [:]) { tiers, option in
+            guard tiers[option.tierHeight] == nil else { return }
+            tiers[option.tierHeight] = option
+        }
+    }
+
+    private static func firstProviderSourceByTier(
+        _ sources: [ProviderPlaybackSource]
+    ) -> [Int: ProviderPlaybackSource] {
+        sources.reduce(into: [:]) { tiers, source in
+            guard tiers[source.tierHeight] == nil else { return }
+            tiers[source.tierHeight] = source
+        }
     }
 
     static func maximumTier(from catalogQuality: String?) -> Int? {
@@ -163,7 +193,10 @@ enum PlaybackQualityMenuProjector {
         guard let height = Int(digits), height > 0 else {
             return nil
         }
-        return PlaybackQualityProjector.tierHeight(width: Int((Double(height) * 16 / 9).rounded()), height: height)
+        return PlaybackQualityProjector.tierHeight(
+            width: Int((Double(height) * 16 / 9).rounded()),
+            height: height
+        )
     }
 }
 
@@ -184,8 +217,288 @@ enum PlaybackQualitySelector {
     }
 }
 
+enum ProviderPlaybackSourceSelector {
+    private static let automaticTargetHeight = 1_080
+
+    static func initialSource(
+        from sources: [ProviderPlaybackSource],
+        currentProgramURL: URL,
+        targetHeight: Int,
+        hasManualSelection: Bool
+    ) -> ProviderPlaybackSource? {
+        let validSources = sources.filter {
+            PlaybackQualityProjector.normalizedTier(from: $0.tierHeight) == $0.tierHeight
+        }
+        if hasManualSelection {
+            return validSources.first { $0.tierHeight == targetHeight }
+                ?? validSources.first { $0.url == currentProgramURL }
+        }
+        return validSources.first { $0.tierHeight == automaticTargetHeight }
+            ?? validSources.max { $0.tierHeight < $1.tierHeight }
+    }
+}
+
 protocol PlaybackQualityLoading: Sendable {
     func loadOptions(for url: URL) async throws -> [PlaybackQualityOption]
+}
+
+@MainActor
+protocol PlaybackItemPreparing {
+    func prepare(url: URL) async throws -> AVPlayerItem
+}
+
+enum PlaybackItemPreparationError: Error, Equatable {
+    case timedOut
+}
+
+struct AVPlaybackItemPreparer: PlaybackItemPreparing {
+    typealias LoadItem = @Sendable (URL) async throws -> AVPlayerItem
+
+    private let timeout: Duration
+    private let loadItem: LoadItem
+
+    init(
+        timeout: Duration = .seconds(12),
+        loadItem: LoadItem? = nil
+    ) {
+        self.timeout = timeout
+        self.loadItem = loadItem ?? Self.loadItem
+    }
+
+    func prepare(url: URL) async throws -> AVPlayerItem {
+        guard timeout > .zero else {
+            throw PlaybackItemPreparationError.timedOut
+        }
+        return try await withThrowingTaskGroup(
+            of: AVPlayerItem.self,
+            returning: AVPlayerItem.self
+        ) { group in
+            group.addTask {
+                try await loadItem(url)
+            }
+            group.addTask {
+                try await Task.sleep(for: timeout)
+                throw PlaybackItemPreparationError.timedOut
+            }
+            defer { group.cancelAll() }
+            guard let preparedItem = try await group.next() else {
+                throw CancellationError()
+            }
+            return preparedItem
+        }
+    }
+
+    private static func loadItem(url: URL) async throws -> AVPlayerItem {
+        let asset = AVURLAsset(url: url)
+        return try await withTaskCancellationHandler {
+            guard try await asset.load(.isPlayable) else {
+                throw NativePlaybackError.unsupportedMedia
+            }
+            try Task.checkCancellation()
+            return AVPlayerItem(asset: asset)
+        } onCancel: {
+            asset.cancelLoading()
+        }
+    }
+}
+
+@MainActor
+protocol PlaybackItemStaging {
+    func stage(item: AVPlayerItem, to position: Double) async -> StagedPlaybackItem?
+}
+
+struct AVPlaybackItemStager: PlaybackItemStaging {
+    typealias Readiness = @MainActor (AVQueuePlayer, AVPlayerItem) -> PlaybackItemStagingReadiness
+
+    private let timeout: Duration
+    private let pollInterval: Duration
+    private let readiness: Readiness
+
+    init(
+        timeout: Duration = .seconds(12),
+        pollInterval: Duration = .milliseconds(20),
+        readiness: @escaping Readiness = AVPlaybackItemStager.readiness
+    ) {
+        self.timeout = timeout
+        self.pollInterval = pollInterval
+        self.readiness = readiness
+    }
+
+    func stage(item: AVPlayerItem, to position: Double) async -> StagedPlaybackItem? {
+        guard
+            position.isFinite,
+            position >= 0,
+            timeout > .zero,
+            pollInterval > .zero,
+            !Task.isCancelled
+        else {
+            return nil
+        }
+        return await AVPlaybackItemStageOperation(
+            item: item,
+            position: position,
+            timeout: timeout,
+            pollInterval: pollInterval,
+            readiness: readiness
+        ).run()
+    }
+
+    private static func readiness(
+        player: AVQueuePlayer,
+        item: AVPlayerItem
+    ) -> PlaybackItemStagingReadiness {
+        if player.status == .failed || item.status == .failed {
+            return .failed
+        }
+        if player.status == .readyToPlay, item.status == .readyToPlay {
+            return .ready
+        }
+        return .unknown
+    }
+}
+
+enum PlaybackItemStagingReadiness {
+    case unknown
+    case ready
+    case failed
+}
+
+@MainActor
+final class StagedPlaybackItem {
+    let player: AVQueuePlayer
+    let item: AVPlayerItem
+
+    fileprivate init(player: AVQueuePlayer, item: AVPlayerItem) {
+        self.player = player
+        self.item = item
+    }
+
+    func discard() {
+        item.cancelPendingSeeks()
+        player.pause()
+        player.removeAllItems()
+    }
+}
+
+@MainActor
+private final class AVPlaybackItemStageOperation {
+    private let item: AVPlayerItem
+    private let position: Double
+    private let player: AVQueuePlayer
+    private let timeout: Duration
+    private let pollInterval: Duration
+    private let readiness: AVPlaybackItemStager.Readiness
+    private var readinessTask: Task<Void, Never>?
+    private var timeoutTask: Task<Void, Never>?
+    private var continuation: CheckedContinuation<StagedPlaybackItem?, Never>?
+    private var isFinished = false
+
+    init(
+        item: AVPlayerItem,
+        position: Double,
+        timeout: Duration,
+        pollInterval: Duration,
+        readiness: @escaping AVPlaybackItemStager.Readiness
+    ) {
+        self.item = item
+        self.position = position
+        self.timeout = timeout
+        self.pollInterval = pollInterval
+        self.readiness = readiness
+        player = AVQueuePlayer(items: [item])
+    }
+
+    func run() async -> StagedPlaybackItem? {
+        await withTaskCancellationHandler {
+            await withCheckedContinuation { continuation in
+                self.continuation = continuation
+                guard !Task.isCancelled else {
+                    finish(nil)
+                    return
+                }
+                waitUntilReady()
+                startTimeout()
+            }
+        } onCancel: {
+            Task { @MainActor in
+                self.finish(nil)
+            }
+        }
+    }
+
+    private func waitUntilReady() {
+        readinessTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            while true {
+                switch readiness(player, item) {
+                case .failed:
+                    finish(nil)
+                    return
+                case .ready:
+                    seek()
+                    return
+                case .unknown:
+                    do {
+                        try await Task.sleep(for: pollInterval)
+                    } catch {
+                        finish(nil)
+                        return
+                    }
+                }
+            }
+        }
+    }
+
+    private func startTimeout() {
+        timeoutTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            do {
+                try await Task.sleep(for: timeout)
+            } catch {
+                finish(nil)
+                return
+            }
+            finish(nil)
+        }
+    }
+
+    private func seek() {
+        player.seek(
+            to: CMTime(seconds: position, preferredTimescale: 600),
+            toleranceBefore: .zero,
+            toleranceAfter: .zero
+        ) { [weak self] finished in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                let stagedPosition = item.currentTime().seconds
+                guard
+                    finished,
+                    stagedPosition.isFinite,
+                    abs(stagedPosition - position) <= 0.01
+                else {
+                    finish(nil)
+                    return
+                }
+                finish(StagedPlaybackItem(player: player, item: item))
+            }
+        }
+    }
+
+    private func finish(_ stagedItem: StagedPlaybackItem?) {
+        guard !isFinished, let continuation else { return }
+        isFinished = true
+        self.continuation = nil
+        readinessTask?.cancel()
+        readinessTask = nil
+        timeoutTask?.cancel()
+        timeoutTask = nil
+        if stagedItem == nil {
+            item.cancelPendingSeeks()
+            player.pause()
+            player.removeAllItems()
+        }
+        continuation.resume(returning: stagedItem)
+    }
 }
 
 struct AVAssetPlaybackQualityLoader: PlaybackQualityLoading {

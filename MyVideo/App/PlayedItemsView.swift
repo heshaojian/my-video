@@ -125,7 +125,10 @@ private struct PlayedItemRow: View {
     var body: some View {
         ProgressMediaCard(
             item: record.item,
-            subtitle: record.episodeTitle.map { "Episode \($0)" },
+            subtitle: EpisodeDisplayLabel.sanitized(
+                record.episodeTitle,
+                excluding: record.episodeKey.map { [$0] } ?? []
+            ),
             progress: progress,
             progressLabel: PlayedPositionFormatter.label(
                 position: record.position,

@@ -15,16 +15,22 @@ struct MyVideoFeedService: @unchecked Sendable, MyVideoFeedServing {
 
     init(
         catalogService: any CategoryCatalogServing = CategoryCatalogService(),
-        usesFixtureFeed: Bool = ProcessInfo.processInfo.arguments.contains("-MyVideoUseFixtureFeed")
+        usesFixtureFeed: Bool = MyVideoFixtureRuntime.usesFixtureFeed
     ) {
         self.catalogService = catalogService
+#if DEBUG
         self.usesFixtureFeed = usesFixtureFeed
+#else
+        self.usesFixtureFeed = false
+#endif
     }
 
     func fetchLatest(category: MyVideoCategory) async throws -> [MyVideoItem] {
+#if DEBUG
         if usesFixtureFeed {
             return Self.fixtureItems(for: category)
         }
+#endif
 
         return try await catalogService.fetchPage(
             query: CatalogQuery(category: category),

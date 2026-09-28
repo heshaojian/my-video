@@ -225,9 +225,11 @@ final class SavedUpdateMonitor: ObservableObject {
     }
 
     private static func makeDefaultResolver() -> any SavedEpisodeResolving {
-        if ProcessInfo.processInfo.arguments.contains("-MyVideoUseFixtureFeed") {
+#if DEBUG
+        if MyVideoFixtureRuntime.usesFixtureFeed {
             return FixtureNativePlaybackResolver()
         }
+#endif
         return NativePlaybackResolver()
     }
 }

@@ -1,189 +1,311 @@
-# Aiyifan Card Metadata And Resolution Inventory Design
+# Aiyifan Card Metadata And Provider Playback Truth Design
+
+**Status:** Revised and approved on 2026-09-10 after live provider inspection.
 
 ## Goal
 
-Make poster grids compact and trustworthy, and make the playback quality menu
-match the resolution choices Aiyifan actually exposes.
+Make episode metadata and resolution controls reflect the data Aiyifan actually
+publishes, while keeping native playback stable and the shared poster cards
+compact.
 
-The change has two user-visible outcomes:
+The change has three user-visible outcomes:
 
-1. Home, Search, Saved, Played, and All cards use one text layout: a one-line
-   title followed immediately by one compact episode/language/year row.
-2. The player lists every resolution discovered from the provider playback
-   response or delivered HLS asset. Every listed resolution is tappable, even
-   when AVFoundation cannot confirm in advance that it will play.
+1. Home, Search, Saved, Played, and All cards show trustworthy provider episode
+   labels for both ongoing and completed episodic titles.
+2. Opening an episodic title selects the newest real playlist entry instead of
+   trusting an inconsistent catalog key.
+3. The player shows every resolution in the provider's quality inventory as an
+   enabled, tappable option, whether or not the current anonymous playback
+   response contains a usable source for it.
 
-## Current Problems
+## Live Provider Findings
 
-- A provider episode media key can leak into a card as if it were an episode
-  label, for example `fz4AxompbuT`.
-- Poster titles reserve two lines even when a title uses only one line. This
-  creates an empty visual row before the metadata.
-- Card metadata currently prioritizes year and region instead of the requested
-  episode, language, and year sequence.
-- The quality menu mixes measured stream tiers with tiers synthesized from a
-  catalog maximum such as `4K`. Synthesized choices are disabled, while some
-  website-exposed sources can be discarded before the user can try them.
+The provider was inspected through the same public, signed endpoints used by its
+website. No signed media URL, certificate value, or credential belongs in source
+control.
+
+### Resolution Data
+
+`/v3/video/play` exposes two different collections with different meanings:
+
+- `info.clarity` is the website's complete quality selector inventory. A row can
+  include `title`, `description`, `bitrate`, `key`, `line`, `isVIP`, `isBought`,
+  `isEnabled`, and an optional `path`.
+- `info.flvPathList` contains advertisements plus the program sources delivered
+  for the current session. It is not the complete quality inventory.
+
+For a current anonymous session, a title can list 2160p, 1080p, 720p, and 576p
+in `clarity` while providing a playable HLS path only for 576p. The website still
+renders every `clarity` row as a clickable quality choice. The previous app
+implementation decoded only `flvPathList`, so the other website choices could
+never appear.
+
+### Episode Data
+
+`/api/list/Search` uses `isSerial` as an ongoing/completed state, not as a
+reliable "has episodes" discriminator. In a live sample of the newest 100 items
+per episodic category, valid `lastName` values existed on every row, including
+rows where `isSerial` was false:
+
+- Series: 16 completed rows
+- Variety: 43 completed rows
+- Anime: 10 completed rows
+
+The previous card projection required `isSerial == true`, hiding valid episode
+metadata for those completed titles.
+
+Catalog `lastKey` is also not a reliable newest-episode key. Live examples
+included an ongoing anime whose catalog `lastKey` pointed to episode 1 while
+`lastName` and `/v3/video/languagesplaylist` showed 286 episodes. A completed
+10-episode series had the same mismatch. The playlist itself returned all
+episodes with valid keys, names, and update dates.
 
 ## Decisions
 
-### Shared Poster Projection
+### Episodic Content Classification
 
-`PosterCardProjection` remains the single card-facing projection used by all
-poster grids. It will expose a title and one optional compact detail string.
+Use one shared classifier wherever the app needs to know whether a title can
+have episodes.
 
-The detail string is assembled in this order:
+A title is episodic when any of these trusted signals applies:
 
-1. Trustworthy episode label for serial content.
-2. Provider-supplied language.
-3. Provider-supplied year.
+1. Its category path belongs to Series (`0,1,4`), Variety (`0,1,5`), or Anime
+   (`0,1,6`).
+2. A resolved or saved episode snapshot exists for the title.
+3. An explicit episode key was supplied by a user action, Played record,
+   notification, or deep link.
+4. Provider detail says `isSerial == true` when stronger category information is
+   absent.
 
-Missing fields are omitted, including their separators. Region is not included
-in this compact row. Provider content remains in its original language.
+`isSerial == false` never overrides an episodic category. It means completed for
+catalog filtering and must not suppress episode UI or playlist loading.
 
-### Episode Label Validation
+### Episode Source Of Truth
 
-Episode label candidates are evaluated in this order:
+For episodic content, `/v3/video/languagesplaylist` is the source of truth for
+episode identity, order, selection, Saved synchronization, and player episode
+controls.
 
-1. The title of the synchronized latest episode in `SavedEpisodeUpdateState`.
+- Decode the detail response's validated `cid` and `taxis`, then pass both to the
+  playlist request as the website does.
+- Make up to four cancelable playlist attempts using the existing bounded retry
+  schedule.
+- Validate each key, title, optional date, response size, and maximum item count.
+- Deduplicate by media key.
+- Sort newest-first by update date, then recognized episode number, then reverse
+  provider position as the final fallback because observed playlists are
+  oldest-first.
+- Select an explicit requested episode only when its exact key exists.
+- With no explicit selection, select the first newest-sorted playlist episode.
+- Never use `AiyifanItem.latestEpisodeKey` as the default playback selection.
+- Never guess episode 1.
+
+If all playlist attempts fail and an explicit episode key came from a direct
+user selection or existing Played record, that exact episode may still start
+while the episode control exposes Retry Episodes. Without an explicit key, the
+app reports that episodes could not be loaded instead of starting an
+unverified catalog key.
+
+### Episode Label Projection
+
+`PosterCardProjection` remains the single card-facing projection used by every
+poster grid.
+
+For episodic content, evaluate labels in this order:
+
+1. Latest title from a synchronized `SavedEpisodeUpdateState`.
 2. `AiyifanItem.latestEpisodeTitle`.
 3. `AiyifanItem.subTitle`.
 
-A candidate is rejected when it is empty, equals a known media key, or has the
-shape of an opaque provider identifier. Numeric labels and familiar provider
-forms such as `Episode 10`, `10`, `第10集`, `第10期`, and `更新至10集` are
-accepted. Meaningful nonnumeric episode names are retained when they are not
-key-like.
+Reject empty values and values equal to known title or episode media keys. Treat
+only ASCII key-shaped tokens matching the provider's identifier alphabet as
+opaque. Do not reject meaningful Chinese labels merely because they contain
+digits and letters.
 
-If no trustworthy candidate exists, the episode field is omitted. The app does
-not display a raw key and does not invent an episode number. When Saved
-synchronization later resolves the episode list, the live projection updates
-with the resolved title.
+Accepted provider forms include bare numbers, `Episode 10`, `第10集`, `第10期`,
+`更新至10集`, `10集全`, date-prefixed Variety labels, and meaningful named
+specials. Provider text remains in its original language.
 
-### Card Typography And Spacing
+The compact card text remains:
 
-- The title uses one line with tail truncation.
-- The title does not reserve an unused second line.
-- The compact detail row follows the title with 3 to 4 points of spacing.
-- The detail row uses one line with tail truncation.
-- Poster dimensions, score/status badges, action placement, and 44-point action
-  hit targets remain unchanged.
-- The same layout applies to the poster-card family on Home, Search, Saved,
-  Played, and All. Horizontal progress cards keep their workflow-specific
-  progress layout.
+1. One-line title with tail truncation.
+2. One immediately adjacent line containing available episode, language, and
+   year values in that order, separated by ` · `.
+
+The shared projection applies to Home, Search, Saved, Played, and All poster
+grids. Horizontal progress cards keep their workflow-specific progress layout.
+
+### Saved And Home Freshness
+
+Home continues to reload the latest provider catalog when the app opens or
+becomes active. The shared classifier and label sanitizer make the valid
+`lastName` values visible without adding a detail-and-playlist request for every
+Home card.
+
+Saved continues its direct playlist synchronization at app open, on pull to
+refresh, and during the daily background check:
+
+- Limit concurrent title checks to three.
+- Retry a response that temporarily omits the previously observed episode.
+- After bounded retries, a valid nonempty playlist can be reconciled even if an
+  obsolete old key disappeared.
+- Reconciliation may advance to a newer dated or numbered episode but never
+  regress a retained latest episode because of a delayed or partial response.
+- Player-observed episode lists update Saved immediately.
+
+All and Search use fresh catalog metadata and the same correct card projection,
+but do not eagerly request a playlist for every visible result. Opening any
+result resolves its playlist before choosing the default episode.
 
 ## Resolution Inventory
 
-### Source Of Truth
+### Provider Quality Choice
 
-The resolution menu is built only from playback choices exposed by the current
-provider response or by AVFoundation's view of the delivered HLS asset.
+Add an immutable provider quality model representing one validated `clarity`
+row. It retains only the fields needed for identity, display, matching, and
+safe selection:
 
-Trusted inventory sources are:
+- Stable provider key and line
+- Normalized display tier such as 2160p, 1080p, 720p, or 576p
+- Provider description when safe and useful
+- Optional validated secure HLS source
+- Provider availability flags for internal decision-making only
 
-1. Secure, non-advertisement media rows returned by the provider playback API,
-   when they contain a recognizable resolution label or dimensions.
-2. HLS variants returned by `AVURLAsset`, including variants that have valid
-   dimensions but cannot be proven playable before selection.
+Rows with invalid keys, unsupported tiers, control characters, or unsafe URLs
+are rejected. Exclude the provider's synthetic `auto` row because the app owns
+its Automatic choice. Preserve distinct provider rows when line identity makes
+them different; otherwise deduplicate identical choices deterministically.
 
-Catalog metadata such as `vipResource` or a detail-page `4K` label may annotate
-the title but does not create 1080p, 720p, or other intermediate choices. The
-app does not parse or rewrite raw HLS manifests.
+### Menu Projection
 
-Resolution choices are deduplicated by normalized display tier and sorted from
-highest to lowest. `Automatic` remains first and prefers exact 1080p, otherwise
-the highest working tier.
+The Quality menu contains:
 
-### Tappable Choices
+1. `Automatic (prefers 1080p)`
+2. Every validated website `clarity` choice, highest tier first
+3. Any additional real HLS rendition exposed by AVFoundation that is not already
+   represented by a provider choice
 
-Every displayed provider resolution is enabled. The UI does not add a lock icon
-or an `Unavailable` suffix merely because AVFoundation has not validated it.
+Every displayed manual choice is enabled and tappable. The interface does not
+show a lock icon, disabled state, VIP label, membership explanation, sign-in
+prompt, or automatic website redirect.
 
-Selecting a choice follows one of two paths:
+Catalog metadata such as `vipResource` can annotate a card or detail view but
+does not create menu choices. `flvPathList` and AVFoundation renditions provide
+playable sources; `clarity` provides the complete visible inventory.
 
-- For a variant in the current adaptive asset, apply its resolution and bitrate
-  preference to the existing player item.
-- For a distinct provider media source, prepare that secure source and switch
-  only after it becomes ready.
+### Selection Behavior
 
-For a source switch, capture the current program timestamp, playback state,
-rate, episode, and selected quality. On success, seek to the captured timestamp
-and restore the prior playing or paused state. Do not create a new Played record
-or reset progress.
+Selecting a manual quality follows this order:
 
-### Selection Failure
+1. Use a matching rendition in the current adaptive HLS asset.
+2. Otherwise prepare the quality row's validated secure HLS path.
+3. If neither source exists, leave playback unchanged and publish a neutral
+   result: `<tier> could not be played. Continuing with <current tier>.`
 
-An attempted resolution can fail even though the website advertised it. A
-failure is nonterminal:
+All source changes are transactional. Capture the current program timestamp,
+play/pause state, rate, episode, and Played identity. Promote a replacement only
+after AVFoundation marks it ready, seek to the captured position, and restore
+the prior state. A failed attempt keeps the previous player item and preference
+unchanged, while the quality choice remains visible and tappable for retry.
 
-- Keep the previous playable source, timestamp, episode, and playback state.
-- Keep the failed option visible and tappable so the user can retry later.
-- Show a concise message: `<resolution> could not be played. Continuing with
-  <current resolution>.`
-- Never fall back to the website automatically and never stop an otherwise
-  playable session.
+An asynchronous source preparation publishes `Switching to <tier>...` through
+the existing player status surface and accessibility announcements. A newer
+quality tap cancels the older pending attempt so the latest user intent wins;
+choices are not disabled while preparation is pending.
 
-Security validation remains unchanged: HTTPS only, approved provider/media
-hosts, no embedded credentials, and bounded response sizes.
+Automatic considers only actually playable sources. It selects exact 1080p when
+available and otherwise the highest playable tier. A successful manual tier is
+remembered across episodes; if that tier is absent or not playable on a later
+episode, playback remains on the best working source without selecting an
+unusable inventory row.
 
 ## Components
 
-- `PosterCardProjection` owns episode-label sanitization and compact detail-row
-  composition.
-- `PosterMediaCard` owns one-line typography and vertical spacing.
-- `NativePlaybackResponseDecoder` retains all secure program sources instead of
-  selecting and discarding all but the first source.
-- `PlaybackQualityProjector` normalizes and deduplicates provider and HLS choices.
-- `NativePlayerViewModel` owns selection attempts, transactional source
-  switching, rollback, persistence, and user-facing failure state.
-- The SwiftUI quality menu renders every projected choice as an enabled button.
+- `EpisodicContentClassifier` owns category-based episodic inference.
+- `EpisodeNumberParser` recognizes provider numbering forms used for ordering.
+- `PosterCardProjection` owns safe card labels and compact metadata composition.
+- `VideoDetailResponseDecoder` retains validated playlist request context.
+- `EpisodePlaylistResponseDecoder` validates and orders the complete playlist.
+- `NativePlaybackResponseDecoder` decodes both the full `clarity` inventory and
+  the currently delivered program sources.
+- `PlaybackQualityMenuProjector` combines provider choices with real
+  AVFoundation variants without inventing tiers.
+- `NativePlayerViewModel` owns exact episode selection, quality attempts,
+  transactional switching, rollback, persistence, and neutral failure state.
+- `SavedUpdateMonitor` and `SavedEpisodeSnapshotReconciler` own bounded direct
+  refresh and monotonic Saved state.
+
+## Security And Privacy
+
+- Keep HTTPS-only provider, artwork, and media host validation.
+- Reject embedded credentials, unexpected ports, malformed keys, oversized
+  responses, and unapproved redirect hosts.
+- Never persist or log signed media URLs, certificate material, or provider
+  response secrets.
+- Do not parse or rewrite manifests, proxy media, download media, bypass access
+  controls, or manufacture a source for a provider row without one.
+- Provider availability flags can guide safe behavior internally but are not
+  exposed as membership messaging in the app.
 
 ## Testing
 
-### Unit Tests
+Use TDD for each behavior change and keep the full app target above the existing
+80 percent coverage gate.
 
-- Opaque episode keys never appear in `PosterCardProjection`.
-- Numeric, localized, and meaningful special labels remain visible.
-- Episode/language/year ordering and missing-field separators are correct.
-- Synchronized Saved episode titles override stale item metadata.
-- Provider playback decoding retains every secure resolution source and rejects
-  insecure or malformed sources.
-- Resolution inventory deduplicates tiers, sorts highest first, and never
-  synthesizes tiers from a catalog maximum.
-- Every inventory choice is selectable.
-- Failed source switching preserves the previous source, timestamp, state,
-  episode, and Played identity.
+### Unit And Integration Tests
 
-### UI Tests
+- Completed Series, Variety, and Anime items remain episodic when
+  `isSerial == false`.
+- Movie metadata is never interpreted as an episode label.
+- Chinese date-prefixed labels remain visible while ASCII provider keys do not.
+- `10集全`, `更新至10集`, `第10期`, and English episode forms parse safely.
+- A misleading catalog `lastKey` for episode 1 cannot override playlist episode
+  10 or 286.
+- Playlist retries, exact requested selection, newest default selection,
+  fallback ordering, deduplication, and cancellation are covered.
+- Saved synchronization advances from 9 to 10, accepts a valid replacement
+  playlist after bounded stale-key retries, and never regresses.
+- `clarity` rows produce all website quality choices even when only one row has
+  a path.
+- Invalid quality rows and unsafe sources are rejected without discarding valid
+  choices.
+- Every quality menu row is selectable.
+- A path-backed or adaptive quality switch preserves playback state and
+  progress.
+- A source-less or failed choice leaves the current player untouched and emits
+  only the neutral result.
 
-- Poster-grid titles are one line and the detail row has no reserved blank line.
-- Home, Search, Saved, Played, and All use the same card text geometry.
-- The player menu exposes all fixture provider resolutions as enabled buttons.
-- Selecting a working resolution preserves progress.
-- Selecting a failing fixture resolution reports the failure and keeps playback
-  active on the previous source.
+### UI And Regression Tests
 
-Run the focused unit and UI tests during implementation. After the combined
-change is complete, run the full unit suite, full serial UI suite, static
-analysis, and the existing heavy-user scenario once.
+- Home, Search, Saved, Played, and All share the same one-line title and compact
+  detail geometry.
+- Completed and ongoing fixture cards both show episode labels.
+- The fixture player exposes 2160p, 1080p, 720p, and 576p as enabled buttons,
+  including source-less choices.
+- Selecting a working tier preserves progress; selecting a source-less or
+  failing tier keeps playback active.
+- Episode controls show the full newest-first list and select the real newest
+  episode from a misleading catalog fixture.
+- Existing fullscreen, Picture in Picture, background audio, AirPlay, Google
+  Cast, Saved, Played, Ready to Watch, skip controls, and secure website fallback
+  remain passing.
 
-## Out Of Scope
-
-- Fabricating resolution choices from catalog badges.
-- Guaranteeing that an advertised resolution will play.
-- Manual M3U8 parsing, media proxying, downloading, or DRM bypass.
-- Changing poster artwork ratios, badge styling, navigation, Saved semantics,
-  Played semantics, casting, or native AVPlayer transport controls.
+After focused tests pass, run the full unit suite, serial UI suite, static
+analysis, coverage gate, and the existing heavy-user scenario once for the
+combined major change.
 
 ## Acceptance Criteria
 
-- No poster card displays an opaque episode/media key.
-- Every poster-grid title is one line with no reserved blank line below it.
-- The next row contains only available episode, language, and year values in
-  that order.
-- The quality menu contains all and only provider/HLS-exposed resolution tiers.
-- Every displayed resolution is tappable.
-- A failed resolution attempt leaves existing playback and progress intact.
-- Existing Home, Search, Saved, Played, All, episodes, fullscreen, Picture in
-  Picture, background audio, AirPlay, Google Cast, and website fallback behavior
-  remains passing.
+- Every valid website `clarity` resolution appears as an enabled, tappable menu
+  choice without lock or membership messaging.
+- A quality choice with no usable source cannot interrupt current playback.
+- Automatic prefers playable 1080p and otherwise uses the highest playable
+  source.
+- All episodic poster cards can show valid provider episode labels regardless of
+  ongoing/completed status.
+- No card displays an opaque media key as episode metadata.
+- Default episodic playback uses the newest validated playlist entry, never an
+  unverified catalog `lastKey` or guessed episode 1.
+- Saved updates from episode 9 to 10 after app-open or manual synchronization and
+  never regresses on partial data.
+- Existing app workflows and native AVPlayer controls remain intact.

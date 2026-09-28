@@ -85,7 +85,10 @@ final class PlayedItemsStore: ObservableObject {
         let record = PlayedRecord(
             item: item,
             episodeKey: episode?.mediaKey,
-            episodeTitle: episode?.title,
+            episodeTitle: EpisodeDisplayLabel.sanitized(
+                episode?.title,
+                excluding: episode.map { [$0.mediaKey] } ?? []
+            ),
             position: position.isFinite ? position : 0,
             duration: duration.isFinite ? duration : 0,
             lastPlayedAt: playedAt
@@ -117,10 +120,27 @@ final class PlayedItemsStore: ObservableObject {
         episode: Episode?,
         playedAt: Date = Date()
     ) {
-        let record = PlayedRecord(
+        markWatched(
             item: item,
             episodeKey: episode?.mediaKey,
             episodeTitle: episode?.title,
+            playedAt: playedAt
+        )
+    }
+
+    func markWatched(
+        item: MyVideoItem,
+        episodeKey: String?,
+        episodeTitle: String?,
+        playedAt: Date = Date()
+    ) {
+        let record = PlayedRecord(
+            item: item,
+            episodeKey: episodeKey,
+            episodeTitle: EpisodeDisplayLabel.sanitized(
+                episodeTitle,
+                excluding: episodeKey.map { [$0] } ?? []
+            ),
             position: 0,
             duration: 0,
             lastPlayedAt: playedAt,

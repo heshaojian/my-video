@@ -57,8 +57,8 @@ struct BrowserView: View {
         .animation(.easeInOut(duration: 0.2), value: playbackSession.presentation)
         .onChange(of: viewModel.selectedItem) { _, item in
             guard let item else { return }
-            let monitorsPlayback = !ProcessInfo.processInfo.arguments.contains("-MyVideoUseFixtureFeed")
-                || ProcessInfo.processInfo.arguments.contains("-MyVideoUsePlayableFixtureMedia")
+            let monitorsPlayback = !MyVideoFixtureRuntime.usesFixtureFeed
+                || MyVideoFixtureRuntime.usesPlayableFixtureMedia
             playbackSession.play(
                 item: item,
                 episodeKey: viewModel.selectedEpisodeKey,
@@ -514,7 +514,10 @@ private struct ContinueWatchingSection: View {
                     ForEach(records) { record in
                         ProgressMediaCard(
                             item: record.item,
-                            subtitle: record.episodeTitle.map { "Episode \($0)" },
+                            subtitle: EpisodeDisplayLabel.sanitized(
+                                record.episodeTitle,
+                                excluding: record.episodeKey.map { [$0] } ?? []
+                            ),
                             progress: record.duration > 0 ? record.position / record.duration : 0,
                             progressLabel: nil,
                             itemIdentifier: "continueItem-\(record.item.id)",

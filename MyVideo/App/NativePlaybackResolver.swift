@@ -1,6 +1,32 @@
 import CoreFoundation
 import Foundation
 
+enum MyVideoFixtureRuntime {
+#if DEBUG
+    static var usesFixtureFeed: Bool {
+        ProcessInfo.processInfo.arguments.contains("-MyVideoUseFixtureFeed")
+    }
+
+    static var usesPlayableFixtureMedia: Bool {
+        ProcessInfo.processInfo.arguments.contains("-MyVideoUsePlayableFixtureMedia")
+    }
+
+    static var failingQualityTier: Int? {
+        let arguments = ProcessInfo.processInfo.arguments
+        guard
+            let flagIndex = arguments.firstIndex(of: "-MyVideoFailQualityTier"),
+            arguments.indices.contains(flagIndex + 1)
+        else {
+            return nil
+        }
+        return Int(arguments[flagIndex + 1])
+    }
+#else
+    static let usesFixtureFeed = false
+    static let usesPlayableFixtureMedia = false
+#endif
+}
+
 struct PlaybackCertificate: Equatable, Sendable {
     let publicKey: String
     let privateKey: String
@@ -13,6 +39,7 @@ struct NativePlaybackEntry: Equatable, Sendable {
 
 struct NativePlayback: Equatable, Sendable {
     let entries: [NativePlaybackEntry]
+    let qualitySources: [ProviderPlaybackSource]
     let episodes: [Episode]
     let selectedEpisode: Episode?
     let metrics: ViewerMetrics?
@@ -24,12 +51,14 @@ struct NativePlayback: Equatable, Sendable {
 
     init(
         entries: [NativePlaybackEntry],
+        qualitySources: [ProviderPlaybackSource] = [],
         episodes: [Episode] = [],
         selectedEpisode: Episode? = nil,
         metrics: ViewerMetrics? = nil,
         advertisedQuality: String? = nil
     ) {
         self.entries = entries
+        self.qualitySources = qualitySources
         self.episodes = episodes
         self.selectedEpisode = selectedEpisode
         self.metrics = metrics
@@ -538,8 +567,16 @@ enum NativePlaybackResponseDecoder {
     private struct Media {
         let raw: [String: Any]
 
-        var duration: Double {
-            (raw["duration"] as? NSNumber)?.doubleValue ?? 0
+        var duration: Double? {
+            guard
+                let value = raw["duration"] as? NSNumber,
+                CFGetTypeID(value) != CFBooleanGetTypeID()
+            else {
+                return nil
+            }
+            let decoded = value.doubleValue
+            guard decoded.isFinite, decoded >= 0 else { return nil }
+            return decoded
         }
 
         var isHLS: Bool {
@@ -547,7 +584,20 @@ enum NativePlaybackResponseDecoder {
         }
 
         var bitrate: Int {
-            (raw["bitrate"] as? NSNumber)?.intValue ?? 0
+            APIResponseParser.integer(raw["bitrate"]) ?? 0
+        }
+
+        var providerSource: ProviderPlaybackSource? {
+            guard
+                let duration,
+                duration == 0,
+                isHLS,
+                let url = secureURL,
+                let tierHeight = PlaybackQualityProjector.normalizedTier(from: bitrate)
+            else {
+                return nil
+            }
+            return ProviderPlaybackSource(url: url, tierHeight: tierHeight)
         }
 
         var secureURL: URL? {
@@ -558,6 +608,7 @@ enum NativePlaybackResponseDecoder {
                 let host = url.host,
                 url.user == nil,
                 url.password == nil,
+                url.port == nil,
                 RemoteResourceHostValidator.isAllowedMediaHost(host)
             else {
                 return nil
@@ -583,15 +634,17 @@ enum NativePlaybackResponseDecoder {
         guard !isPreview else {
             throw NativePlaybackError.previewOnly
         }
-        let media = rawMedia.map(Media.init(raw:))
-        guard let programIndex = media.firstIndex(where: {
-            $0.isHLS && $0.bitrate > 0
-        }), let programURL = media[programIndex].secureURL else {
+        let sources = rawMedia
+            .map(Media.init(raw:))
+            .compactMap(\.providerSource)
+        var retainedTiers = Set<Int>()
+        let qualitySources = sources.filter { retainedTiers.insert($0.tierHeight).inserted }
+        guard let programSource = qualitySources.first else {
             throw NativePlaybackError.unsupportedMedia
         }
 
-        let program = NativePlaybackEntry(url: programURL, isAdvertisement: false)
-        return NativePlayback(entries: [program])
+        let program = NativePlaybackEntry(url: programSource.url, isAdvertisement: false)
+        return NativePlayback(entries: [program], qualitySources: qualitySources)
     }
 
 }
@@ -725,6 +778,7 @@ struct NativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving
         let playback = try NativePlaybackResponseDecoder.decode(playbackData)
         return NativePlayback(
             entries: playback.entries,
+            qualitySources: playback.qualitySources,
             episodes: episodes,
             selectedEpisode: selectedEpisode,
             metrics: context.metrics.isEmpty ? nil : context.metrics,
@@ -923,7 +977,25 @@ extension NativePlaybackResolver: SavedEpisodeResolving {
     }
 }
 
+#if DEBUG
 struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistResolving, SavedEpisodeResolving {
+    static let qualitySources = [2_160, 1_080, 720, 480].map { tierHeight in
+        ProviderPlaybackSource(
+            url: URL(string: "https://media.example.com/fixture-quality-\(tierHeight)p.m3u8")!,
+            tierHeight: tierHeight
+        )
+    }
+
+    private let usesPlayableMedia: Bool
+
+    init(usesPlayableMedia: Bool = MyVideoFixtureRuntime.usesPlayableFixtureMedia) {
+        self.usesPlayableMedia = usesPlayableMedia
+    }
+
+    static func qualitySource(for tierHeight: Int) -> ProviderPlaybackSource? {
+        qualitySources.first { $0.tierHeight == tierHeight }
+    }
+
     func resolve(item: MyVideoItem, preferredEpisodeKey: String?) async throws -> NativePlayback {
         let isSerial = item.isSerial == true || item.latestEpisodeKey != nil || preferredEpisodeKey != nil
         let episodes = [
@@ -932,10 +1004,9 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistRe
             Episode(mediaKey: "episode-2", title: "02", updateDate: "2026-09-06T10:00:00Z")
         ]
         let selected = isSerial ? (episodes.first { $0.mediaKey == preferredEpisodeKey } ?? episodes[0]) : nil
-        let usesPlayableMedia = ProcessInfo.processInfo.arguments.contains("-MyVideoUsePlayableFixtureMedia")
         let programURL = usesPlayableMedia
             ? URL(string: "https://devstreaming-cdn.apple.com/videos/streaming/examples/img_bipbop_adv_example_ts/master.m3u8")!
-            : URL(string: "https://media.example.com/\(selected?.mediaKey ?? item.listPath).m3u8")!
+            : Self.qualitySource(for: 720)!.url
         return NativePlayback(
             entries: [
                 NativePlaybackEntry(
@@ -947,6 +1018,7 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistRe
                     isAdvertisement: false
                 )
             ],
+            qualitySources: usesPlayableMedia ? [] : Self.qualitySources,
             episodes: isSerial ? episodes : [],
             selectedEpisode: selected,
             metrics: ViewerMetrics(likes: 76, favorites: 221, score: 9.6, views: 170_000)
@@ -973,3 +1045,4 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistRe
         ]
     }
 }
+#endif

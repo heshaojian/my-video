@@ -71,15 +71,35 @@ final class PlaybackSessionController: ObservableObject {
         playedItemsStore: PlayedItemsStore,
         onEpisodesObserved: @escaping NativePlayerViewModel.EpisodeObservationHandler
     ) -> NativePlayerViewModel {
-        let usesFixturePlayback = ProcessInfo.processInfo.arguments.contains("-MyVideoUseFixtureFeed")
+#if DEBUG
+        let usesFixturePlayback = MyVideoFixtureRuntime.usesFixtureFeed
         let resolver: any NativePlaybackResolving = usesFixturePlayback
             ? FixtureNativePlaybackResolver()
             : NativePlaybackResolver()
+        let itemPreparer: any PlaybackItemPreparing
+        let qualityLoader: any PlaybackQualityLoading
+        if usesFixturePlayback {
+            itemPreparer = FixturePlaybackItemPreparer(
+                failingURL: MyVideoFixtureRuntime.failingQualityTier
+                    .flatMap { FixtureNativePlaybackResolver.qualitySource(for: $0)?.url }
+            )
+            qualityLoader = FixturePlaybackQualityLoader()
+        } else {
+            itemPreparer = AVPlaybackItemPreparer()
+            qualityLoader = AVAssetPlaybackQualityLoader()
+        }
+#else
+        let resolver: any NativePlaybackResolving = NativePlaybackResolver()
+        let itemPreparer: any PlaybackItemPreparing = AVPlaybackItemPreparer()
+        let qualityLoader: any PlaybackQualityLoading = AVAssetPlaybackQualityLoader()
+#endif
         return NativePlayerViewModel(
             item: item,
             initialEpisodeKey: episodeKey,
             resolver: resolver,
             playedItemsStore: playedItemsStore,
+            qualityLoader: qualityLoader,
+            itemPreparer: itemPreparer,
             onEpisodesObserved: onEpisodesObserved
         )
     }

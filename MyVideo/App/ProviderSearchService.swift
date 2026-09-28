@@ -130,9 +130,11 @@ struct ProviderSearchService: @unchecked Sendable, ProviderSearchServing {
     }
 
     func search(query: ProviderSearchQuery, page: Int, pageSize: Int) async throws -> ProviderSearchPage {
-        if ProcessInfo.processInfo.arguments.contains("-MyVideoUseFixtureFeed") {
+#if DEBUG
+        if MyVideoFixtureRuntime.usesFixtureFeed {
             return try await FixtureProviderSearch.shared.page(query: query, page: page, pageSize: pageSize)
         }
+#endif
 
         guard
             siteURL.scheme?.lowercased() == "https",
@@ -223,6 +225,7 @@ struct ProviderSearchService: @unchecked Sendable, ProviderSearchServing {
     }
 }
 
+#if DEBUG
 private actor FixtureProviderSearch {
     static let shared = FixtureProviderSearch()
 
@@ -285,3 +288,4 @@ private actor FixtureProviderSearch {
         )
     }
 }
+#endif

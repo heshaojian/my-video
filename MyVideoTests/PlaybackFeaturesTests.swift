@@ -57,24 +57,46 @@ final class PlaybackFeaturesTests: XCTestCase {
         XCTAssertEqual(options.first?.title, "576p")
     }
 
-    func testQualityMenuShowsAdvertisedUnavailableTiersAbovePlayableStream() {
-        let playableOptions = PlaybackQualityProjector.options(from: [
-            PlaybackVariantDescriptor(width: 1_024, height: 576, averageBitRate: 1_500_000, peakBitRate: nil)
+    func testPlaybackQualityProjectionPreserves1440AndNormalizesOnlyRecognizedProviderTiers() {
+        let options = PlaybackQualityProjector.options(from: [
+            PlaybackVariantDescriptor(width: 2_560, height: 1_440, averageBitRate: 8_000_000, peakBitRate: nil)
         ])
 
-        let menuOptions = PlaybackQualityMenuProjector.options(
-            playableOptions: playableOptions,
-            catalogQuality: "1080P"
-        )
-
-        XCTAssertEqual(menuOptions.map(\.tierHeight), [1_080, 720, 576])
-        XCTAssertEqual(menuOptions.map(\.isPlayable), [false, false, true])
+        XCTAssertEqual(options.map(\.tierHeight), [1_440])
+        XCTAssertEqual(PlaybackQualityProjector.normalizedTier(from: 144), 144)
+        XCTAssertEqual(PlaybackQualityProjector.normalizedTier(from: 1_440), 1_440)
+        XCTAssertEqual(PlaybackQualityProjector.normalizedTier(from: 2_160), 2_160)
+        XCTAssertNil(PlaybackQualityProjector.normalizedTier(from: 2_000))
     }
 
-    func testQualityMenuStaysUnavailableWithoutPlayableStreamOptions() {
+    func testQualityMenuUnionsRealAdaptiveAndProviderSourcesByTier() throws {
+        let adaptiveOptions = PlaybackQualityProjector.options(from: [
+            PlaybackVariantDescriptor(width: 3_840, height: 2_160, averageBitRate: 12_000_000, peakBitRate: nil),
+            PlaybackVariantDescriptor(width: 1_920, height: 1_080, averageBitRate: 5_000_000, peakBitRate: nil)
+        ])
+        let provider1080URL = URL(string: "https://media.example.com/1080.m3u8")!
+        let providerSources = [
+            ProviderPlaybackSource(url: URL(string: "https://media.example.com/1440.m3u8")!, tierHeight: 1_440),
+            ProviderPlaybackSource(url: provider1080URL, tierHeight: 1_080),
+            ProviderPlaybackSource(url: URL(string: "https://media.example.com/720.m3u8")!, tierHeight: 720)
+        ]
+
         let menuOptions = PlaybackQualityMenuProjector.options(
-            playableOptions: [],
-            catalogQuality: "1080P"
+            adaptiveOptions: adaptiveOptions,
+            providerSources: providerSources
+        )
+
+        XCTAssertEqual(menuOptions.map(\.tierHeight), [2_160, 1_440, 1_080, 720])
+        XCTAssertTrue(menuOptions.allSatisfy(\.isSelectable))
+        let shared1080 = try XCTUnwrap(menuOptions.first { $0.tierHeight == 1_080 })
+        XCTAssertEqual(shared1080.adaptiveOption?.tierHeight, 1_080)
+        XCTAssertEqual(shared1080.providerSource?.url, provider1080URL)
+    }
+
+    func testQualityMenuDoesNotCreateCatalogOnlyChoices() {
+        let menuOptions = PlaybackQualityMenuProjector.options(
+            adaptiveOptions: [],
+            providerSources: []
         )
 
         XCTAssertTrue(menuOptions.isEmpty)

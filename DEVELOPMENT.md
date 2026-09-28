@@ -55,9 +55,12 @@ These are product invariants, not incidental implementation details.
 - Home, Search, Saved, and All share the poster-card component family. Played
   and Continue Watching use its progress-row variant so workflow-specific
   information remains visible without visual drift.
-- Every poster card projects its display through `PosterCardProjection`: reserve
-  two title lines, then show the latest update in cyan and available year/region
-  in one muted compact row. Saved prefers the reconciled latest episode title.
+- Every poster card projects its display through `PosterCardProjection`: show a
+  compact one-line title followed by at most one episode/language/year detail
+  row. Saved prefers the reconciled latest episode title.
+- Opaque or provider-internal episode identifiers are routing data, never
+  display labels. If no trustworthy episode label exists, omit it and keep any
+  available language and year details.
 - Poster score/status and contextual actions are anchored to a deterministic
   poster surface. Card text and provider artwork dimensions must never move a
   Save or Remove control outside its grid cell.
@@ -172,15 +175,26 @@ These are product invariants, not incidental implementation details.
 - Quality is always present in the playback menu.
 - The default is Automatic, preferring exact 1080p. If exact 1080p is absent,
   select the highest valid rendition exposed by AVFoundation.
-- Show manual rendition choices only when the delivered asset exposes multiple
-  trustworthy tiers. Inspect a playable video track when AVFoundation exposes
-  no adaptive variants; a single rendition shows `<tier> only`, while unknown
-  dimensions show `Stream quality unavailable`.
-- Catalog quality is provider metadata, not proof of a delivered rendition.
-  Never synthesize a 4K option from `vipResource` or another catalog label.
+- Build the resolution inventory only from validated provider playback sources
+  and variants or playable video tracks exposed by HLS/AVFoundation. A single
+  real tier remains a listed choice; unknown dimensions add no synthetic tier.
+- Keep every listed resolution enabled and tappable. If a provider tier cannot
+  be prepared or staged, report nonterminal feedback and leave the row available
+  for a later retry; do not turn delivery failure into a disabled menu state.
+- Catalog quality is non-actionable provider metadata, not proof of a delivered
+  rendition. Never synthesize 4K or any other resolution from `vipResource`, an
+  advertised quality string, or another catalog label.
 - A manual choice persists across videos. Automatic resets the target to 1080p.
-- Apply quality preferences to existing `AVPlayerItem` objects. Do not replace
-  the item, restart playback, seek to zero, or create a new Played record.
+- Apply adaptive-variant preferences to existing `AVPlayerItem` objects. For a
+  distinct provider source, prepare and stage a candidate item at the current
+  position before promoting it to the live player; commit source and preference
+  state only after staging succeeds.
+- A failed quality selection preserves the active player and item, current
+  source, play/pause state, rate, position and persisted progress, selected
+  episode, and existing quality preference.
+- Keep quality failure injection inside fixture playback. Production resolution
+  uses the normal AVFoundation preparer and must never read fixture-only failure
+  arguments.
 - Resolution is an adaptive-streaming preference, not a guarantee. AVFoundation
   may temporarily use a lower rendition. Google Cast receives the validated HLS
   master URL and makes its own adaptive decision.
@@ -323,12 +337,12 @@ Treat every provider value and URL as untrusted input.
 | Episode list shows one item or starts episode 1 | Partial response trusted as complete | Require expected key, retry, and surface failure |
 | Video waits for episode metadata | Stream and playlist loading coupled | Start trusted episode and recover list independently |
 | One network hiccup permanently hides episodes | No bounded retry state | Use four cancelable attempts and Retry Episodes |
-| Quality control disappears | UI conditioned on two or more variants | Always show Automatic; add manual options when known |
-| Quality change restarts playback | Player item replaced | Update preferences on current and queued items in place |
+| Quality control disappears or a listed tier is disabled | UI conditioned on variant count or delivery confidence | Always show Automatic and keep every source-backed tier enabled and tappable |
+| Direct quality change interrupts playback | Candidate source promoted before it is ready | Prepare and stage at the current position; promote only after success and preserve the live session on failure |
 | Saved older show never notifies | Only Home sample checked | Check every saved serial title directly |
 | Search misses most titles | Home cards filtered in memory | Submit to the signed provider search API |
 | Search cards drift from All | Similar markup copied into another view | Reuse `PosterMediaCard(.grid)` directly |
-| Catalog says 4K but player cannot select it | Metadata treated as a rendition | Report only measured AVFoundation tiers |
+| Catalog says 4K but player cannot select it | Metadata treated as a rendition | List only validated provider sources and HLS/AVFoundation tiers |
 | Current title returns an invalid response | Stale certificate or provider request context | Use validated region/language and one fresh-certificate retry |
 | Saved or Played header sits lower than Home | Empty root navigation chrome reserves native bar height above a custom page header | Root library tabs use custom header spacing only; reserve native navigation chrome for pushed utility screens |
 | Daily notification claimed at an exact hour | `earliestBeginDate` treated as a timer | Describe background refresh as best effort; catch up on launch |
