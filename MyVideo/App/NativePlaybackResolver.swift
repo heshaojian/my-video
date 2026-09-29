@@ -114,6 +114,13 @@ enum SerialPlaybackIntent {
 struct EpisodeSelection: Codable, Equatable, Sendable {
     let mediaKey: String
     let title: String
+    let updateDate: String?
+
+    init(mediaKey: String, title: String, updateDate: String? = nil) {
+        self.mediaKey = mediaKey
+        self.title = title
+        self.updateDate = updateDate
+    }
 }
 
 enum EpisodeNumberParser {
@@ -449,7 +456,7 @@ enum EpisodePlaylistResponseDecoder {
         guard let episode = selectEpisode(from: try decodeEpisodes(data), preferredKey: nil) else {
             throw NativePlaybackError.unsupportedMedia
         }
-        return EpisodeSelection(mediaKey: episode.mediaKey, title: episode.title)
+        return EpisodeSelection(mediaKey: episode.mediaKey, title: episode.title, updateDate: episode.updateDate)
     }
 
     private static func episodeNumber(_ title: String) -> Int? {
@@ -973,7 +980,7 @@ extension NativePlaybackResolver: SavedEpisodeResolving {
         guard !episodes.isEmpty else {
             throw NativePlaybackError.unsupportedMedia
         }
-        return episodes.map { EpisodeSelection(mediaKey: $0.mediaKey, title: $0.title) }
+        return episodes.map { EpisodeSelection(mediaKey: $0.mediaKey, title: $0.title, updateDate: $0.updateDate) }
     }
 }
 
@@ -1031,7 +1038,7 @@ struct FixtureNativePlaybackResolver: NativePlaybackResolving, EpisodePlaylistRe
     ) async throws -> [EpisodeSelection]? {
         guard item.isSerial == true || item.latestEpisodeKey != nil else { return nil }
         return try await loadEpisodes(for: item, expectedEpisodeKey: expectedEpisodeKey)
-            .map { EpisodeSelection(mediaKey: $0.mediaKey, title: $0.title) }
+            .map { EpisodeSelection(mediaKey: $0.mediaKey, title: $0.title, updateDate: $0.updateDate) }
     }
 
     func loadEpisodes(for item: MyVideoItem, expectedEpisodeKey: String?) async throws -> [Episode] {

@@ -79,6 +79,54 @@ final class SavedItemsStoreTests: XCTestCase {
         XCTAssertEqual(SavedItemsStore(defaults: defaults).items.map(\.id), [first.id, second.id])
     }
 
+    func testEpisodeUpdateDateSortsSavedItemsAboveFeedDate() {
+        let (defaults, suiteName) = isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let feedNewest = MyVideoItem(listPath: "feed-newest", title: "Feed Newest", addTime: "2026-09-10")
+        let episodeNewest = MyVideoItem(listPath: "episode-newest", title: "Episode Newest", addTime: "2026-09-01")
+        let store = SavedItemsStore(defaults: defaults)
+        store.toggle(feedNewest)
+        store.toggle(episodeNewest)
+
+        _ = store.recordEpisodeChecks(
+            [SavedEpisodeSnapshot(
+                itemID: episodeNewest.id,
+                episode: EpisodeSelection(
+                    mediaKey: "episode-8",
+                    title: "8",
+                    updateDate: "2026-09-12T08:00:00Z"
+                )
+            )],
+            checkedAt: Date(timeIntervalSince1970: 100),
+            observedAt: Date(timeIntervalSince1970: 100)
+        )
+
+        XCTAssertEqual(store.items.map(\.id), [episodeNewest.id, feedNewest.id])
+        XCTAssertEqual(SavedItemsStore(defaults: defaults).items.map(\.id), [episodeNewest.id, feedNewest.id])
+    }
+
+    func testDirectEpisodeCheckDateSortsSavedItemsWhenEpisodeDateIsMissing() {
+        let (defaults, suiteName) = isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let feedNewest = MyVideoItem(listPath: "feed-newest", title: "Feed Newest", addTime: "2026-09-10")
+        let checkedNewest = MyVideoItem(listPath: "checked-newest", title: "Checked Newest", addTime: "2026-09-01")
+        let store = SavedItemsStore(defaults: defaults)
+        store.toggle(feedNewest)
+        store.toggle(checkedNewest)
+
+        _ = store.recordEpisodeChecks(
+            [SavedEpisodeSnapshot(
+                itemID: checkedNewest.id,
+                episode: EpisodeSelection(mediaKey: "episode-8", title: "8")
+            )],
+            checkedAt: Date(timeIntervalSince1970: 1_800_000_000),
+            observedAt: Date(timeIntervalSince1970: 1_800_000_000)
+        )
+
+        XCTAssertEqual(store.items.map(\.id), [checkedNewest.id, feedNewest.id])
+        XCTAssertEqual(SavedItemsStore(defaults: defaults).items.map(\.id), [checkedNewest.id, feedNewest.id])
+    }
+
     func testPerTitleNotificationPreferencePersists() {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }

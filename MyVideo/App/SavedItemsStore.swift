@@ -22,7 +22,11 @@ struct SavedEpisodeUpdateState: Codable, Equatable, Sendable {
             let key = episode.mediaKey.trimmingCharacters(in: .whitespacesAndNewlines)
             let title = episode.title.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !key.isEmpty, retainedKeys.insert(key).inserted else { continue }
-            retainedEpisodes.append(EpisodeSelection(mediaKey: key, title: title.isEmpty ? key : title))
+            retainedEpisodes.append(EpisodeSelection(
+                mediaKey: key,
+                title: title.isEmpty ? key : title,
+                updateDate: episode.updateDate
+            ))
             if retainedEpisodes.count == Self.maximumEpisodeCount { break }
         }
 
@@ -86,18 +90,21 @@ final class SavedItemsStore: ObservableObject {
             defaults.removeObject(forKey: Self.metadataStorageKey)
         }
 
-        if let data = defaults.data(forKey: Self.storageKey),
-           let decodedItems = try? JSONDecoder().decode([MyVideoItem].self, from: data) {
-            items = Self.sortedByUpdatedDateDescending(Self.sanitizedItems(decodedItems))
-        } else {
-            items = []
-        }
-
         if let data = defaults.data(forKey: Self.metadataStorageKey),
            let decoded = try? JSONDecoder().decode(SavedItemsMetadata.self, from: data) {
             metadata = decoded
         } else {
             metadata = SavedItemsMetadata()
+        }
+
+        if let data = defaults.data(forKey: Self.storageKey),
+           let decodedItems = try? JSONDecoder().decode([MyVideoItem].self, from: data) {
+            items = Self.sortedByUpdatedDateDescending(
+                Self.sanitizedItems(decodedItems),
+                episodeStates: metadata.episodeUpdateStates
+            )
+        } else {
+            items = []
         }
         lastDirectUpdateCheck = metadata.lastDirectUpdateCheck
         updateNewItemIDs()
@@ -115,7 +122,10 @@ final class SavedItemsStore: ObservableObject {
             updatedItems = items.filter { $0.id != item.id }
             metadata = metadata.removing(itemID: item.id)
         } else {
-            updatedItems = Self.sortedByUpdatedDateDescending([item] + items)
+            updatedItems = Self.sortedByUpdatedDateDescending(
+                [item] + items,
+                episodeStates: metadata.episodeUpdateStates
+            )
         }
 
         items = updatedItems
@@ -152,7 +162,10 @@ final class SavedItemsStore: ObservableObject {
             return merged
         }
 
-        let sortedItems = Self.sortedByUpdatedDateDescending(updatedItems)
+        let sortedItems = Self.sortedByUpdatedDateDescending(
+            updatedItems,
+            episodeStates: metadata.episodeUpdateStates
+        )
         items = sortedItems
         persist(sortedItems)
         metadata = SavedItemsMetadata(
@@ -252,7 +265,7 @@ final class SavedItemsStore: ObservableObject {
                 episode: Episode(
                     mediaKey: episode.mediaKey,
                     title: episode.title,
-                    updateDate: nil
+                    updateDate: episode.updateDate
                 ),
                 detectedAt: detectedAt
             )
@@ -319,7 +332,7 @@ final class SavedItemsStore: ObservableObject {
                 episodeState: episodeUpdateStates[item.id],
                 to: item
             )
-        })
+        }, episodeStates: episodeUpdateStates)
         if reconciledItems != items {
             items = reconciledItems
             persist(reconciledItems)
@@ -351,7 +364,10 @@ final class SavedItemsStore: ObservableObject {
     }
 
     func mergeFromCloud(_ cloudItems: [MyVideoItem]) {
-        let merged = Self.sortedByUpdatedDateDescending(Self.sanitizedItems(items + cloudItems))
+        let merged = Self.sortedByUpdatedDateDescending(
+            Self.sanitizedItems(items + cloudItems),
+            episodeStates: metadata.episodeUpdateStates
+        )
         items = merged
         persist(merged)
         updateNewItemIDs()
@@ -399,11 +415,20 @@ final class SavedItemsStore: ObservableObject {
         }
     }
 
-    private static func sortedByUpdatedDateDescending(_ items: [MyVideoItem]) -> [MyVideoItem] {
+    private static func sortedByUpdatedDateDescending(
+        _ items: [MyVideoItem],
+        episodeStates: [String: SavedEpisodeUpdateState] = [:]
+    ) -> [MyVideoItem] {
         items.enumerated()
             .sorted { left, right in
-                let leftDate = parsedUpdatedDate(left.element.addTime)
-                let rightDate = parsedUpdatedDate(right.element.addTime)
+                let leftDate = latestUpdateDate(
+                    for: left.element,
+                    episodeState: episodeStates[left.element.id]
+                )
+                let rightDate = latestUpdateDate(
+                    for: right.element,
+                    episodeState: episodeStates[right.element.id]
+                )
                 switch (leftDate, rightDate) {
                 case let (leftDate?, rightDate?):
                     if leftDate != rightDate { return leftDate > rightDate }
@@ -417,6 +442,20 @@ final class SavedItemsStore: ObservableObject {
                 }
             }
             .map(\.element)
+    }
+
+    private static func latestUpdateDate(
+        for item: MyVideoItem,
+        episodeState: SavedEpisodeUpdateState?
+    ) -> Date? {
+        let latestEpisodeDate = episodeState
+            .flatMap { state in
+                state.episodes.first { $0.mediaKey == state.latestEpisodeKey }?.updateDate
+            }
+            .flatMap(parsedUpdatedDate)
+        return latestEpisodeDate
+            ?? episodeState?.detectedAt
+            ?? parsedUpdatedDate(item.addTime)
     }
 
     private static func parsedUpdatedDate(_ rawValue: String?) -> Date? {

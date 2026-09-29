@@ -147,7 +147,11 @@ enum SavedEpisodeSnapshotReconciler {
             let key = episode.mediaKey.trimmingCharacters(in: .whitespacesAndNewlines)
             let title = episode.title.trimmingCharacters(in: .whitespacesAndNewlines)
             guard !key.isEmpty, keys.insert(key).inserted else { continue }
-            result.append(EpisodeSelection(mediaKey: key, title: title.isEmpty ? key : title))
+            result.append(EpisodeSelection(
+                mediaKey: key,
+                title: title.isEmpty ? key : title,
+                updateDate: episode.updateDate
+            ))
             if result.count == SavedEpisodeUpdateState.maximumEpisodeCount { break }
         }
         return result

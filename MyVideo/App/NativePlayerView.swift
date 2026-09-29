@@ -750,7 +750,7 @@ final class NativePlayerViewModel: ObservableObject {
 
     private func publishEpisodeObservation(_ episodes: [Episode]) {
         let observed = episodes.map {
-            EpisodeSelection(mediaKey: $0.mediaKey, title: $0.title)
+            EpisodeSelection(mediaKey: $0.mediaKey, title: $0.title, updateDate: $0.updateDate)
         }
         guard !observed.isEmpty else { return }
         onEpisodesObserved(observed)
