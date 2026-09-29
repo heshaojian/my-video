@@ -88,7 +88,7 @@ final class SavedItemsStore: ObservableObject {
 
         if let data = defaults.data(forKey: Self.storageKey),
            let decodedItems = try? JSONDecoder().decode([MyVideoItem].self, from: data) {
-            items = Self.sanitizedItems(decodedItems)
+            items = Self.sortedByUpdatedDateDescending(Self.sanitizedItems(decodedItems))
         } else {
             items = []
         }
@@ -115,7 +115,7 @@ final class SavedItemsStore: ObservableObject {
             updatedItems = items.filter { $0.id != item.id }
             metadata = metadata.removing(itemID: item.id)
         } else {
-            updatedItems = [item] + items
+            updatedItems = Self.sortedByUpdatedDateDescending([item] + items)
         }
 
         items = updatedItems
@@ -152,8 +152,9 @@ final class SavedItemsStore: ObservableObject {
             return merged
         }
 
-        items = updatedItems
-        persist(updatedItems)
+        let sortedItems = Self.sortedByUpdatedDateDescending(updatedItems)
+        items = sortedItems
+        persist(sortedItems)
         metadata = SavedItemsMetadata(
             markers: updatedMarkers,
             seenMarkers: updatedSeenMarkers,
@@ -313,12 +314,12 @@ final class SavedItemsStore: ObservableObject {
             }
         }
 
-        let reconciledItems = items.map { item in
+        let reconciledItems = Self.sortedByUpdatedDateDescending(items.map { item in
             SavedCatalogItemReconciler.applying(
                 episodeState: episodeUpdateStates[item.id],
                 to: item
             )
-        }
+        })
         if reconciledItems != items {
             items = reconciledItems
             persist(reconciledItems)
@@ -350,7 +351,7 @@ final class SavedItemsStore: ObservableObject {
     }
 
     func mergeFromCloud(_ cloudItems: [MyVideoItem]) {
-        let merged = Self.sanitizedItems(items + cloudItems)
+        let merged = Self.sortedByUpdatedDateDescending(Self.sanitizedItems(items + cloudItems))
         items = merged
         persist(merged)
         updateNewItemIDs()
@@ -396,6 +397,45 @@ final class SavedItemsStore: ObservableObject {
             guard isValidItem(item), !result.contains(where: { $0.id == item.id }) else { return }
             result.append(item)
         }
+    }
+
+    private static func sortedByUpdatedDateDescending(_ items: [MyVideoItem]) -> [MyVideoItem] {
+        items.enumerated()
+            .sorted { left, right in
+                let leftDate = parsedUpdatedDate(left.element.addTime)
+                let rightDate = parsedUpdatedDate(right.element.addTime)
+                switch (leftDate, rightDate) {
+                case let (leftDate?, rightDate?):
+                    if leftDate != rightDate { return leftDate > rightDate }
+                    return left.offset < right.offset
+                case (.some, nil):
+                    return true
+                case (nil, .some):
+                    return false
+                case (nil, nil):
+                    return left.offset < right.offset
+                }
+            }
+            .map(\.element)
+    }
+
+    private static func parsedUpdatedDate(_ rawValue: String?) -> Date? {
+        guard let value = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+            return nil
+        }
+        if let date = ISO8601DateFormatter().date(from: value) {
+            return date
+        }
+        for format in ["yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd", "yyyy/MM/dd HH:mm:ss", "yyyy/MM/dd"] {
+            let formatter = DateFormatter()
+            formatter.locale = Locale(identifier: "en_US_POSIX")
+            formatter.timeZone = TimeZone(secondsFromGMT: 0)
+            formatter.dateFormat = format
+            if let date = formatter.date(from: value) {
+                return date
+            }
+        }
+        return nil
     }
 
     private static func isValidItem(_ item: MyVideoItem) -> Bool {

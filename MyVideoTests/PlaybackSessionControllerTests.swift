@@ -74,6 +74,30 @@ final class PlaybackSessionControllerTests: XCTestCase {
         controller.stop()
     }
 
+    func testPlayWithoutExplicitEpisodeUsesLatestResumableEpisode() {
+        let item = MyVideoItem(listPath: "series-a", title: "Series A", isSerial: true)
+        let episode = Episode(mediaKey: "episode-7", title: "07", updateDate: nil)
+        let store = PlayedItemsStore(defaults: UserDefaults())
+        store.record(item: item, episode: episode, position: 42, duration: 100)
+        var requestedEpisodeKeys: [String?] = []
+        let controller = PlaybackSessionController { item, episodeKey, playedItemsStore, onEpisodesObserved in
+            requestedEpisodeKeys.append(episodeKey)
+            return NativePlayerViewModel(
+                item: item,
+                initialEpisodeKey: episodeKey,
+                resolver: SessionPlaybackResolver(),
+                playedItemsStore: playedItemsStore,
+                qualityLoader: EmptyQualityLoader(),
+                onEpisodesObserved: onEpisodesObserved
+            )
+        }
+
+        controller.play(item: item, episodeKey: nil, playedItemsStore: store, monitorPlayback: false)
+
+        XCTAssertEqual(requestedEpisodeKeys, [episode.mediaKey])
+        controller.stop()
+    }
+
     private func makeController() -> PlaybackSessionController {
         PlaybackSessionController { item, episodeKey, playedItemsStore, onEpisodesObserved in
             NativePlayerViewModel(

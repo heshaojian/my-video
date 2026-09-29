@@ -28,6 +28,22 @@ final class SavedItemsStoreTests: XCTestCase {
         XCTAssertTrue(store.items.isEmpty)
     }
 
+    func testSavedItemsAreSortedByUpdatedDateDescendingAcrossPersistence() {
+        let (defaults, suiteName) = isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let newest = MyVideoItem(listPath: "newest", title: "Newest", addTime: "2026-09-08T10:00:00Z")
+        let middle = MyVideoItem(listPath: "middle", title: "Middle", addTime: "2026-09-07")
+        let undated = MyVideoItem(listPath: "undated", title: "Undated")
+        let store = SavedItemsStore(defaults: defaults)
+
+        store.toggle(undated)
+        store.toggle(newest)
+        store.toggle(middle)
+
+        XCTAssertEqual(store.items.map(\.id), [newest.id, middle.id, undated.id])
+        XCTAssertEqual(SavedItemsStore(defaults: defaults).items.map(\.id), [newest.id, middle.id, undated.id])
+    }
+
     func testFeedRefreshDetectsNewUpdateAfterBaselineAndCanMarkItSeen() {
         let (defaults, suiteName) = isolatedDefaults()
         defer { defaults.removePersistentDomain(forName: suiteName) }
@@ -44,6 +60,23 @@ final class SavedItemsStoreTests: XCTestCase {
 
         store.markUpdateSeen(updated)
         XCTAssertFalse(store.hasNewUpdate(updated))
+    }
+
+    func testFeedRefreshResortsSavedItemsByUpdatedDateDescending() {
+        let (defaults, suiteName) = isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let first = MyVideoItem(listPath: "first", title: "First", addTime: "2026-09-01")
+        let second = MyVideoItem(listPath: "second", title: "Second", addTime: "2026-09-02")
+        let store = SavedItemsStore(defaults: defaults)
+        store.toggle(first)
+        store.toggle(second)
+
+        _ = store.refreshUpdateMarkers(with: [
+            .drama: [MyVideoItem(listPath: "first", title: "First", addTime: "2026-09-03")]
+        ])
+
+        XCTAssertEqual(store.items.map(\.id), [first.id, second.id])
+        XCTAssertEqual(SavedItemsStore(defaults: defaults).items.map(\.id), [first.id, second.id])
     }
 
     func testPerTitleNotificationPreferencePersists() {

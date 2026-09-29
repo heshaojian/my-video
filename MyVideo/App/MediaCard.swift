@@ -183,7 +183,7 @@ struct PosterMediaCard: View {
                 VStack(alignment: .leading, spacing: 7) {
                     poster
 
-                    VStack(alignment: .leading, spacing: 3) {
+                    VStack(alignment: .leading, spacing: 2) {
                         Text(projection.title)
                             .font(.system(size: 15, weight: .semibold))
                             .lineLimit(1)
@@ -200,6 +200,8 @@ struct PosterMediaCard: View {
                                 .accessibilityIdentifier("\(itemIdentifier)-detail")
                         }
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityElement(children: .combine)
                 }
                 .frame(maxWidth: layout == .grid ? .infinity : nil, alignment: .leading)
                 .contentShape(Rectangle())

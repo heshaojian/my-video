@@ -33,8 +33,9 @@ final class PlaybackSessionController: ObservableObject {
         monitorPlayback: Bool,
         onEpisodesObserved: @escaping NativePlayerViewModel.EpisodeObservationHandler = { _ in }
     ) {
+        let resolvedEpisodeKey = episodeKey ?? playedItemsStore.latestResumableRecord(for: item)?.episodeKey
         if let existing = viewModel, existing.item.id == item.id {
-            let requestedDifferentEpisode = episodeKey.map { $0 != existing.selectedEpisode?.mediaKey } ?? false
+            let requestedDifferentEpisode = resolvedEpisodeKey.map { $0 != existing.selectedEpisode?.mediaKey } ?? false
             if !requestedDifferentEpisode {
                 presentation = .expanded
                 return
@@ -42,7 +43,7 @@ final class PlaybackSessionController: ObservableObject {
         }
 
         viewModel?.stop()
-        let replacement = makeViewModel(item, episodeKey, playedItemsStore, onEpisodesObserved)
+        let replacement = makeViewModel(item, resolvedEpisodeKey, playedItemsStore, onEpisodesObserved)
         viewModel = replacement
         presentation = .expanded
         replacement.start(monitorPlayback: monitorPlayback)

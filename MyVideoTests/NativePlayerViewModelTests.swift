@@ -1171,6 +1171,16 @@ final class NativePlayerViewModelTests: XCTestCase {
         XCTAssertEqual(EpisodeDisplayFormatter.title(for: "SP 2"), "SP 2")
     }
 
+    func testVerticalEpisodeSwipeMapsUpToPreviousAndDownToNext() {
+        XCTAssertEqual(VerticalEpisodeSwipe.action(width: 0, height: -80), .previous)
+        XCTAssertEqual(VerticalEpisodeSwipe.action(width: 0, height: 80), .next)
+    }
+
+    func testVerticalEpisodeSwipeIgnoresShortOrHorizontalDrags() {
+        XCTAssertNil(VerticalEpisodeSwipe.action(width: 0, height: -40))
+        XCTAssertNil(VerticalEpisodeSwipe.action(width: 70, height: -80))
+    }
+
     func testPresentationTransitionDoesNotStopUntilScreenActuallyDisappears() {
         let viewModel = NativePlayerViewModel(
             item: MyVideoItem(listPath: "movie", title: "Movie"),

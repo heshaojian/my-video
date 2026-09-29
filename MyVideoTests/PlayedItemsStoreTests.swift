@@ -44,6 +44,22 @@ final class PlayedItemsStoreTests: XCTestCase {
         XCTAssertEqual(store.items[0].position, 55)
     }
 
+    func testLatestResumableRecordReturnsNewestIncompleteEpisodeForTitle() {
+        let (defaults, suiteName) = isolatedDefaults()
+        defer { defaults.removePersistentDomain(forName: suiteName) }
+        let store = PlayedItemsStore(defaults: defaults)
+        let item = MyVideoItem(listPath: "series", title: "Series")
+        let older = Episode(mediaKey: "episode-1", title: "01", updateDate: nil)
+        let completed = Episode(mediaKey: "episode-2", title: "02", updateDate: nil)
+        let newest = Episode(mediaKey: "episode-3", title: "03", updateDate: nil)
+
+        store.record(item: item, episode: older, position: 20, duration: 100, playedAt: Date(timeIntervalSince1970: 100))
+        store.record(item: item, episode: completed, position: 95, duration: 100, playedAt: Date(timeIntervalSince1970: 200))
+        store.record(item: item, episode: newest, position: 30, duration: 100, playedAt: Date(timeIntervalSince1970: 300))
+
+        XCTAssertEqual(store.latestResumableRecord(for: item)?.episodeKey, newest.mediaKey)
+    }
+
     func testResumeClampsPositionAndCompletedRecordRestarts() {
         let item = MyVideoItem(listPath: "movie", title: "Movie")
         let active = PlayedRecord(

@@ -301,18 +301,18 @@ final class SavedLibraryObservationStoreTests: XCTestCase {
         XCTAssertFalse(restored.notificationsEnabled(for: item))
     }
 
-    func testCatalogObservationUpdatesSavedCopyAndPreservesSavedOrder() {
+    func testCatalogObservationUpdatesSavedCopyAndSortsByUpdatedDateDescending() {
         let suiteName = "SavedLibraryObservationStoreTests.\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suiteName)!
         defer { defaults.removePersistentDomain(forName: suiteName) }
-        let first = MyVideoItem(listPath: "first", title: "First", subTitle: "09")
-        let second = MyVideoItem(listPath: "second", title: "Second")
+        let first = MyVideoItem(listPath: "first", title: "First", subTitle: "09", addTime: "2026-09-01")
+        let second = MyVideoItem(listPath: "second", title: "Second", addTime: "2026-09-02")
         let store = SavedItemsStore(defaults: defaults)
         store.toggle(second)
         store.toggle(first)
 
         _ = store.refreshUpdateMarkers(with: [
-            .drama: [MyVideoItem(listPath: "first", title: "First", subTitle: "10")]
+            .drama: [MyVideoItem(listPath: "first", title: "First", subTitle: "10", addTime: "2026-09-03")]
         ])
 
         XCTAssertEqual(store.items.map(\.id), [first.id, second.id])

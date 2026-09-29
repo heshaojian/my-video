@@ -30,32 +30,28 @@ struct PlayedItemsView: View {
                         .padding(.bottom, LibraryScreenChrome.scrollBottomClearance)
                     }
                 } else {
-                    VStack(spacing: 0) {
-                        LibraryScreenHeader(title: "Played", accessibilityIdentifier: "playedScreenTitle") {
-                            Button(role: .destructive) {
-                                isConfirmingClear = true
-                            } label: {
-                                Image(systemName: "trash")
-                                    .font(.title2)
-                                    .frame(width: 44, height: 44)
+                    ScrollView {
+                        LazyVStack(alignment: .leading, spacing: 28) {
+                            LibraryScreenHeader(title: "Played", accessibilityIdentifier: "playedScreenTitle") {
+                                Button(role: .destructive) {
+                                    isConfirmingClear = true
+                                } label: {
+                                    Image(systemName: "trash")
+                                        .font(.title2)
+                                        .frame(width: 44, height: 44)
+                                }
+                                .foregroundStyle(.white.opacity(0.8))
+                                .accessibilityLabel("Clear Played History")
+                                .accessibilityIdentifier("clearPlayed")
                             }
-                            .foregroundStyle(.white.opacity(0.8))
-                            .accessibilityLabel("Clear Played History")
-                            .accessibilityIdentifier("clearPlayed")
-                        }
-                            .padding(.horizontal, 18)
-                            .padding(.top, 18)
 
-                        Picker("Played Filter", selection: $filter) {
-                            ForEach(PlayedFilter.allCases) { option in
-                                Text(option.title).tag(option)
+                            Picker("Played Filter", selection: $filter) {
+                                ForEach(PlayedFilter.allCases) { option in
+                                    Text(option.title).tag(option)
+                                }
                             }
-                        }
-                        .pickerStyle(.segmented)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 10)
+                            .pickerStyle(.segmented)
 
-                        ScrollView {
                             LazyVStack(spacing: 12) {
                                 ForEach(filteredItems) { record in
                                     PlayedItemRow(
@@ -73,9 +69,9 @@ struct PlayedItemsView: View {
                                     )
                                 }
                             }
-                            .padding(16)
-                            .padding(.bottom, LibraryScreenChrome.scrollBottomClearance)
                         }
+                        .padding(18)
+                        .padding(.bottom, LibraryScreenChrome.scrollBottomClearance)
                     }
                 }
             }

@@ -37,6 +37,28 @@ struct PlayerPresentationState: Equatable, Sendable {
     }
 }
 
+enum VerticalEpisodeSwipe {
+    enum Action: Equatable {
+        case previous
+        case next
+    }
+
+    static let minimumDistance = 60.0
+    static let verticalDominanceRatio = 1.5
+
+    static func action(width: Double, height: Double) -> Action? {
+        let verticalDistance = abs(height)
+        let horizontalDistance = abs(width)
+        guard
+            verticalDistance >= minimumDistance,
+            verticalDistance >= horizontalDistance * verticalDominanceRatio
+        else {
+            return nil
+        }
+        return height < 0 ? .previous : .next
+    }
+}
+
 @MainActor
 final class NativePlayerViewModel: ObservableObject {
     typealias EpisodeObservationHandler = @MainActor ([EpisodeSelection]) -> Void
@@ -1666,6 +1688,13 @@ struct NativePlayerScreen: View {
                 }
 
             }
+            .contentShape(Rectangle())
+            .highPriorityGesture(
+                DragGesture(minimumDistance: VerticalEpisodeSwipe.minimumDistance)
+                    .onEnded { value in
+                        handleEpisodeSwipe(value.translation)
+                    }
+            )
             .background(Color.black)
         }
         .background(Color.black)
@@ -1717,6 +1746,17 @@ struct NativePlayerScreen: View {
     private func openWebsite() {
         viewModel.stop()
         onOpenWebsite()
+    }
+
+    private func handleEpisodeSwipe(_ translation: CGSize) {
+        switch VerticalEpisodeSwipe.action(width: translation.width, height: translation.height) {
+        case .previous:
+            viewModel.playPreviousEpisode()
+        case .next:
+            viewModel.playNextEpisode()
+        case .none:
+            break
+        }
     }
 
     private var playbackMenu: some View {

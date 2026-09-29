@@ -103,6 +103,12 @@ final class PlayedItemsStore: ObservableObject {
         return items.first { $0.id == id }
     }
 
+    func latestResumableRecord(for item: MyVideoItem) -> PlayedRecord? {
+        items.first {
+            $0.item.id == item.id && $0.resumePosition > 0
+        }
+    }
+
     func remove(_ record: PlayedRecord) {
         replace(with: items.filter { $0.id != record.id })
     }
